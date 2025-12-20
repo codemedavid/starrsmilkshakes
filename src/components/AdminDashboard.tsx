@@ -1,12 +1,13 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, lazy, Suspense } from 'react';
-import { Plus, Edit, Trash2, Save, X, ArrowLeft, Coffee, TrendingUp, Package, Users, Lock, FolderOpen, CreditCard, Settings, ShoppingCart, Loader2, MapPin } from 'lucide-react';
+import { Plus, Edit, Trash2, Save, X, ArrowLeft, Coffee, TrendingUp, Package, Users, Lock, FolderOpen, CreditCard, Settings, ShoppingCart, Loader2, MapPin, Image, Upload } from 'lucide-react';
 import { MenuItem, Variation, AddOn } from '../types';
 import { addOnCategories } from '../data/menuData';
 import { useMenu } from '../hooks/useMenu';
 import { useCategories, Category } from '../hooks/useCategories';
 import { useOrders } from '../hooks/useOrders';
+import { useImageUpload } from '../hooks/useImageUpload';
 
 // Lazy load heavy sub-components for code splitting
 const ImageUpload = lazy(() => import('./ImageUpload'));
@@ -40,6 +41,7 @@ const AdminDashboard: React.FC = () => {
   const { menuItems, loading, addMenuItem, updateMenuItem, deleteMenuItem } = useMenu();
   const { categories } = useCategories();
   const { getOrderStats } = useOrders();
+  const { uploadImage, uploading: variationImageUploading } = useImageUpload();
   const [currentView, setCurrentView] = useState<'dashboard' | 'items' | 'add' | 'edit' | 'categories' | 'payments' | 'settings' | 'orders' | 'branches'>('dashboard');
   const [orderStats, setOrderStats] = useState({
     total_orders: 0,
@@ -217,7 +219,7 @@ const AdminDashboard: React.FC = () => {
     });
   };
 
-  const updateVariation = (index: number, field: keyof Variation, value: string | number) => {
+  const updateVariation = (index: number, field: keyof Variation, value: string | number | undefined) => {
     const updatedVariations = [...(formData.variations || [])];
     updatedVariations[index] = { ...updatedVariations[index], [field]: value };
     setFormData({ ...formData, variations: updatedVariations });
@@ -535,27 +537,74 @@ const AdminDashboard: React.FC = () => {
               </div>
 
               {formData.variations?.map((variation, index) => (
-                <div key={variation.id} className="flex items-center space-x-3 mb-3 p-4 bg-gray-50 rounded-lg">
-                  <input
-                    type="text"
-                    value={variation.name}
-                    onChange={(e) => updateVariation(index, 'name', e.target.value)}
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                    placeholder="Variation name (e.g., Small, Medium, Large)"
-                  />
-                  <input
-                    type="number"
-                    value={variation.price}
-                    onChange={(e) => updateVariation(index, 'price', Number(e.target.value))}
-                    className="w-24 px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                    placeholder="Price"
-                  />
-                  <button
-                    onClick={() => removeVariation(index)}
-                    className="p-2 text-red-500 hover:text-red-600 hover:bg-red-50 rounded transition-colors duration-200"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
+                <div key={variation.id} className="mb-3 p-4 bg-gray-50 rounded-lg">
+                  <div className="flex items-center space-x-3">
+                    {/* Variation Image Thumbnail */}
+                    <div className="relative w-16 h-16 flex-shrink-0">
+                      {variation.image ? (
+                        <div className="relative w-full h-full">
+                          <img
+                            src={variation.image}
+                            alt={variation.name || 'Variation'}
+                            className="w-full h-full object-cover rounded-lg border border-gray-200"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => updateVariation(index, 'image', undefined)}
+                            className="absolute -top-1 -right-1 p-1 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
+                            title="Remove image"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </div>
+                      ) : (
+                        <label className="w-full h-full flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-green-500 hover:bg-green-50 transition-colors">
+                          <Upload className="h-4 w-4 text-gray-400" />
+                          <span className="text-xs text-gray-400 mt-1">Image</span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            disabled={variationImageUploading}
+                            onChange={async (e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                try {
+                                  const imageUrl = await uploadImage(file);
+                                  updateVariation(index, 'image', imageUrl);
+                                } catch (error) {
+                                  alert(error instanceof Error ? error.message : 'Failed to upload image');
+                                }
+                              }
+                              e.target.value = '';
+                            }}
+                          />
+                        </label>
+                      )}
+                    </div>
+
+                    {/* Variation Fields */}
+                    <input
+                      type="text"
+                      value={variation.name}
+                      onChange={(e) => updateVariation(index, 'name', e.target.value)}
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                      placeholder="Variation name (e.g., Small, Medium, Large)"
+                    />
+                    <input
+                      type="number"
+                      value={variation.price}
+                      onChange={(e) => updateVariation(index, 'price', Number(e.target.value))}
+                      className="w-24 px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                      placeholder="Price"
+                    />
+                    <button
+                      onClick={() => removeVariation(index)}
+                      className="p-2 text-red-500 hover:text-red-600 hover:bg-red-50 rounded transition-colors duration-200"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>

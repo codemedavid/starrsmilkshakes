@@ -2,6 +2,7 @@ export interface Variation {
   id: string;
   name: string;
   price: number;
+  image?: string;
 }
 
 export interface AddOn {
@@ -84,6 +85,7 @@ export interface SiteSettings {
   lalamove_store_address?: string;
   lalamove_store_latitude?: string;
   lalamove_store_longitude?: string;
+  meta_pixel_id?: string;
 }
 
 // Order Management Types

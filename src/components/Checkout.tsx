@@ -7,6 +7,7 @@ import { useOrders } from '../hooks/useOrders';
 import { useAddressAutocomplete } from '../hooks/useAddressAutocomplete';
 import { useSiteSettings } from '../hooks/useSiteSettings';
 import { fetchDeliveryQuotation, buildLalamoveConfig } from '../lib/lalamove';
+import { trackPurchase } from '../lib/meta-pixel';
 
 interface CheckoutProps {
   cartItems: CartItem[];
@@ -138,6 +139,16 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack }) =>
           branchId: selectedBranch?.id,
           branch: selectedBranch || undefined
         }
+      );
+
+      // Track Purchase event for Meta Pixel
+      const currency = siteSettings?.currency_code || 'PHP';
+      const contentIds = cartItems.map(item => item.id);
+      trackPurchase(
+        finalTotal,
+        currency,
+        contentIds,
+        cartItems.reduce((sum, item) => sum + item.quantity, 0)
       );
 
       // Prepare order details for Messenger
@@ -566,7 +577,10 @@ Please confirm this order to proceed. Thank you for choosing Starr's Famous Shak
                         onChange={handleAddressChange}
                         onKeyDown={handleAddressKeyDown}
                         onFocus={() => setShowSuggestions(true)}
-                        className="w-full pl-10 pr-10 py-3 border border-red-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all duration-200"
+                        className={`w-full pl-10 pr-10 py-3 border rounded-lg focus:ring-2 focus:border-transparent transition-all duration-200 ${serviceType === 'delivery' && addressQuery.length >= 3 && !deliveryCoordinates && !addressLoading
+                          ? 'border-red-500 bg-red-50 focus:ring-red-500'
+                          : 'border-red-300 focus:ring-red-500'
+                          }`}
                         placeholder="Search address, village, barangay, or landmark..."
                         required
                       />
@@ -664,21 +678,20 @@ Please confirm this order to proceed. Thank you for choosing Starr's Famous Shak
 
                     {/* Address Validation Warning - Shows when address is entered but no coordinates found */}
                     {serviceType === 'delivery' && address && address.length >= 3 && !deliveryCoordinates && !addressLoading && (
-                      <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                      <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg animate-pulse">
                         <div className="flex items-start space-x-2">
-                          <span className="text-amber-600 text-lg">⚠️</span>
+                          <span className="text-red-600 text-lg">❌</span>
                           <div>
-                            <p className="text-sm font-medium text-amber-800">
-                              We couldn't locate this address on the map
+                            <p className="text-sm font-bold text-red-700">
+                              Address invalid or not found
                             </p>
-                            <p className="text-xs text-amber-700 mt-1">
+                            <p className="text-xs text-red-600 mt-1">
                               For accurate delivery, please try one of the following:
                             </p>
-                            <ul className="text-xs text-amber-700 mt-2 space-y-1 list-disc pl-4">
+                            <ul className="text-xs text-red-600 mt-2 space-y-1 list-disc pl-4">
                               <li><strong>Select from suggestions:</strong> Choose an address from the dropdown list</li>
                               <li><strong>Use a nearby landmark:</strong> Search for a well-known place nearby (e.g., mall, school, church)</li>
                               <li><strong>Be more specific:</strong> Include barangay, street name, or building name</li>
-                              <li><strong>Add landmark below:</strong> Fill in the landmark field with detailed directions</li>
                             </ul>
                           </div>
                         </div>

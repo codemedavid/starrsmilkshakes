@@ -43,7 +43,8 @@ export const useSiteSettings = () => {
         lalamove_store_phone: getValue('lalamove_store_phone', ''),
         lalamove_store_address: getValue('lalamove_store_address', ''),
         lalamove_store_latitude: getValue('lalamove_store_latitude', ''),
-        lalamove_store_longitude: getValue('lalamove_store_longitude', '')
+        lalamove_store_longitude: getValue('lalamove_store_longitude', ''),
+        meta_pixel_id: getValue('meta_pixel_id', '')
       };
 
       setSiteSettings(settings);
@@ -87,7 +88,7 @@ export const useSiteSettings = () => {
       );
 
       const results = await Promise.all(updatePromises);
-      
+
       // Check for errors
       const errors = results.filter(result => result.error);
       if (errors.length > 0) {

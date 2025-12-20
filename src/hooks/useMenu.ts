@@ -10,7 +10,7 @@ export const useMenu = () => {
   const fetchMenuItems = async () => {
     try {
       setLoading(true);
-      
+
       // Fetch menu items with their variations and add-ons
       const { data: items, error: itemsError } = await supabase
         .from('menu_items')
@@ -28,11 +28,11 @@ export const useMenu = () => {
         const now = new Date();
         const discountStart = item.discount_start_date ? new Date(item.discount_start_date) : null;
         const discountEnd = item.discount_end_date ? new Date(item.discount_end_date) : null;
-        
-        const isDiscountActive = item.discount_active && 
-          (!discountStart || now >= discountStart) && 
+
+        const isDiscountActive = item.discount_active &&
+          (!discountStart || now >= discountStart) &&
           (!discountEnd || now <= discountEnd);
-        
+
         // Calculate effective price
         const effectivePrice = isDiscountActive && item.discount_price ? item.discount_price : item.base_price;
 
@@ -54,7 +54,8 @@ export const useMenu = () => {
           variations: item.variations?.map(v => ({
             id: v.id,
             name: v.name,
-            price: v.price
+            price: v.price,
+            image: v.image_url || undefined
           })) || [],
           addOns: item.add_ons?.map(a => ({
             id: a.id,
@@ -106,7 +107,8 @@ export const useMenu = () => {
             item.variations.map(v => ({
               menu_item_id: menuItem.id,
               name: v.name,
-              price: v.price
+              price: v.price,
+              image_url: v.image || null
             }))
           );
 
@@ -171,7 +173,8 @@ export const useMenu = () => {
             updates.variations.map(v => ({
               menu_item_id: id,
               name: v.name,
-              price: v.price
+              price: v.price,
+              image_url: v.image || null
             }))
           );
 

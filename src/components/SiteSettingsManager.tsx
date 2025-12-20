@@ -25,7 +25,8 @@ const SiteSettingsManager: React.FC = () => {
     lalamove_store_phone: '',
     lalamove_store_address: '',
     lalamove_store_latitude: '',
-    lalamove_store_longitude: ''
+    lalamove_store_longitude: '',
+    meta_pixel_id: ''
   });
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string>('');
@@ -54,7 +55,8 @@ const SiteSettingsManager: React.FC = () => {
         lalamove_store_phone: siteSettings.lalamove_store_phone || '',
         lalamove_store_address: siteSettings.lalamove_store_address || '',
         lalamove_store_latitude: siteSettings.lalamove_store_latitude || '',
-        lalamove_store_longitude: siteSettings.lalamove_store_longitude || ''
+        lalamove_store_longitude: siteSettings.lalamove_store_longitude || '',
+        meta_pixel_id: siteSettings.meta_pixel_id || ''
       });
       setLogoPreview(siteSettings.site_logo);
       setStoreAddressQuery(siteSettings.lalamove_store_address || '');
@@ -161,7 +163,7 @@ const SiteSettingsManager: React.FC = () => {
   const handleSave = async () => {
     try {
       let logoUrl = logoPreview;
-      
+
       // Upload new logo if selected
       if (logoFile) {
         const uploadedUrl = await uploadImage(logoFile);
@@ -184,7 +186,8 @@ const SiteSettingsManager: React.FC = () => {
         lalamove_store_phone: formData.lalamove_store_phone,
         lalamove_store_address: formData.lalamove_store_address,
         lalamove_store_latitude: formData.lalamove_store_latitude,
-        lalamove_store_longitude: formData.lalamove_store_longitude
+        lalamove_store_longitude: formData.lalamove_store_longitude,
+        meta_pixel_id: formData.meta_pixel_id
       });
 
       setIsEditing(false);
@@ -210,7 +213,8 @@ const SiteSettingsManager: React.FC = () => {
         lalamove_store_phone: siteSettings.lalamove_store_phone || '',
         lalamove_store_address: siteSettings.lalamove_store_address || '',
         lalamove_store_latitude: siteSettings.lalamove_store_latitude || '',
-        lalamove_store_longitude: siteSettings.lalamove_store_longitude || ''
+        lalamove_store_longitude: siteSettings.lalamove_store_longitude || '',
+        meta_pixel_id: siteSettings.meta_pixel_id || ''
       });
       setLogoPreview(siteSettings.site_logo);
       setStoreAddressQuery(siteSettings.lalamove_store_address || '');
@@ -510,9 +514,8 @@ const SiteSettingsManager: React.FC = () => {
                             key={suggestion.place_id}
                             type="button"
                             onClick={() => handleStoreAddressSelect(suggestion)}
-                            className={`w-full text-left px-4 py-3 border-b border-gray-100 text-sm ${
-                              index === selectedStoreSuggestionIndex ? 'bg-gray-100' : 'hover:bg-gray-50'
-                            }`}
+                            className={`w-full text-left px-4 py-3 border-b border-gray-100 text-sm ${index === selectedStoreSuggestionIndex ? 'bg-gray-100' : 'hover:bg-gray-50'
+                              }`}
                           >
                             <p className="font-medium text-black">{suggestion.display_name.split(',')[0]}</p>
                             <p className="text-xs text-gray-500">
@@ -563,6 +566,37 @@ const SiteSettingsManager: React.FC = () => {
               <p>Store Address: {siteSettings?.lalamove_store_address || 'Not set'}</p>
               <p>Store Latitude: {siteSettings?.lalamove_store_latitude || 'Not set'}</p>
               <p>Store Longitude: {siteSettings?.lalamove_store_longitude || 'Not set'}</p>
+            </div>
+          )}
+        </div>
+
+        {/* Meta Pixel Configuration */}
+        <div className="border-t border-gray-100 pt-6">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className="text-lg font-semibold text-black">Meta Pixel (Facebook)</h3>
+              <p className="text-sm text-gray-500">Configure Facebook Meta Pixel for tracking purchases and events.</p>
+            </div>
+          </div>
+
+          {isEditing ? (
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                Meta Pixel ID
+                <input
+                  type="text"
+                  name="meta_pixel_id"
+                  value={formData.meta_pixel_id}
+                  onChange={handleInputChange}
+                  className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                  placeholder="e.g., 1205933524966708"
+                />
+              </label>
+              <p className="mt-1 text-xs text-gray-500">Find your Pixel ID in the Facebook Events Manager.</p>
+            </div>
+          ) : (
+            <div className="text-sm text-gray-600">
+              <p>Pixel ID: {siteSettings?.meta_pixel_id || 'Not configured'}</p>
             </div>
           )}
         </div>

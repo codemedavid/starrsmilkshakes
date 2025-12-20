@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { CartItem, MenuItem, Variation, AddOn } from '../types';
+import { trackAddToCart } from '../lib/meta-pixel';
 
 export const useCart = () => {
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
@@ -20,7 +21,15 @@ export const useCart = () => {
 
   const addToCart = useCallback((item: MenuItem, quantity: number = 1, variation?: Variation, addOns?: AddOn[]) => {
     const totalPrice = calculateItemPrice(item, variation, addOns);
-    
+
+    // Track AddToCart event for Meta Pixel
+    trackAddToCart(
+      totalPrice * quantity,
+      'PHP', // Default currency, will be overwritten if site settings available
+      item.name,
+      item.id
+    );
+
     // Group add-ons by name and sum their quantities
     const groupedAddOns = addOns?.reduce((groups, addOn) => {
       const existing = groups.find(g => g.id === addOn.id);
@@ -31,14 +40,14 @@ export const useCart = () => {
       }
       return groups;
     }, [] as (AddOn & { quantity: number })[]);
-    
+
     setCartItems(prev => {
-      const existingItem = prev.find(cartItem => 
-        cartItem.id === item.id && 
+      const existingItem = prev.find(cartItem =>
+        cartItem.id === item.id &&
         cartItem.selectedVariation?.id === variation?.id &&
         JSON.stringify(cartItem.selectedAddOns?.map(a => `${a.id}-${a.quantity || 1}`).sort()) === JSON.stringify(groupedAddOns?.map(a => `${a.id}-${a.quantity}`).sort())
       );
-      
+
       if (existingItem) {
         return prev.map(cartItem =>
           cartItem === existingItem
@@ -47,7 +56,7 @@ export const useCart = () => {
         );
       } else {
         const uniqueId = `${item.id}-${variation?.id || 'default'}-${addOns?.map(a => a.id).join(',') || 'none'}`;
-        return [...prev, { 
+        return [...prev, {
           ...item,
           id: uniqueId,
           quantity,
@@ -64,7 +73,7 @@ export const useCart = () => {
       setCartItems(prev => prev.filter(cartItem => cartItem.id !== id));
       return;
     }
-    
+
     setCartItems(prev =>
       prev.map(item =>
         item.id === id ? { ...item, quantity } : item
