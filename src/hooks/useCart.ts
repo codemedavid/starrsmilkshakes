@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { CartItem, MenuItem, Variation, AddOn } from '../types';
-import { trackAddToCart } from '../lib/meta-pixel';
+import * as fpixel from '../lib/fpixel';
 
 export const useCart = () => {
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
@@ -23,9 +23,9 @@ export const useCart = () => {
     const totalPrice = calculateItemPrice(item, variation, addOns);
 
     // Track AddToCart event for Meta Pixel
-    trackAddToCart(
+    fpixel.trackAddToCart(
       totalPrice * quantity,
-      'PHP', // Default currency, will be overwritten if site settings available
+      'PHP', // Default currency
       item.name,
       item.id
     );

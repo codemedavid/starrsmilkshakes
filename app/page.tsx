@@ -6,11 +6,10 @@ import Menu from '@/components/Menu';
 import Cart from '@/components/Cart';
 import Checkout from '@/components/Checkout';
 import FloatingCartButton from '@/components/FloatingCartButton';
-import MetaPixel from '@/components/MetaPixel';
 import { useCart } from '@/hooks/useCart';
 import { useMenu } from '@/hooks/useMenu';
 import { useSiteSettings } from '@/hooks/useSiteSettings';
-import { trackInitiateCheckout } from '@/lib/meta-pixel';
+import * as fpixel from '@/lib/fpixel';
 
 const HomePage = () => {
   const cart = useCart();
@@ -23,7 +22,7 @@ const HomePage = () => {
     if (view === 'checkout' && currentView !== 'checkout') {
       const currency = siteSettings?.currency_code || 'PHP';
       const contentIds = cart.cartItems.map(item => item.id);
-      trackInitiateCheckout(
+      fpixel.trackInitiateCheckout(
         cart.getTotalPrice(),
         currency,
         cart.getTotalItems(),
@@ -35,7 +34,6 @@ const HomePage = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-starrs-mint-light to-starrs-cream-light font-inter">
-      <MetaPixel />
       <Header
         cartItemsCount={cart.getTotalItems()}
         onCartClick={() => handleViewChange('cart')}
@@ -78,4 +76,3 @@ const HomePage = () => {
 };
 
 export default HomePage;
-

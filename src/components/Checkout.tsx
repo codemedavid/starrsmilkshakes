@@ -7,7 +7,7 @@ import { useOrders } from '../hooks/useOrders';
 import { useAddressAutocomplete } from '../hooks/useAddressAutocomplete';
 import { useSiteSettings } from '../hooks/useSiteSettings';
 import { fetchDeliveryQuotation, buildLalamoveConfig } from '../lib/lalamove';
-import { trackPurchase } from '../lib/meta-pixel';
+import * as fpixel from '../lib/fpixel';
 import { sendPurchaseEvent } from '../lib/meta-conversions';
 
 interface CheckoutProps {
@@ -145,7 +145,7 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack }) =>
       // Track Purchase event for Meta Pixel (client-side)
       const currency = siteSettings?.currency_code || 'PHP';
       const contentIds = cartItems.map(item => item.id);
-      trackPurchase(
+      fpixel.trackPurchase(
         finalTotal,
         currency,
         contentIds,
