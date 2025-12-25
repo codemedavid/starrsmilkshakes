@@ -1,11 +1,5 @@
 {
-  "/_not-found": "app/_not-found.js",
-  "/admin/page": "app/admin/page.js",
+  "/not-found": "app/not-found.js",
   "/page": "app/page.js",
-  "/api/address/search/route": "app/api/address/search/route.js",
-  "/api/lalamove/[action]/route": "app/api/lalamove/[action]/route.js",
-  "/api/orders/bulk/route": "app/api/orders/bulk/route.js",
-  "/api/orders/[id]/route": "app/api/orders/[id]/route.js",
-  "/api/orders/stats/route": "app/api/orders/stats/route.js",
-  "/api/orders/route": "app/api/orders/route.js"
+  "/admin/page": "app/admin/page.js"
 }
