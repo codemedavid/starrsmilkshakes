@@ -26,7 +26,9 @@ const SiteSettingsManager: React.FC = () => {
     lalamove_store_address: '',
     lalamove_store_latitude: '',
     lalamove_store_longitude: '',
-    meta_pixel_id: ''
+    meta_pixel_id: '',
+    meta_access_token: '',
+    meta_test_event_code: ''
   });
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string>('');
@@ -56,7 +58,9 @@ const SiteSettingsManager: React.FC = () => {
         lalamove_store_address: siteSettings.lalamove_store_address || '',
         lalamove_store_latitude: siteSettings.lalamove_store_latitude || '',
         lalamove_store_longitude: siteSettings.lalamove_store_longitude || '',
-        meta_pixel_id: siteSettings.meta_pixel_id || ''
+        meta_pixel_id: siteSettings.meta_pixel_id || '',
+        meta_access_token: siteSettings.meta_access_token || '',
+        meta_test_event_code: siteSettings.meta_test_event_code || ''
       });
       setLogoPreview(siteSettings.site_logo);
       setStoreAddressQuery(siteSettings.lalamove_store_address || '');
@@ -187,7 +191,9 @@ const SiteSettingsManager: React.FC = () => {
         lalamove_store_address: formData.lalamove_store_address,
         lalamove_store_latitude: formData.lalamove_store_latitude,
         lalamove_store_longitude: formData.lalamove_store_longitude,
-        meta_pixel_id: formData.meta_pixel_id
+        meta_pixel_id: formData.meta_pixel_id,
+        meta_access_token: formData.meta_access_token,
+        meta_test_event_code: formData.meta_test_event_code
       });
 
       setIsEditing(false);
@@ -214,7 +220,9 @@ const SiteSettingsManager: React.FC = () => {
         lalamove_store_address: siteSettings.lalamove_store_address || '',
         lalamove_store_latitude: siteSettings.lalamove_store_latitude || '',
         lalamove_store_longitude: siteSettings.lalamove_store_longitude || '',
-        meta_pixel_id: siteSettings.meta_pixel_id || ''
+        meta_pixel_id: siteSettings.meta_pixel_id || '',
+        meta_access_token: siteSettings.meta_access_token || '',
+        meta_test_event_code: siteSettings.meta_test_event_code || ''
       });
       setLogoPreview(siteSettings.site_logo);
       setStoreAddressQuery(siteSettings.lalamove_store_address || '');
@@ -580,7 +588,7 @@ const SiteSettingsManager: React.FC = () => {
           </div>
 
           {isEditing ? (
-            <div>
+            <div className="space-y-4">
               <label className="block text-sm font-medium text-gray-700">
                 Meta Pixel ID
                 <input
@@ -592,11 +600,35 @@ const SiteSettingsManager: React.FC = () => {
                   placeholder="e.g., 1205933524966708"
                 />
               </label>
-              <p className="mt-1 text-xs text-gray-500">Find your Pixel ID in the Facebook Events Manager.</p>
+              <label className="block text-sm font-medium text-gray-700">
+                Conversions API Access Token
+                <input
+                  type="password"
+                  name="meta_access_token"
+                  value={formData.meta_access_token}
+                  onChange={handleInputChange}
+                  className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                  placeholder="EAAxxxxxxx..."
+                />
+              </label>
+              <label className="block text-sm font-medium text-gray-700">
+                Test Event Code
+                <input
+                  type="text"
+                  name="meta_test_event_code"
+                  value={formData.meta_test_event_code}
+                  onChange={handleInputChange}
+                  className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                  placeholder="e.g., TEST1689"
+                />
+              </label>
+              <p className="text-xs text-gray-500">Leave test event code empty for production. Use it only for testing with Facebook Events Manager.</p>
             </div>
           ) : (
-            <div className="text-sm text-gray-600">
+            <div className="text-sm text-gray-600 space-y-1">
               <p>Pixel ID: {siteSettings?.meta_pixel_id || 'Not configured'}</p>
+              <p>Access Token: {siteSettings?.meta_access_token ? 'Configured' : 'Not set'}</p>
+              <p>Test Event Code: {siteSettings?.meta_test_event_code || 'Not set (production mode)'}</p>
             </div>
           )}
         </div>

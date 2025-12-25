@@ -86,6 +86,8 @@ export interface SiteSettings {
   lalamove_store_latitude?: string;
   lalamove_store_longitude?: string;
   meta_pixel_id?: string;
+  meta_access_token?: string;
+  meta_test_event_code?: string;
 }
 
 // Order Management Types

@@ -44,7 +44,9 @@ export const useSiteSettings = () => {
         lalamove_store_address: getValue('lalamove_store_address', ''),
         lalamove_store_latitude: getValue('lalamove_store_latitude', ''),
         lalamove_store_longitude: getValue('lalamove_store_longitude', ''),
-        meta_pixel_id: getValue('meta_pixel_id', '')
+        meta_pixel_id: getValue('meta_pixel_id', ''),
+        meta_access_token: getValue('meta_access_token', ''),
+        meta_test_event_code: getValue('meta_test_event_code', '')
       };
 
       setSiteSettings(settings);

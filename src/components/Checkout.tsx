@@ -8,6 +8,7 @@ import { useAddressAutocomplete } from '../hooks/useAddressAutocomplete';
 import { useSiteSettings } from '../hooks/useSiteSettings';
 import { fetchDeliveryQuotation, buildLalamoveConfig } from '../lib/lalamove';
 import { trackPurchase } from '../lib/meta-pixel';
+import { sendPurchaseEvent } from '../lib/meta-conversions';
 
 interface CheckoutProps {
   cartItems: CartItem[];
@@ -141,7 +142,7 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack }) =>
         }
       );
 
-      // Track Purchase event for Meta Pixel
+      // Track Purchase event for Meta Pixel (client-side)
       const currency = siteSettings?.currency_code || 'PHP';
       const contentIds = cartItems.map(item => item.id);
       trackPurchase(
@@ -150,6 +151,23 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack }) =>
         contentIds,
         cartItems.reduce((sum, item) => sum + item.quantity, 0)
       );
+
+      // Send server-side Purchase event via Conversions API
+      if (siteSettings?.meta_pixel_id && siteSettings?.meta_access_token) {
+        sendPurchaseEvent({
+          pixelId: siteSettings.meta_pixel_id,
+          accessToken: siteSettings.meta_access_token,
+          testEventCode: siteSettings.meta_test_event_code,
+          orderId: order.order_number,
+          value: finalTotal,
+          currency,
+          contentIds,
+          numItems: cartItems.reduce((sum, item) => sum + item.quantity, 0),
+          customerPhone: contactNumber,
+        }).catch(err => {
+          console.error('[Meta Conversions API] Failed to send purchase event:', err);
+        });
+      }
 
       // Prepare order details for Messenger
       const timeInfo = serviceType === 'pickup'
