@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import './globals.css';
-import FacebookPixel from '@/components/FacebookPixel';
+import CustomHeaderScripts from '@/components/CustomHeaderScripts';
 
 export const metadata = {
   title: "Starr's Famous Shakes",
@@ -12,8 +12,9 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     <html lang="en">
       <body className="bg-starrs-mint-light text-starrs-teal-dark">
         {children}
-        <FacebookPixel />
+        <CustomHeaderScripts />
       </body>
     </html>
   );
 }
+

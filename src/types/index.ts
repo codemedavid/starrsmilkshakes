@@ -88,6 +88,7 @@ export interface SiteSettings {
   meta_pixel_id?: string;
   meta_access_token?: string;
   meta_test_event_code?: string;
+  header_scripts?: string;
 }
 
 // Order Management Types

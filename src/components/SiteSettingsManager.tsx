@@ -28,7 +28,8 @@ const SiteSettingsManager: React.FC = () => {
     lalamove_store_longitude: '',
     meta_pixel_id: '',
     meta_access_token: '',
-    meta_test_event_code: ''
+    meta_test_event_code: '',
+    header_scripts: ''
   });
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string>('');
@@ -60,7 +61,8 @@ const SiteSettingsManager: React.FC = () => {
         lalamove_store_longitude: siteSettings.lalamove_store_longitude || '',
         meta_pixel_id: siteSettings.meta_pixel_id || '',
         meta_access_token: siteSettings.meta_access_token || '',
-        meta_test_event_code: siteSettings.meta_test_event_code || ''
+        meta_test_event_code: siteSettings.meta_test_event_code || '',
+        header_scripts: siteSettings.header_scripts || ''
       });
       setLogoPreview(siteSettings.site_logo);
       setStoreAddressQuery(siteSettings.lalamove_store_address || '');
@@ -193,7 +195,8 @@ const SiteSettingsManager: React.FC = () => {
         lalamove_store_longitude: formData.lalamove_store_longitude,
         meta_pixel_id: formData.meta_pixel_id,
         meta_access_token: formData.meta_access_token,
-        meta_test_event_code: formData.meta_test_event_code
+        meta_test_event_code: formData.meta_test_event_code,
+        header_scripts: formData.header_scripts
       });
 
       setIsEditing(false);
@@ -222,7 +225,8 @@ const SiteSettingsManager: React.FC = () => {
         lalamove_store_longitude: siteSettings.lalamove_store_longitude || '',
         meta_pixel_id: siteSettings.meta_pixel_id || '',
         meta_access_token: siteSettings.meta_access_token || '',
-        meta_test_event_code: siteSettings.meta_test_event_code || ''
+        meta_test_event_code: siteSettings.meta_test_event_code || '',
+        header_scripts: siteSettings.header_scripts || ''
       });
       setLogoPreview(siteSettings.site_logo);
       setStoreAddressQuery(siteSettings.lalamove_store_address || '');
@@ -629,6 +633,42 @@ const SiteSettingsManager: React.FC = () => {
               <p>Pixel ID: {siteSettings?.meta_pixel_id || 'Not configured'}</p>
               <p>Access Token: {siteSettings?.meta_access_token ? 'Configured' : 'Not set'}</p>
               <p>Test Event Code: {siteSettings?.meta_test_event_code || 'Not set (production mode)'}</p>
+            </div>
+          )}
+        </div>
+
+        {/* Custom Header Scripts */}
+        <div className="border-t border-gray-100 pt-6">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className="text-lg font-semibold text-black">Custom Header Scripts</h3>
+              <p className="text-sm text-gray-500">Add tracking codes, analytics, or other scripts to the page head.</p>
+            </div>
+          </div>
+
+          {isEditing ? (
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                Header Scripts Code
+                <textarea
+                  name="header_scripts"
+                  value={formData.header_scripts}
+                  onChange={handleInputChange}
+                  rows={10}
+                  className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 font-mono text-sm"
+                  placeholder="<!-- Paste your tracking code here, e.g. Meta Pixel, Google Analytics -->"
+                />
+              </label>
+              <p className="mt-1 text-xs text-gray-500">Paste the complete script code including &lt;script&gt; tags. This will be injected into the page head.</p>
+            </div>
+          ) : (
+            <div className="text-sm text-gray-600">
+              <p>{siteSettings?.header_scripts ? 'Custom scripts configured' : 'No custom scripts configured'}</p>
+              {siteSettings?.header_scripts && (
+                <pre className="mt-2 p-3 bg-gray-100 rounded-lg text-xs overflow-x-auto max-h-32">
+                  {siteSettings.header_scripts.substring(0, 200)}{siteSettings.header_scripts.length > 200 ? '...' : ''}
+                </pre>
+              )}
             </div>
           )}
         </div>
