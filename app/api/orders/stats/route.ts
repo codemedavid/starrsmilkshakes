@@ -3,6 +3,7 @@ import { supabaseServer } from '../../../../src/lib/supabase-server';
 import type { OrderStats } from '../../../../src/types';
 
 export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
 /**
  * GET /api/orders/stats
