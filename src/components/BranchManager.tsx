@@ -16,7 +16,8 @@ export default function BranchManager() {
         latitude: '',
         longitude: '',
         is_main: false,
-        is_active: true
+        is_active: true,
+        messenger_username: ''
     });
 
     useEffect(() => {
@@ -89,7 +90,8 @@ export default function BranchManager() {
             latitude: branch.latitude,
             longitude: branch.longitude,
             is_main: branch.is_main,
-            is_active: branch.is_active
+            is_active: branch.is_active,
+            messenger_username: branch.messenger_username || ''
         });
         setIsAdding(true);
     };
@@ -103,7 +105,8 @@ export default function BranchManager() {
             latitude: '',
             longitude: '',
             is_main: false,
-            is_active: true
+            is_active: true,
+            messenger_username: ''
         });
         setIsAdding(false);
     };
@@ -190,6 +193,20 @@ export default function BranchManager() {
                                     placeholder="Longitude"
                                 />
                             </div>
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Facebook Page Username (for Messenger)</label>
+                            <div className="flex items-center">
+                                <span className="text-gray-500 text-sm mr-2">m.me/</span>
+                                <input
+                                    type="text"
+                                    value={formData.messenger_username}
+                                    onChange={e => setFormData({ ...formData, messenger_username: e.target.value })}
+                                    className="flex-1 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-pink-500 outline-none"
+                                    placeholder="e.g. StarrsFamousShakesMakati"
+                                />
+                            </div>
+                            <p className="text-xs text-gray-500 mt-1">Leave empty to use the default Facebook page</p>
                         </div>
                     </div>
 

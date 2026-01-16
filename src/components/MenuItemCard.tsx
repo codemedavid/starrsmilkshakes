@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Plus, Minus, X, ShoppingCart } from 'lucide-react';
 import { MenuItem, Variation, AddOn } from '../types';
 
@@ -11,12 +12,13 @@ interface MenuItemCardProps {
   onUpdateQuantity: (id: string, quantity: number) => void;
 }
 
-const MenuItemCard: React.FC<MenuItemCardProps> = ({ 
-  item, 
-  onAddToCart, 
-  quantity, 
-  onUpdateQuantity 
+const MenuItemCard: React.FC<MenuItemCardProps> = ({
+  item,
+  onAddToCart,
+  quantity,
+  onUpdateQuantity
 }) => {
+  const router = useRouter();
   const [showCustomization, setShowCustomization] = useState(false);
   const [selectedVariation, setSelectedVariation] = useState<Variation | undefined>(
     item.variations?.[0]
@@ -45,7 +47,7 @@ const MenuItemCard: React.FC<MenuItemCardProps> = ({
 
   const handleCustomizedAddToCart = () => {
     // Convert selectedAddOns back to regular AddOn array for cart
-    const addOnsForCart: AddOn[] = selectedAddOns.flatMap(addOn => 
+    const addOnsForCart: AddOn[] = selectedAddOns.flatMap(addOn =>
       Array(addOn.quantity).fill({ ...addOn, quantity: undefined })
     );
     onAddToCart(item, 1, selectedVariation, addOnsForCart);
@@ -66,12 +68,12 @@ const MenuItemCard: React.FC<MenuItemCardProps> = ({
   const updateAddOnQuantity = (addOn: AddOn, quantity: number) => {
     setSelectedAddOns(prev => {
       const existingIndex = prev.findIndex(a => a.id === addOn.id);
-      
+
       if (quantity === 0) {
         // Remove add-on if quantity is 0
         return prev.filter(a => a.id !== addOn.id);
       }
-      
+
       if (existingIndex >= 0) {
         // Update existing add-on quantity
         const updated = [...prev];
@@ -109,13 +111,13 @@ const MenuItemCard: React.FC<MenuItemCardProps> = ({
     <>
       <div className={`flex flex-col ${!item.available ? 'opacity-60' : ''}`}>
         {/* Card Container - Square with Dark Green Background */}
-        <div 
-          className={`relative aspect-square rounded-2xl overflow-hidden transition-all duration-200 ${
-            !item.available ? 'cursor-not-allowed' : 'cursor-pointer active:scale-[0.98]'
-          }`}
+        <div
+          className={`relative aspect-square rounded-2xl overflow-hidden transition-all duration-200 ${!item.available ? 'cursor-not-allowed' : 'cursor-pointer active:scale-[0.98]'
+            }`}
           style={{ backgroundColor: '#00704A' }}
           onClick={!item.available ? undefined : () => {
-            // Card click could navigate to detail page in future
+            // Navigate to product details page using client-side navigation
+            router.push(`/product/${item.id}`);
           }}
         >
           {/* Product Image - Cover Entire Card */}
@@ -157,6 +159,11 @@ const MenuItemCard: React.FC<MenuItemCardProps> = ({
             <div className="absolute bottom-3 right-3 z-10">
               {quantity === 0 ? (
                 <button
+                  id={`add-to-cart-${item.id}`}
+                  data-fb-action="AddToCart"
+                  data-fb-content-id={item.id}
+                  data-fb-content-name={item.name}
+                  data-fb-value={item.effectivePrice || item.basePrice}
                   onClick={(e) => {
                     e.stopPropagation();
                     handleAddToCart();
@@ -201,7 +208,7 @@ const MenuItemCard: React.FC<MenuItemCardProps> = ({
           <h4 className="text-[18px] font-semibold text-[#1E1E1E] leading-tight line-clamp-2" style={{ fontWeight: 600 }}>
             {item.name}
           </h4>
-          
+
           {/* Price */}
           <p className="text-[16px] text-[#666666]" style={{ fontWeight: 400 }}>
             {item.variations && item.variations.length > 0 ? (
@@ -246,11 +253,10 @@ const MenuItemCard: React.FC<MenuItemCardProps> = ({
                     {item.variations.map((variation) => (
                       <label
                         key={variation.id}
-                        className={`flex items-center justify-between p-4 border-2 rounded-xl cursor-pointer transition-all duration-200 ${
-                          selectedVariation?.id === variation.id
-                            ? 'border-starrs-teal bg-starrs-teal-light'
-                            : 'border-starrs-teal/30 hover:border-starrs-teal hover:bg-starrs-mint-light'
-                        }`}
+                        className={`flex items-center justify-between p-4 border-2 rounded-xl cursor-pointer transition-all duration-200 ${selectedVariation?.id === variation.id
+                          ? 'border-starrs-teal bg-starrs-teal-light'
+                          : 'border-starrs-teal/30 hover:border-starrs-teal hover:bg-starrs-mint-light'
+                          }`}
                       >
                         <div className="flex items-center space-x-3">
                           <input
@@ -292,7 +298,7 @@ const MenuItemCard: React.FC<MenuItemCardProps> = ({
                                 {addOn.price > 0 ? `₱${addOn.price.toFixed(2)} each` : 'Free'}
                               </div>
                             </div>
-                            
+
                             <div className="flex items-center space-x-2">
                               {selectedAddOns.find(a => a.id === addOn.id) ? (
                                 <div className="flex items-center space-x-2 bg-starrs-teal-light rounded-xl p-1 border-2 border-starrs-teal/30">
@@ -348,6 +354,11 @@ const MenuItemCard: React.FC<MenuItemCardProps> = ({
               </div>
 
               <button
+                id={`add-to-cart-customized-${item.id}`}
+                data-fb-action="AddToCart"
+                data-fb-content-id={item.id}
+                data-fb-content-name={item.name}
+                data-fb-value={calculatePrice()}
                 onClick={handleCustomizedAddToCart}
                 className="w-full bg-gradient-to-r from-starrs-teal to-starrs-teal-dark text-white py-4 rounded-xl hover:from-starrs-teal-dark hover:to-starrs-teal-darker transition-all duration-200 font-semibold flex items-center justify-center space-x-2 shadow-lg hover:shadow-xl transform hover:scale-105"
               >

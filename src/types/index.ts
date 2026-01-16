@@ -39,6 +39,7 @@ export interface CartItem extends MenuItem {
   selectedVariation?: Variation;
   selectedAddOns?: AddOn[];
   totalPrice: number;
+  menuItemId?: string; // Original menu item ID before uniqueId assignment
 }
 
 export interface OrderData {
@@ -145,6 +146,7 @@ export interface Branch {
   longitude: string;
   is_main: boolean;
   is_active: boolean;
+  messenger_username?: string | null; // Facebook page username for this branch's Messenger
   created_at: string;
   updated_at: string;
 }

@@ -1,35 +1,40 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Header from '@/components/Header';
 import Menu from '@/components/Menu';
 import Cart from '@/components/Cart';
-import Checkout from '@/components/Checkout';
 import FloatingCartButton from '@/components/FloatingCartButton';
-import { useCart } from '@/hooks/useCart';
+import { useCartContext } from '@/contexts/CartContext';
 import { useMenu } from '@/hooks/useMenu';
-import { useSiteSettings } from '@/hooks/useSiteSettings';
-import * as fpixel from '@/lib/fpixel';
 
 const HomePage = () => {
-  const cart = useCart();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const cart = useCartContext();
   const { menuItems } = useMenu();
-  const { siteSettings } = useSiteSettings();
-  const [currentView, setCurrentView] = React.useState<'menu' | 'cart' | 'checkout'>('menu');
+  const [currentView, setCurrentView] = React.useState<'menu' | 'cart'>('menu');
 
-  const handleViewChange = (view: 'menu' | 'cart' | 'checkout') => {
-    // Track InitiateCheckout when transitioning to checkout
-    if (view === 'checkout' && currentView !== 'checkout') {
-      const currency = siteSettings?.currency_code || 'PHP';
-      const contentIds = cart.cartItems.map(item => item.id);
-      fpixel.trackInitiateCheckout(
-        cart.getTotalPrice(),
-        currency,
-        cart.getTotalItems(),
-        contentIds
-      );
+  // Handle URL-based view switching (e.g., /?view=cart)
+  useEffect(() => {
+    const view = searchParams.get('view');
+    if (view === 'cart') {
+      setCurrentView('cart');
+    }
+  }, [searchParams]);
+
+  const handleViewChange = (view: 'menu' | 'cart') => {
+    if (view === 'cart') {
+      router.push('/?view=cart');
+    } else {
+      router.push('/');
     }
     setCurrentView(view);
+  };
+
+  const handleCheckout = () => {
+    router.push('/checkout');
   };
 
   return (
@@ -55,14 +60,7 @@ const HomePage = () => {
           clearCart={cart.clearCart}
           getTotalPrice={cart.getTotalPrice}
           onContinueShopping={() => handleViewChange('menu')}
-          onCheckout={() => handleViewChange('checkout')}
-        />
-      )}
-      {currentView === 'checkout' && (
-        <Checkout
-          cartItems={cart.cartItems}
-          totalPrice={cart.getTotalPrice()}
-          onBack={() => handleViewChange('cart')}
+          onCheckout={handleCheckout}
         />
       )}
       {currentView === 'menu' && (

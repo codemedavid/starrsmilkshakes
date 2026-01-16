@@ -2,7 +2,7 @@
 
 import { usePathname } from 'next/navigation';
 import Script from 'next/script';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import * as pixel from '../lib/fpixel';
 import { useSiteSettings } from '../hooks/useSiteSettings';
 
@@ -10,14 +10,24 @@ const FacebookPixel = () => {
     const [loaded, setLoaded] = useState(false);
     const pathname = usePathname();
     const { siteSettings, loading } = useSiteSettings();
+    const initialPageviewFired = useRef(false);
 
     const pixelId = siteSettings?.meta_pixel_id?.trim();
 
-    // Track page views on route change
+    // Track initial pageview when pixel script loads
     useEffect(() => {
         if (!loaded || !pixelId) return;
+        if (!initialPageviewFired.current) {
+            pixel.pageview();
+            initialPageviewFired.current = true;
+        }
+    }, [loaded, pixelId]);
+
+    // Track subsequent page views on route change
+    useEffect(() => {
+        if (!loaded || !pixelId || !initialPageviewFired.current) return;
         pixel.pageview();
-    }, [pathname, loaded, pixelId]);
+    }, [pathname]);
 
     // Don't render anything if no pixel ID configured
     if (loading || !pixelId) {

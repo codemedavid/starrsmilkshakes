@@ -60,12 +60,14 @@ export async function POST(request: NextRequest) {
         }
 
         // Send to Facebook Conversions API
-        const url = `https://graph.facebook.com/${GRAPH_API_VERSION}/${pixelId}/events?access_token=${accessToken}`;
+        // Use Authorization header instead of query string for security
+        const url = `https://graph.facebook.com/${GRAPH_API_VERSION}/${pixelId}/events`;
 
         const response = await fetch(url, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
+                'Authorization': `Bearer ${accessToken}`,
             },
             body: JSON.stringify(payload),
         });

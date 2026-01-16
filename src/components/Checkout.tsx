@@ -212,7 +212,9 @@ Please confirm this order to proceed. Thank you for choosing Starr's Famous Shak
       `.trim();
 
       const encodedMessage = encodeURIComponent(orderDetails);
-      const messengerUrl = `https://m.me/StarrsFamousShakes?text=${encodedMessage}`;
+      // Use branch-specific Facebook page if set, otherwise use default
+      const messengerUsername = selectedBranch?.messenger_username || 'StarrsFamousShakes';
+      const messengerUrl = `https://m.me/${messengerUsername}?text=${encodedMessage}`;
 
       // Show success message
       alert(`Order placed successfully!\n\nOrder Number: ${order.order_number}\n\nYou will now be redirected to Messenger to confirm your order.`);
