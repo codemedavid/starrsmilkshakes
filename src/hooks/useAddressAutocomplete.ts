@@ -17,6 +17,7 @@ import { AddressSuggestion } from '../types';
  * - Must include User-Agent header
  * - Free to use, no API key required
  */
+
 export function useAddressAutocomplete(query: string) {
   const [suggestions, setSuggestions] = useState<AddressSuggestion[]>([]);
   const [loading, setLoading] = useState(false);
@@ -144,7 +145,7 @@ export function useAddressAutocomplete(query: string) {
       }
 
       console.error('Error fetching address suggestions:', err);
-      
+
       // Check for network errors or CORS issues
       if (err instanceof TypeError && err.message.includes('fetch')) {
         setError('Network error. Please check your connection and try again.');
@@ -153,7 +154,7 @@ export function useAddressAutocomplete(query: string) {
       } else {
         setError('Failed to fetch address suggestions. Please try again or enter address manually.');
       }
-      
+
       setSuggestions([]);
     } finally {
       if (!abortController.signal.aborted) {
