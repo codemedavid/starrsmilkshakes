@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseServer, getClientIP } from '../../../src/lib/supabase-server';
 import type { Order, OrderFilters, OrderStatus } from '../../../src/types';
+import { posthog } from '../../../src/lib/posthog';
 
 export const runtime = 'nodejs';
 
@@ -298,6 +299,33 @@ export async function POST(request: NextRequest) {
         created_at: item.created_at
       })) || []
     };
+
+    // Capture PostHog event for order notification
+    posthog.capture(
+      `${formattedOrder.customer_name}_${formattedOrder.contact_number}`,
+      'starrs_order',
+      {
+        order_number: formattedOrder.order_number,
+        customer_name: formattedOrder.customer_name,
+        contact_number: formattedOrder.contact_number,
+        service_type: formattedOrder.service_type,
+        address: formattedOrder.address || null,
+        payment_method: formattedOrder.payment_method,
+        total: formattedOrder.total,
+        delivery_fee: formattedOrder.delivery_fee || null,
+        notes: formattedOrder.notes || null,
+        items: formattedOrder.order_items.map(item => ({
+          name: item.menu_item_name,
+          quantity: item.quantity,
+          unit_price: item.unit_price,
+          total_price: item.total_price,
+          variation: item.selected_variation?.name || null,
+          add_ons: item.selected_add_ons?.map((a: any) => a.name) || null
+        })),
+        item_count: formattedOrder.order_items.reduce((sum, item) => sum + item.quantity, 0),
+        created_at: formattedOrder.created_at
+      }
+    );
 
     return NextResponse.json({ order: formattedOrder }, { status: 201 });
   } catch (error) {
