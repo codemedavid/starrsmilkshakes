@@ -301,7 +301,7 @@ export async function POST(request: NextRequest) {
     };
 
     // Capture PostHog event for order notification
-    posthog.capture(
+    await posthog.capture(
       `${formattedOrder.customer_name}_${formattedOrder.contact_number}`,
       'starrs_order',
       {

@@ -29,19 +29,17 @@ function getPostHogClient(): PostHog {
 
 export const posthog = {
   /**
-   * Capture a PostHog event. Non-blocking — fires and forgets.
-   * Calls shutdown() after capture to ensure the event is flushed
-   * before the serverless function terminates.
+   * Capture a PostHog event and flush immediately.
+   * Uses flush() instead of shutdown() so the client stays reusable.
+   * Must be awaited in the caller to guarantee delivery in serverless.
    */
   async capture(distinctId: string, event: string, properties?: Record<string, any>) {
     try {
       const client = getPostHogClient();
       client.capture({ distinctId, event, properties });
-      await client.shutdown();
-      _posthogClient = null; // Reset so next call creates a fresh client
+      await client.flush();
     } catch (error) {
       console.error('PostHog capture error:', error);
-      // Non-blocking: don't throw, just log
     }
   }
 };
