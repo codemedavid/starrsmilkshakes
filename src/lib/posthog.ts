@@ -38,6 +38,7 @@ export const posthog = {
       const client = getPostHogClient();
       client.capture({ distinctId, event, properties });
       await client.shutdown();
+      _posthogClient = null; // Reset so next call creates a fresh client
     } catch (error) {
       console.error('PostHog capture error:', error);
       // Non-blocking: don't throw, just log
