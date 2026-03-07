@@ -300,6 +300,28 @@ export async function POST(request: NextRequest) {
       })) || []
     };
 
+    // Look up payment method full name and branch name for the notification
+    let paymentMethodName = formattedOrder.payment_method;
+    let branchName = '';
+    try {
+      const { data: pm } = await supabaseServer
+        .from('payment_methods')
+        .select('name')
+        .eq('id', formattedOrder.payment_method)
+        .single();
+      if (pm?.name) paymentMethodName = pm.name;
+    } catch {}
+    try {
+      if (completeOrderData.branch_id) {
+        const { data: branch } = await supabaseServer
+          .from('branches')
+          .select('name')
+          .eq('id', completeOrderData.branch_id)
+          .single();
+        if (branch?.name) branchName = branch.name;
+      }
+    } catch {}
+
     // Capture PostHog event for order notification
     await posthog.capture(
       `${formattedOrder.customer_name}_${formattedOrder.contact_number}`,
@@ -310,7 +332,8 @@ export async function POST(request: NextRequest) {
         contact_number: formattedOrder.contact_number,
         service_type: formattedOrder.service_type,
         address: formattedOrder.address || null,
-        payment_method: formattedOrder.payment_method,
+        payment_method: paymentMethodName,
+        branch: branchName || 'N/A',
         total: formattedOrder.total,
         delivery_fee: formattedOrder.delivery_fee || null,
         notes: formattedOrder.notes || null,
