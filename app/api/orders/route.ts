@@ -314,20 +314,13 @@ export async function POST(request: NextRequest) {
         total: formattedOrder.total,
         delivery_fee: formattedOrder.delivery_fee || null,
         notes: formattedOrder.notes || null,
-        items_html: formattedOrder.order_items.map(item => {
+        items_summary: formattedOrder.order_items.map(item => {
           const variation = item.selected_variation?.name ? ` (${item.selected_variation.name})` : '';
           const addOns = item.selected_add_ons?.length
             ? ` + ${item.selected_add_ons.map((a: any) => a.name).join(', ')}`
             : '';
-          return `<tr><td>${item.menu_item_name}${variation}${addOns}</td><td>${item.quantity}</td><td>${item.unit_price}</td><td>${item.total_price}</td></tr>`;
-        }).join(''),
-        items_text: formattedOrder.order_items.map(item => {
-          const variation = item.selected_variation?.name ? ` (${item.selected_variation.name})` : '';
-          const addOns = item.selected_add_ons?.length
-            ? ` + ${item.selected_add_ons.map((a: any) => a.name).join(', ')}`
-            : '';
-          return `${item.quantity}x ${item.menu_item_name}${variation}${addOns} - ${item.total_price}`;
-        }).join('\n'),
+          return `${item.quantity}x ${item.menu_item_name}${variation}${addOns} — ₱${item.total_price}`;
+        }).join(' | '),
         item_count: formattedOrder.order_items.reduce((sum, item) => sum + item.quantity, 0),
         created_at: formattedOrder.created_at
       }
