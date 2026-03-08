@@ -1,39 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
-import { Order, OrderFilters, OrderStats, OrderStatus, CartItem } from '../types';
-import { createDeliveryOrder, buildLalamoveConfig } from '../lib/lalamove';
-import type { DeliveryOrderResult } from '../lib/lalamove';
-import { useSiteSettings } from './useSiteSettings';
+import { Branch, Order, OrderFilters, OrderStats, OrderStatus, CartItem } from '../types';
 import type { RealtimeChannel } from '@supabase/supabase-js';
-
-/**
- * Admin password (should match server-side)
- */
-const ADMIN_PASSWORD = 'Starrs@Admin!2025';
-
-/**
- * Generate admin auth token from password
- * Must match server-side implementation
- */
-function generateAdminToken(): string {
-  // Simple token generation - matches server-side
-  return btoa(ADMIN_PASSWORD);
-}
-
-/**
- * Get admin auth headers if admin is authenticated
- */
-function getAdminHeaders(): Record<string, string> {
-  const isAdmin = typeof window !== 'undefined' && localStorage.getItem('beracah_admin_auth') === 'true';
-  if (isAdmin) {
-    return {
-      'X-Admin-Auth': generateAdminToken()
-    };
-  }
-  return {};
-}
-
-import { Branch } from '../types';
 
 interface CreateOrderOptions {
   address?: string;
@@ -51,41 +19,23 @@ interface CreateOrderOptions {
   branch?: Branch;
 }
 
-export const useOrders = () => {
+interface UseOrdersOptions {
+  admin?: boolean;
+}
+
+export const useOrders = ({ admin = false }: UseOrdersOptions = {}) => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const channelRef = useRef<RealtimeChannel | null>(null);
   const currentFiltersRef = useRef<OrderFilters | undefined>(undefined);
-  const { siteSettings } = useSiteSettings();
-  const lalamoveConfig = buildLalamoveConfig(siteSettings);
-
-  const normalizePhoneNumber = (phone?: string): string | undefined => {
-    if (!phone) return undefined;
-    const trimmed = phone.trim();
-    if (!trimmed) return undefined;
-
-    // Remove all non-digits
-    const digits = trimmed.replace(/\D/g, '');
-    if (!digits) return undefined;
-
-    // Always normalize to +63 format
-    if (digits.startsWith('63')) {
-      return `+${digits}`;
-    } else if (digits.startsWith('0')) {
-      // Remove leading 0 and add 63
-      return `+63${digits.slice(1)}`;
-    } else if (digits.startsWith('9')) {
-      // Add 63 prefix
-      return `+63${digits}`;
-    } else {
-      // Add 63 prefix for any other format
-      return `+63${digits}`;
-    }
-  };
 
   const fetchOrders = useCallback(async (filters?: OrderFilters) => {
     try {
+      if (!admin) {
+        throw new Error('Admin access required');
+      }
+
       setLoading(true);
       setError(null);
 
@@ -100,11 +50,7 @@ export const useOrders = () => {
       const queryString = params.toString();
       const url = `/api/orders${queryString ? `?${queryString}` : ''}`;
 
-      const response = await fetch(url, {
-        headers: {
-          ...getAdminHeaders()
-        }
-      });
+      const response = await fetch(url, { credentials: 'include' });
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: 'Failed to fetch orders' }));
@@ -121,15 +67,15 @@ export const useOrders = () => {
     } finally {
       setLoading(false);
     }
-  }, []); // Empty deps - function is stable
+  }, [admin]);
 
   const fetchOrderById = async (id: string): Promise<Order | null> => {
     try {
-      const response = await fetch(`/api/orders/${id}`, {
-        headers: {
-          ...getAdminHeaders()
-        }
-      });
+      if (!admin) {
+        throw new Error('Admin access required');
+      }
+
+      const response = await fetch(`/api/orders/${id}`, { credentials: 'include' });
 
       if (!response.ok) {
         if (response.status === 404) {
@@ -162,7 +108,6 @@ export const useOrders = () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...getAdminHeaders(),
         },
         body: JSON.stringify({
           cartItems,
@@ -181,67 +126,12 @@ export const useOrders = () => {
       }
 
       const data = await response.json();
-      let order = data.order;
-
-      // Handle Lalamove delivery order creation if needed
-      if (
-        serviceType === 'delivery' &&
-        options?.lalamoveQuotationId &&
-        lalamoveConfig
-      ) {
-        try {
-          const orderLalamoveConfig = options?.branch
-            ? buildLalamoveConfig(siteSettings, options.branch)
-            : lalamoveConfig;
-
-          if (orderLalamoveConfig) {
-            const normalizedRecipientPhone = normalizePhoneNumber(contactNumber) || contactNumber;
-            const lalamoveOrderResult: DeliveryOrderResult = await createDeliveryOrder(
-              options.lalamoveQuotationId,
-              customerName,
-              normalizedRecipientPhone,
-              orderLalamoveConfig,
-              {
-                orderId: order.id,
-                deliveryAddress: options?.address,
-                deliveryLat: options?.deliveryLat,
-                deliveryLng: options?.deliveryLng,
-              }
-            );
-
-            // Update order with Lalamove info via API
-            if (lalamoveOrderResult) {
-              await fetch(`/api/orders/${order.id}`, {
-                method: 'PATCH',
-                headers: {
-                  'Content-Type': 'application/json',
-                  ...getAdminHeaders(),
-                },
-                body: JSON.stringify({
-                  status: order.status, // Keep current status
-                  lalamove_order_id: lalamoveOrderResult.orderId,
-                  lalamove_status: lalamoveOrderResult.status,
-                  lalamove_tracking_url: lalamoveOrderResult.shareLink,
-                }),
-              });
-
-              // Update local order object
-              order = {
-                ...order,
-                lalamove_order_id: lalamoveOrderResult.orderId,
-                lalamove_status: lalamoveOrderResult.status,
-                lalamove_tracking_url: lalamoveOrderResult.shareLink,
-              };
-            }
-          }
-        } catch (orderError) {
-          console.error('Failed to create Lalamove order:', orderError);
-          // Don't fail the entire order creation if Lalamove fails
-        }
-      }
+      const order = data.order;
 
       // Refresh orders list
-      await fetchOrders(currentFiltersRef.current);
+      if (admin) {
+        await fetchOrders(currentFiltersRef.current);
+      }
 
       return order;
     } catch (err) {
@@ -252,12 +142,16 @@ export const useOrders = () => {
 
   const updateOrderStatus = async (id: string, status: OrderStatus): Promise<void> => {
     try {
+      if (!admin) {
+        throw new Error('Admin access required');
+      }
+
       const response = await fetch(`/api/orders/${id}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
-          ...getAdminHeaders(),
         },
+        credentials: 'include',
         body: JSON.stringify({ status }),
       });
 
@@ -278,12 +172,16 @@ export const useOrders = () => {
 
   const bulkUpdateStatus = async (ids: string[], status: OrderStatus): Promise<void> => {
     try {
+      if (!admin) {
+        throw new Error('Admin access required');
+      }
+
       const response = await fetch('/api/orders/bulk', {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
-          ...getAdminHeaders(),
         },
+        credentials: 'include',
         body: JSON.stringify({ ids, status }),
       });
 
@@ -304,11 +202,11 @@ export const useOrders = () => {
 
   const getOrderStats = async (): Promise<OrderStats> => {
     try {
-      const response = await fetch('/api/orders/stats', {
-        headers: {
-          ...getAdminHeaders()
-        }
-      });
+      if (!admin) {
+        throw new Error('Admin access required');
+      }
+
+      const response = await fetch('/api/orders/stats', { credentials: 'include' });
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: 'Failed to fetch stats' }));
@@ -327,9 +225,20 @@ export const useOrders = () => {
   useEffect(() => {
     let isMounted = true;
 
+    if (!admin) {
+      setLoading(false);
+      return () => {
+        isMounted = false;
+        if (channelRef.current) {
+          supabase.removeChannel(channelRef.current);
+          channelRef.current = null;
+        }
+      };
+    }
+
     // Initial fetch
     if (isMounted) {
-      fetchOrders();
+      void fetchOrders();
     }
 
     // Set up real-time subscription
@@ -387,8 +296,7 @@ export const useOrders = () => {
         channelRef.current = null;
       }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Only run once on mount - fetchOrders is stable
+  }, [admin, fetchOrders]);
 
   return {
     orders,

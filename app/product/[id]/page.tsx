@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { use, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Minus, Plus, Share2, Star, ShoppingCart } from 'lucide-react';
 import { useMenu } from '@/hooks/useMenu';
@@ -8,12 +8,13 @@ import { useCartContext } from '@/contexts/CartContext';
 import { Variation, AddOn, MenuItem } from '@/types';
 
 interface ProductPageProps {
-    params: {
+    params: Promise<{
         id: string;
-    };
+    }>;
 }
 
 export default function ProductPage({ params }: ProductPageProps) {
+    const { id } = use(params);
     const router = useRouter();
     const { menuItems, loading } = useMenu();
     const cart = useCartContext();
@@ -27,7 +28,7 @@ export default function ProductPage({ params }: ProductPageProps) {
     // Find product when menuItems are loaded
     useEffect(() => {
         if (menuItems.length > 0) {
-            const foundProduct = menuItems.find(item => item.id === params.id);
+            const foundProduct = menuItems.find(item => item.id === id);
             if (foundProduct) {
                 setProduct(foundProduct);
                 // Reset state when product changes
@@ -39,7 +40,7 @@ export default function ProductPage({ params }: ProductPageProps) {
                 }
             }
         }
-    }, [menuItems, params.id]);
+    }, [id, menuItems]);
 
     const handleBack = () => {
         router.back();

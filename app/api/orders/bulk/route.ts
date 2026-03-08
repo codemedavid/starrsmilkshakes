@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabaseServer, isAdminRequest } from '../../../../src/lib/supabase-server';
+import { requireAdminRequest } from '@/lib/admin-auth';
+import { supabaseServer } from '@/lib/supabase-server';
 import type { OrderStatus } from '../../../../src/types';
 
 export const runtime = 'nodejs';
@@ -10,13 +11,12 @@ export const runtime = 'nodejs';
  * Admin users bypass rate limiting
  */
 export async function PATCH(request: NextRequest) {
-  try {
-    // Check if request is from admin (for logging/consistency)
-    const isAdmin = isAdminRequest(request);
-    if (isAdmin) {
-      console.log('Admin bulk order update - rate limiting bypassed');
-    }
+  const unauthorized = requireAdminRequest(request);
+  if (unauthorized) {
+    return unauthorized;
+  }
 
+  try {
     const body = await request.json();
     const { ids, status } = body;
 
@@ -90,4 +90,3 @@ export async function PATCH(request: NextRequest) {
     );
   }
 }
-

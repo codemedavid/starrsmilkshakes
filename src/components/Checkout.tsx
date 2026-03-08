@@ -153,10 +153,8 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack }) =>
       );
 
       // Send server-side Purchase event via Conversions API
-      if (siteSettings?.meta_pixel_id && siteSettings?.meta_access_token) {
+      if (siteSettings?.meta_pixel_id) {
         sendPurchaseEvent({
-          pixelId: siteSettings.meta_pixel_id,
-          accessToken: siteSettings.meta_access_token,
           testEventCode: siteSettings.meta_test_event_code,
           orderId: order.order_number,
           value: finalTotal,

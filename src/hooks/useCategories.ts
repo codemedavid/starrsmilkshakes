@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { adminFetch, parseApiResponse } from '@/lib/admin-api';
 import { supabase } from '../lib/supabase';
 
 export interface Category {
@@ -11,14 +12,26 @@ export interface Category {
   updated_at: string;
 }
 
-export const useCategories = () => {
+interface UseCategoriesOptions {
+  admin?: boolean;
+}
+
+export const useCategories = ({ admin = false }: UseCategoriesOptions = {}) => {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchCategories = async () => {
+  const fetchCategories = useCallback(async () => {
     try {
       setLoading(true);
+
+      if (admin) {
+        const response = await adminFetch('/api/admin/categories');
+        const data = await parseApiResponse<{ categories: Category[] }>(response);
+        setCategories(data.categories || []);
+        setError(null);
+        return;
+      }
       
       const { data, error: fetchError } = await supabase
         .from('categories')
@@ -36,26 +49,22 @@ export const useCategories = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [admin]);
 
   const addCategory = async (category: Omit<Category, 'created_at' | 'updated_at'>) => {
     try {
-      const { data, error: insertError } = await supabase
-        .from('categories')
-        .insert({
-          id: category.id,
-          name: category.name,
-          icon: category.icon,
-          sort_order: category.sort_order,
-          active: category.active
-        })
-        .select()
-        .single();
+      if (!admin) {
+        throw new Error('Admin access required');
+      }
 
-      if (insertError) throw insertError;
+      const response = await adminFetch('/api/admin/categories', {
+        method: 'POST',
+        body: JSON.stringify(category),
+      });
+      const data = await parseApiResponse<{ category: Category }>(response);
 
       await fetchCategories();
-      return data;
+      return data.category;
     } catch (err) {
       console.error('Error adding category:', err);
       throw err;
@@ -64,17 +73,15 @@ export const useCategories = () => {
 
   const updateCategory = async (id: string, updates: Partial<Category>) => {
     try {
-      const { error: updateError } = await supabase
-        .from('categories')
-        .update({
-          name: updates.name,
-          icon: updates.icon,
-          sort_order: updates.sort_order,
-          active: updates.active
-        })
-        .eq('id', id);
+      if (!admin) {
+        throw new Error('Admin access required');
+      }
 
-      if (updateError) throw updateError;
+      const response = await adminFetch(`/api/admin/categories/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(updates),
+      });
+      await parseApiResponse<{ category: Category }>(response);
 
       await fetchCategories();
     } catch (err) {
@@ -85,25 +92,14 @@ export const useCategories = () => {
 
   const deleteCategory = async (id: string) => {
     try {
-      // Check if category has menu items
-      const { data: menuItems, error: checkError } = await supabase
-        .from('menu_items')
-        .select('id')
-        .eq('category', id)
-        .limit(1);
-
-      if (checkError) throw checkError;
-
-      if (menuItems && menuItems.length > 0) {
-        throw new Error('Cannot delete category that contains menu items. Please move or delete the items first.');
+      if (!admin) {
+        throw new Error('Admin access required');
       }
 
-      const { error: deleteError } = await supabase
-        .from('categories')
-        .delete()
-        .eq('id', id);
-
-      if (deleteError) throw deleteError;
+      const response = await adminFetch(`/api/admin/categories/${id}`, {
+        method: 'DELETE',
+      });
+      await parseApiResponse<{ success: boolean }>(response);
 
       await fetchCategories();
     } catch (err) {
@@ -114,16 +110,16 @@ export const useCategories = () => {
 
   const reorderCategories = async (reorderedCategories: Category[]) => {
     try {
-      const updates = reorderedCategories.map((cat, index) => ({
-        id: cat.id,
-        sort_order: index + 1
-      }));
+      if (!admin) {
+        throw new Error('Admin access required');
+      }
 
-      for (const update of updates) {
-        await supabase
-          .from('categories')
-          .update({ sort_order: update.sort_order })
-          .eq('id', update.id);
+      for (const [index, category] of reorderedCategories.entries()) {
+        const response = await adminFetch(`/api/admin/categories/${category.id}`, {
+          method: 'PATCH',
+          body: JSON.stringify({ sort_order: index + 1 }),
+        });
+        await parseApiResponse<{ category: Category }>(response);
       }
 
       await fetchCategories();
@@ -134,8 +130,8 @@ export const useCategories = () => {
   };
 
   useEffect(() => {
-    fetchCategories();
-  }, []);
+    void fetchCategories();
+  }, [fetchCategories]);
 
   return {
     categories,

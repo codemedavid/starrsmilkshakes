@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { checkServerRateLimit } from '@/lib/server-rate-limit';
+import { getClientIP } from '@/lib/supabase-server';
 
 export const dynamic = 'force-dynamic';
 
@@ -9,6 +11,19 @@ export const dynamic = 'force-dynamic';
  */
 export async function GET(request: NextRequest) {
   try {
+    const rateLimit = checkServerRateLimit(`address-search:${getClientIP(request)}`, 30, 60 * 1000);
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { error: `Too many address lookups. Try again in ${rateLimit.retryAfterSeconds} seconds.` },
+        {
+          status: 429,
+          headers: {
+            'Retry-After': String(rateLimit.retryAfterSeconds),
+          },
+        }
+      );
+    }
+
     const searchParams = request.nextUrl.searchParams;
     const query = searchParams.get('q');
 
@@ -68,4 +83,3 @@ export async function GET(request: NextRequest) {
     );
   }
 }
-

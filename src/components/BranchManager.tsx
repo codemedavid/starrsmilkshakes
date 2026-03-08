@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase';
+import { adminFetch, parseApiResponse } from '@/lib/admin-api';
 import type { Branch } from '@/types';
 import { Plus, Edit2, Trash2, MapPin, Phone, Check, X } from 'lucide-react';
 import LocationPicker from './LocationPicker';
@@ -26,13 +26,9 @@ export default function BranchManager() {
 
     const fetchBranches = async () => {
         try {
-            const { data, error } = await supabase
-                .from('branches')
-                .select('*')
-                .order('created_at', { ascending: true });
-
-            if (error) throw error;
-            setBranches(data || []);
+            const response = await adminFetch('/api/admin/branches');
+            const data = await parseApiResponse<{ branches: Branch[] }>(response);
+            setBranches(data.branches || []);
         } catch (error) {
             console.error('Error fetching branches:', error);
         } finally {
@@ -44,16 +40,17 @@ export default function BranchManager() {
         e.preventDefault();
         try {
             if (editingBranch) {
-                const { error } = await supabase
-                    .from('branches')
-                    .update(formData)
-                    .eq('id', editingBranch.id);
-                if (error) throw error;
+                const response = await adminFetch(`/api/admin/branches/${editingBranch.id}`, {
+                    method: 'PATCH',
+                    body: JSON.stringify(formData),
+                });
+                await parseApiResponse<{ branch: Branch }>(response);
             } else {
-                const { error } = await supabase
-                    .from('branches')
-                    .insert([formData]);
-                if (error) throw error;
+                const response = await adminFetch('/api/admin/branches', {
+                    method: 'POST',
+                    body: JSON.stringify(formData),
+                });
+                await parseApiResponse<{ branch: Branch }>(response);
             }
 
             await fetchBranches();
@@ -68,12 +65,10 @@ export default function BranchManager() {
         if (!window.confirm('Are you sure you want to delete this branch?')) return;
 
         try {
-            const { error } = await supabase
-                .from('branches')
-                .delete()
-                .eq('id', id);
-
-            if (error) throw error;
+            const response = await adminFetch(`/api/admin/branches/${id}`, {
+                method: 'DELETE',
+            });
+            await parseApiResponse<{ success: boolean }>(response);
             setBranches(branches.filter(b => b.id !== id));
         } catch (error) {
             console.error('Error deleting branch:', error);

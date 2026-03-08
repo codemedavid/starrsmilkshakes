@@ -1,4 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { isAdminRequest, isSameOriginRequest, isTrustedInternalRequest } from '@/lib/admin-auth';
+import { checkServerRateLimit } from '@/lib/server-rate-limit';
+import { getClientIP } from '@/lib/supabase-server';
 
 type DeliveryCoordinates = { lat: number; lng: number };
 
@@ -16,14 +19,7 @@ type DeliveryStoreConfig = {
 const API_BASE_URL = 'https://rest.lalamove.com/v3';
 const API_SANDBOX_URL = 'https://rest.sandbox.lalamove.com/v3';
 
-const CORS_HEADERS = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization'
-};
-
-const respond = (body: unknown, status = 200) =>
-  NextResponse.json(body, { status, headers: CORS_HEADERS });
+const respond = (body: unknown, status = 200) => NextResponse.json(body, { status });
 
 const getEnv = (key: string) => {
   const value = process.env[key];
@@ -415,16 +411,42 @@ const handleOrder = async (
 export const runtime = 'nodejs';
 
 export async function OPTIONS() {
-  return new NextResponse(null, { status: 204, headers: CORS_HEADERS });
+  return new NextResponse(null, { status: 204 });
 }
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { action: string } }
+  { params }: { params: Promise<{ action: string }> }
 ) {
-  const action = params.action;
+  const { action } = await params;
   if (action !== 'quote' && action !== 'order') {
     return respond({ error: 'Action not supported' }, 405);
+  }
+
+  const trustedInternalRequest = isTrustedInternalRequest(request);
+  const sameOriginRequest = isSameOriginRequest(request);
+
+  if (action === 'quote') {
+    if (!sameOriginRequest && !trustedInternalRequest) {
+      return respond({ error: 'Same-origin access is required' }, 403);
+    }
+
+    const rateLimit = checkServerRateLimit(`lalamove-quote:${getClientIP(request)}`, 15, 5 * 60 * 1000);
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { error: `Too many delivery quote requests. Try again in ${rateLimit.retryAfterSeconds} seconds.` },
+        {
+          status: 429,
+          headers: {
+            'Retry-After': String(rateLimit.retryAfterSeconds),
+          },
+        }
+      );
+    }
+  }
+
+  if (action === 'order' && !trustedInternalRequest && !isAdminRequest(request)) {
+    return respond({ error: 'Admin authentication required' }, 401);
   }
 
   let body: Record<string, unknown>;

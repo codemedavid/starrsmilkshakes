@@ -10,7 +10,7 @@ interface PaymentMethodManagerProps {
 }
 
 const PaymentMethodManager: React.FC<PaymentMethodManagerProps> = ({ onBack }) => {
-  const { paymentMethods, addPaymentMethod, updatePaymentMethod, deletePaymentMethod, refetchAll } = usePaymentMethods();
+  const { paymentMethods, addPaymentMethod, updatePaymentMethod, deletePaymentMethod, refetchAll } = usePaymentMethods({ admin: true });
   const [currentView, setCurrentView] = useState<'list' | 'add' | 'edit'>('list');
   const [editingMethod, setEditingMethod] = useState<PaymentMethod | null>(null);
   const [formData, setFormData] = useState({

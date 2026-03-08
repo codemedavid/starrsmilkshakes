@@ -1,74 +1,57 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { adminFetch, parseApiResponse } from '@/lib/admin-api';
 import { supabase } from '../lib/supabase';
-import { SiteSettings, SiteSetting } from '../types';
+import { mapSiteSettingsRows } from '@/lib/site-settings';
+import { SiteSettings } from '../types';
 
-export const useSiteSettings = () => {
+interface UseSiteSettingsOptions {
+  admin?: boolean;
+}
+
+export const useSiteSettings = ({ admin = false }: UseSiteSettingsOptions = {}) => {
   const [siteSettings, setSiteSettings] = useState<SiteSettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchSiteSettings = async () => {
+  const fetchSiteSettings = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
 
-      const { data, error } = await supabase
-        .from('site_settings')
-        .select('*')
-        .order('id');
+      if (admin) {
+        const response = await adminFetch('/api/admin/site-settings');
+        const data = await parseApiResponse<{ siteSettings: SiteSettings }>(response);
+        setSiteSettings(data.siteSettings);
+        return;
+      }
+
+      const { data, error } = await supabase.from('site_settings').select('*').order('id');
 
       if (error) throw error;
 
-      const settingsLookup: Record<string, string> = {};
-      (data || []).forEach((setting) => {
-        settingsLookup[setting.id] = setting.value;
-      });
-
-      const getValue = (key: string, fallback = '') =>
-        settingsLookup[key] ?? fallback;
-
-      // Transform the data into a more usable format
-      const settings: SiteSettings = {
-        site_name: getValue('site_name', 'Beracah Cafe'),
-        site_logo: getValue('site_logo', ''),
-        site_description: getValue('site_description', ''),
-        currency: getValue('currency', 'PHP'),
-        currency_code: getValue('currency_code', 'PHP'),
-        lalamove_market: getValue('lalamove_market', ''),
-        lalamove_service_type: getValue('lalamove_service_type', ''),
-        lalamove_sandbox: getValue('lalamove_sandbox', 'true'),
-        lalamove_api_key: getValue('lalamove_api_key', ''),
-        lalamove_api_secret: getValue('lalamove_api_secret', ''),
-        lalamove_store_name: getValue('lalamove_store_name', ''),
-        lalamove_store_phone: getValue('lalamove_store_phone', ''),
-        lalamove_store_address: getValue('lalamove_store_address', ''),
-        lalamove_store_latitude: getValue('lalamove_store_latitude', ''),
-        lalamove_store_longitude: getValue('lalamove_store_longitude', ''),
-        meta_pixel_id: getValue('meta_pixel_id', ''),
-        meta_access_token: getValue('meta_access_token', ''),
-        meta_test_event_code: getValue('meta_test_event_code', ''),
-        header_scripts: getValue('header_scripts', '')
-      };
-
-      setSiteSettings(settings);
+      setSiteSettings(mapSiteSettingsRows(data as any[]));
     } catch (err) {
       console.error('Error fetching site settings:', err);
       setError(err instanceof Error ? err.message : 'Failed to fetch site settings');
     } finally {
       setLoading(false);
     }
-  };
+  }, [admin]);
 
   const updateSiteSetting = async (id: string, value: string) => {
     try {
       setError(null);
 
-      const { error } = await supabase
-        .from('site_settings')
-        .update({ value })
-        .eq('id', id);
+      if (!admin) {
+        throw new Error('Admin access required');
+      }
 
-      if (error) throw error;
+      const response = await adminFetch('/api/admin/site-settings', {
+        method: 'PATCH',
+        body: JSON.stringify({ updates: { [id]: value } }),
+      });
+
+      await parseApiResponse<{ siteSettings: SiteSettings }>(response);
 
       // Refresh the settings
       await fetchSiteSettings();
@@ -83,23 +66,17 @@ export const useSiteSettings = () => {
     try {
       setError(null);
 
-      const updatePromises = Object.entries(updates).map(([key, value]) =>
-        supabase
-          .from('site_settings')
-          .update({ value })
-          .eq('id', key)
-      );
-
-      const results = await Promise.all(updatePromises);
-
-      // Check for errors
-      const errors = results.filter(result => result.error);
-      if (errors.length > 0) {
-        throw new Error('Some updates failed');
+      if (!admin) {
+        throw new Error('Admin access required');
       }
 
-      // Refresh the settings
-      await fetchSiteSettings();
+      const response = await adminFetch('/api/admin/site-settings', {
+        method: 'PATCH',
+        body: JSON.stringify({ updates }),
+      });
+
+      const data = await parseApiResponse<{ siteSettings: SiteSettings }>(response);
+      setSiteSettings(data.siteSettings);
     } catch (err) {
       console.error('Error updating site settings:', err);
       setError(err instanceof Error ? err.message : 'Failed to update site settings');
@@ -108,8 +85,8 @@ export const useSiteSettings = () => {
   };
 
   useEffect(() => {
-    fetchSiteSettings();
-  }, []);
+    void fetchSiteSettings();
+  }, [fetchSiteSettings]);
 
   return {
     siteSettings,

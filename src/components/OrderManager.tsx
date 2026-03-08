@@ -10,7 +10,7 @@ interface OrderManagerProps {
 }
 
 const OrderManager: React.FC<OrderManagerProps> = ({ onBack }) => {
-  const { orders, loading, fetchOrders, updateOrderStatus, bulkUpdateStatus, getOrderStats } = useOrders();
+  const { orders, loading, fetchOrders, updateOrderStatus, bulkUpdateStatus, getOrderStats } = useOrders({ admin: true });
   const [selectedOrders, setSelectedOrders] = useState<string[]>([]);
   const [filters, setFilters] = useState<OrderFilters>({});
   const [searchTerm, setSearchTerm] = useState('');

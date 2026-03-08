@@ -1,1 +1,56 @@
-{}
+{
+  "node_modules/@supabase/auth-js/dist/module/lib/helpers.js -> @supabase/node-fetch": {
+    "id": 3537,
+    "files": []
+  },
+  "node_modules/@supabase/functions-js/dist/module/helper.js -> @supabase/node-fetch": {
+    "id": 3537,
+    "files": []
+  },
+  "node_modules/@supabase/realtime-js/dist/module/RealtimeClient.js -> @supabase/node-fetch": {
+    "id": 3537,
+    "files": []
+  },
+  "node_modules/@supabase/storage-js/dist/module/lib/helpers.js -> @supabase/node-fetch": {
+    "id": 3537,
+    "files": []
+  },
+  "src/components/AdminDashboard.tsx -> ./BranchManager": {
+    "id": 2978,
+    "files": [
+      "static/css/55693049b062c6a3.css",
+      "static/chunks/d0deef33.cac6acee3fffe7af.js",
+      "static/chunks/978.b8db4967d9af6d63.js"
+    ]
+  },
+  "src/components/AdminDashboard.tsx -> ./CategoryManager": {
+    "id": 4080,
+    "files": [
+      "static/chunks/80.4b7d147d2b76daba.js"
+    ]
+  },
+  "src/components/AdminDashboard.tsx -> ./ImageUpload": {
+    "id": 5987,
+    "files": [
+      "static/chunks/987.9ecf5c96087f1bff.js"
+    ]
+  },
+  "src/components/AdminDashboard.tsx -> ./OrderManager": {
+    "id": 3349,
+    "files": [
+      "static/chunks/349.4f9f3b3636fed3d1.js"
+    ]
+  },
+  "src/components/AdminDashboard.tsx -> ./PaymentMethodManager": {
+    "id": 4219,
+    "files": [
+      "static/chunks/219.ce10d6409b94aab5.js"
+    ]
+  },
+  "src/components/AdminDashboard.tsx -> ./SiteSettingsManager": {
+    "id": 7180,
+    "files": [
+      "static/chunks/180.3b2d9fa61b827539.js"
+    ]
+  }
+}

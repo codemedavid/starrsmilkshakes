@@ -73,36 +73,4 @@ export function getClientIP(request: Request): string {
   return '127.0.0.1';
 }
 
-/**
- * Admin password (should match client-side)
- */
-const ADMIN_PASSWORD = 'Starrs@Admin!2025';
-
-/**
- * Generate admin auth token from password
- * Simple hash for verification
- */
-function generateAdminToken(): string {
-  // Simple token generation - in production, use a more secure method
-  // For now, using a base64-like encoding of the password
-  return Buffer.from(ADMIN_PASSWORD).toString('base64');
-}
-
-/**
- * Check if a request is from an authenticated admin
- * Verifies the X-Admin-Auth header matches the admin token
- */
-export function isAdminRequest(request: Request): boolean {
-  const adminAuthHeader = request.headers.get('x-admin-auth');
-
-  if (!adminAuthHeader) {
-    return false;
-  }
-
-  // Verify the token matches
-  const expectedToken = generateAdminToken();
-  return adminAuthHeader === expectedToken;
-}
-
-
 

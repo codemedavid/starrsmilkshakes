@@ -33,27 +33,14 @@ const getProxyBase = () => FUNCTION_BASE_URL ?? '/api/lalamove';
 
 const buildFunctionUrl = (path: string) => {
   const base = getProxyBase();
-  const key = requireSupabaseKey();
   const trimmedPath = path.startsWith('/') ? path : `/${path}`;
   const cleanBase = base.replace(/\/$/, '');
-  return `${cleanBase}${trimmedPath}?apikey=${encodeURIComponent(key)}`;
-};
-
-const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-const requireSupabaseKey = () => {
-  if (!SUPABASE_ANON_KEY) {
-    throw new Error('Missing NEXT_PUBLIC_SUPABASE_ANON_KEY; needed for proxy authentication');
-  }
-  return SUPABASE_ANON_KEY;
+  return `${cleanBase}${trimmedPath}`;
 };
 
 const buildProxyHeaders = () => {
-  const key = requireSupabaseKey();
   return {
     'Content-Type': 'application/json',
-    Authorization: `Bearer ${key}`,
-    apikey: key
   };
 };
 

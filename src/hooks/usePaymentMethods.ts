@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { adminFetch, parseApiResponse } from '@/lib/admin-api';
 import { supabase } from '../lib/supabase';
 
 export interface PaymentMethod {
@@ -13,14 +14,26 @@ export interface PaymentMethod {
   updated_at: string;
 }
 
-export const usePaymentMethods = () => {
+interface UsePaymentMethodsOptions {
+  admin?: boolean;
+}
+
+export const usePaymentMethods = ({ admin = false }: UsePaymentMethodsOptions = {}) => {
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchPaymentMethods = async () => {
+  const fetchPaymentMethods = useCallback(async () => {
     try {
       setLoading(true);
+
+      if (admin) {
+        const response = await adminFetch('/api/admin/payment-methods');
+        const data = await parseApiResponse<{ paymentMethods: PaymentMethod[] }>(response);
+        setPaymentMethods(data.paymentMethods || []);
+        setError(null);
+        return;
+      }
       
       const { data, error: fetchError } = await supabase
         .from('payment_methods')
@@ -38,11 +51,19 @@ export const usePaymentMethods = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [admin]);
 
-  const fetchAllPaymentMethods = async () => {
+  const fetchAllPaymentMethods = useCallback(async () => {
     try {
       setLoading(true);
+
+      if (admin) {
+        const response = await adminFetch('/api/admin/payment-methods');
+        const data = await parseApiResponse<{ paymentMethods: PaymentMethod[] }>(response);
+        setPaymentMethods(data.paymentMethods || []);
+        setError(null);
+        return;
+      }
       
       const { data, error: fetchError } = await supabase
         .from('payment_methods')
@@ -59,28 +80,22 @@ export const usePaymentMethods = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [admin]);
 
   const addPaymentMethod = async (method: Omit<PaymentMethod, 'created_at' | 'updated_at'>) => {
     try {
-      const { data, error: insertError } = await supabase
-        .from('payment_methods')
-        .insert({
-          id: method.id,
-          name: method.name,
-          account_number: method.account_number,
-          account_name: method.account_name,
-          qr_code_url: method.qr_code_url,
-          active: method.active,
-          sort_order: method.sort_order
-        })
-        .select()
-        .single();
+      if (!admin) {
+        throw new Error('Admin access required');
+      }
 
-      if (insertError) throw insertError;
+      const response = await adminFetch('/api/admin/payment-methods', {
+        method: 'POST',
+        body: JSON.stringify(method),
+      });
+      const data = await parseApiResponse<{ paymentMethod: PaymentMethod }>(response);
 
       await fetchAllPaymentMethods();
-      return data;
+      return data.paymentMethod;
     } catch (err) {
       console.error('Error adding payment method:', err);
       throw err;
@@ -89,19 +104,15 @@ export const usePaymentMethods = () => {
 
   const updatePaymentMethod = async (id: string, updates: Partial<PaymentMethod>) => {
     try {
-      const { error: updateError } = await supabase
-        .from('payment_methods')
-        .update({
-          name: updates.name,
-          account_number: updates.account_number,
-          account_name: updates.account_name,
-          qr_code_url: updates.qr_code_url,
-          active: updates.active,
-          sort_order: updates.sort_order
-        })
-        .eq('id', id);
+      if (!admin) {
+        throw new Error('Admin access required');
+      }
 
-      if (updateError) throw updateError;
+      const response = await adminFetch(`/api/admin/payment-methods/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(updates),
+      });
+      await parseApiResponse<{ paymentMethod: PaymentMethod }>(response);
 
       await fetchAllPaymentMethods();
     } catch (err) {
@@ -112,12 +123,14 @@ export const usePaymentMethods = () => {
 
   const deletePaymentMethod = async (id: string) => {
     try {
-      const { error: deleteError } = await supabase
-        .from('payment_methods')
-        .delete()
-        .eq('id', id);
+      if (!admin) {
+        throw new Error('Admin access required');
+      }
 
-      if (deleteError) throw deleteError;
+      const response = await adminFetch(`/api/admin/payment-methods/${id}`, {
+        method: 'DELETE',
+      });
+      await parseApiResponse<{ success: boolean }>(response);
 
       await fetchAllPaymentMethods();
     } catch (err) {
@@ -128,16 +141,16 @@ export const usePaymentMethods = () => {
 
   const reorderPaymentMethods = async (reorderedMethods: PaymentMethod[]) => {
     try {
-      const updates = reorderedMethods.map((method, index) => ({
-        id: method.id,
-        sort_order: index + 1
-      }));
+      if (!admin) {
+        throw new Error('Admin access required');
+      }
 
-      for (const update of updates) {
-        await supabase
-          .from('payment_methods')
-          .update({ sort_order: update.sort_order })
-          .eq('id', update.id);
+      for (const [index, method] of reorderedMethods.entries()) {
+        const response = await adminFetch(`/api/admin/payment-methods/${method.id}`, {
+          method: 'PATCH',
+          body: JSON.stringify({ sort_order: index + 1 }),
+        });
+        await parseApiResponse<{ paymentMethod: PaymentMethod }>(response);
       }
 
       await fetchAllPaymentMethods();
@@ -148,8 +161,8 @@ export const usePaymentMethods = () => {
   };
 
   useEffect(() => {
-    fetchPaymentMethods();
-  }, []);
+    void fetchPaymentMethods();
+  }, [fetchPaymentMethods]);
 
   return {
     paymentMethods,

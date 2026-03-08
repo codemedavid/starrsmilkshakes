@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabaseServer, isAdminRequest } from '../../../../src/lib/supabase-server';
+import { getInternalApiHeaders, requireAdminRequest } from '@/lib/admin-auth';
+import { mapSiteSettingsRows } from '@/lib/site-settings';
+import { supabaseServer } from '@/lib/supabase-server';
 import type { Order, OrderStatus, SiteSettings } from '../../../../src/types';
 import { buildLalamoveConfig } from '../../../../src/lib/lalamove';
 import type { DeliveryStoreConfig } from '../../../../src/lib/lalamove';
@@ -49,31 +51,7 @@ async function getSiteSettings(): Promise<SiteSettings | null> {
       return null;
     }
 
-    const settingsLookup: Record<string, string> = {};
-    (data || []).forEach((setting: any) => {
-      settingsLookup[setting.id] = setting.value;
-    });
-
-    const getValue = (key: string, fallback = '') =>
-      settingsLookup[key] ?? fallback;
-
-    return {
-      site_name: getValue('site_name', 'Beracah Cafe'),
-      site_logo: getValue('site_logo', ''),
-      site_description: getValue('site_description', ''),
-      currency: getValue('currency', 'PHP'),
-      currency_code: getValue('currency_code', 'PHP'),
-      lalamove_market: getValue('lalamove_market', ''),
-      lalamove_service_type: getValue('lalamove_service_type', ''),
-      lalamove_sandbox: getValue('lalamove_sandbox', 'true'),
-      lalamove_api_key: getValue('lalamove_api_key', ''),
-      lalamove_api_secret: getValue('lalamove_api_secret', ''),
-      lalamove_store_name: getValue('lalamove_store_name', ''),
-      lalamove_store_phone: getValue('lalamove_store_phone', ''),
-      lalamove_store_address: getValue('lalamove_store_address', ''),
-      lalamove_store_latitude: getValue('lalamove_store_latitude', ''),
-      lalamove_store_longitude: getValue('lalamove_store_longitude', '')
-    };
+    return mapSiteSettingsRows(data as any[]);
   } catch (error) {
     console.error('Error fetching site settings:', error);
     return null;
@@ -93,11 +71,6 @@ async function createLalamoveOrder(
 ): Promise<{ orderId: string; status: string; shareLink: string; driverId?: string | null } | null> {
   try {
     const FUNCTION_BASE_URL = process.env.NEXT_PUBLIC_LALAMOVE_FUNCTION_URL;
-    const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-    if (!SUPABASE_ANON_KEY) {
-      throw new Error('Missing NEXT_PUBLIC_SUPABASE_ANON_KEY');
-    }
 
     // Normalize phone number to always start with +63 (e.164 format)
     const normalizePhone = (phone: string): string => {
@@ -117,18 +90,18 @@ async function createLalamoveOrder(
 
     const normalizedPhone = normalizePhone(recipientPhone);
     const normalizedStorePhone = normalizePhone(config.storePhone);
+    const proxyBase = FUNCTION_BASE_URL ?? '/api/lalamove';
+    const isAbsoluteBase = proxyBase.startsWith('http://') || proxyBase.startsWith('https://');
 
-    const getProxyBase = () => FUNCTION_BASE_URL ?? '/api/lalamove';
-    
     // Build absolute URL for server-side fetch
     const buildFunctionUrl = (path: string): string => {
-      const base = getProxyBase();
+      const base = proxyBase;
       const trimmedPath = path.startsWith('/') ? path : `/${path}`;
       const cleanBase = base.replace(/\/$/, '');
       
       // If base is already absolute (starts with http), use it as is
-      if (cleanBase.startsWith('http://') || cleanBase.startsWith('https://')) {
-        return `${cleanBase}${trimmedPath}?apikey=${encodeURIComponent(SUPABASE_ANON_KEY)}`;
+      if (isAbsoluteBase) {
+        return `${cleanBase}${trimmedPath}`;
       }
       
       // For relative URLs, construct absolute URL from request or use environment variable
@@ -148,13 +121,12 @@ async function createLalamoveOrder(
         origin = 'http://localhost:3000';
       }
       
-      return `${origin}${cleanBase}${trimmedPath}?apikey=${encodeURIComponent(SUPABASE_ANON_KEY)}`;
+      return `${origin}${cleanBase}${trimmedPath}`;
     };
 
     const buildProxyHeaders = () => ({
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-      apikey: SUPABASE_ANON_KEY
+      ...(isAbsoluteBase ? {} : getInternalApiHeaders())
     });
 
     const response = await fetch(buildFunctionUrl('/order'), {
@@ -202,10 +174,15 @@ async function createLalamoveOrder(
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const unauthorized = requireAdminRequest(request);
+  if (unauthorized) {
+    return unauthorized;
+  }
+
   try {
-    const { id } = params;
+    const { id } = await params;
 
     if (!id) {
       return NextResponse.json(
@@ -295,16 +272,15 @@ export async function GET(
  */
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  try {
-    // Check if request is from admin (for logging/consistency)
-    const isAdmin = isAdminRequest(request);
-    if (isAdmin) {
-      console.log('Admin order update - rate limiting bypassed');
-    }
+  const unauthorized = requireAdminRequest(request);
+  if (unauthorized) {
+    return unauthorized;
+  }
 
-    const { id } = params;
+  try {
+    const { id } = await params;
     const body = await request.json();
     const { status, lalamove_order_id, lalamove_status, lalamove_tracking_url } = body;
 
@@ -492,4 +468,3 @@ export async function PATCH(
     );
   }
 }
-

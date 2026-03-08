@@ -8,7 +8,7 @@ import { useAddressAutocomplete } from '../hooks/useAddressAutocomplete';
 import type { AddressSuggestion } from '../types';
 
 const SiteSettingsManager: React.FC = () => {
-  const { siteSettings, loading, updateSiteSettings } = useSiteSettings();
+  const { siteSettings, loading, updateSiteSettings } = useSiteSettings({ admin: true });
   const { uploadImage, uploading } = useImageUpload();
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({

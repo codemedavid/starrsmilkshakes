@@ -29,8 +29,6 @@ interface EventData {
 }
 
 interface SendEventOptions {
-    pixelId: string;
-    accessToken: string;
     testEventCode?: string;
     events: EventData[];
 }
@@ -82,8 +80,6 @@ export async function sendServerEvent(options: SendEventOptions): Promise<SendEv
  * Send a Purchase event to Meta Conversions API
  */
 export async function sendPurchaseEvent(options: {
-    pixelId: string;
-    accessToken: string;
     testEventCode?: string;
     orderId: string;
     value: number;
@@ -112,8 +108,6 @@ export async function sendPurchaseEvent(options: {
     };
 
     return sendServerEvent({
-        pixelId: options.pixelId,
-        accessToken: options.accessToken,
         testEventCode: options.testEventCode,
         events: [event],
     });
@@ -123,8 +117,6 @@ export async function sendPurchaseEvent(options: {
  * Send an AddToCart event to Meta Conversions API
  */
 export async function sendAddToCartEvent(options: {
-    pixelId: string;
-    accessToken: string;
     testEventCode?: string;
     value: number;
     currency: string;
@@ -149,8 +141,6 @@ export async function sendAddToCartEvent(options: {
     };
 
     return sendServerEvent({
-        pixelId: options.pixelId,
-        accessToken: options.accessToken,
         testEventCode: options.testEventCode,
         events: [event],
     });
@@ -160,8 +150,6 @@ export async function sendAddToCartEvent(options: {
  * Send an InitiateCheckout event to Meta Conversions API
  */
 export async function sendInitiateCheckoutEvent(options: {
-    pixelId: string;
-    accessToken: string;
     testEventCode?: string;
     value: number;
     currency: string;
@@ -187,8 +175,6 @@ export async function sendInitiateCheckoutEvent(options: {
     };
 
     return sendServerEvent({
-        pixelId: options.pixelId,
-        accessToken: options.accessToken,
         testEventCode: options.testEventCode,
         events: [event],
     });

@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "functions": {
+    "/api/admin/auth/logout": {},
+    "/api/admin/auth/login": {},
+    "/api/admin/auth/session": {},
+    "/api/admin/branches/[id]": {},
+    "/api/admin/branches": {},
+    "/api/admin/categories": {},
+    "/api/admin/categories/[id]": {},
+    "/api/admin/payment-methods": {},
+    "/api/admin/payment-methods/[id]": {},
+    "/api/admin/menu/[id]": {},
+    "/api/admin/site-settings": {},
+    "/api/admin/menu": {},
+    "/api/meta/events": {},
+    "/api/orders/bulk": {},
+    "/api/orders/stats": {},
+    "/api/lalamove/[action]": {},
+    "/api/orders/[id]": {},
+    "/api/orders": {}
+  }
+}

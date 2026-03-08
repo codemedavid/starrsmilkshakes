@@ -1,6 +1,8 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, lazy, Suspense } from 'react';
+import Link from 'next/link';
+import { adminFetch, parseApiResponse } from '@/lib/admin-api';
 import { Plus, Edit, Trash2, Save, X, ArrowLeft, Coffee, TrendingUp, Package, Users, Lock, FolderOpen, CreditCard, Settings, ShoppingCart, Loader2, MapPin, Image, Upload } from 'lucide-react';
 import { MenuItem, Variation, AddOn } from '../types';
 import { addOnCategories } from '../data/menuData';
@@ -29,18 +31,31 @@ const LoadingFallback = ({ message = 'Loading...' }: { message?: string }) => (
 
 const AdminDashboard: React.FC = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [adminConfigured, setAdminConfigured] = useState(true);
   const [password, setPassword] = useState('');
   const [loginError, setLoginError] = useState('');
 
-  // Check authentication status on client-side only
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      setIsAuthenticated(localStorage.getItem('beracah_admin_auth') === 'true');
-    }
+    const loadSession = async () => {
+      try {
+        const response = await adminFetch('/api/admin/auth/session');
+        const data = await parseApiResponse<{ authenticated: boolean; configured: boolean }>(response);
+        setIsAuthenticated(data.authenticated);
+        setAdminConfigured(data.configured);
+      } catch (error) {
+        console.error('Failed to load admin session:', error);
+        setIsAuthenticated(false);
+      } finally {
+        setAuthLoading(false);
+      }
+    };
+
+    void loadSession();
   }, []);
-  const { menuItems, loading, addMenuItem, updateMenuItem, deleteMenuItem } = useMenu();
-  const { categories } = useCategories();
-  const { getOrderStats } = useOrders();
+  const { menuItems, loading, addMenuItem, updateMenuItem, deleteMenuItem } = useMenu({ admin: isAuthenticated });
+  const { categories } = useCategories({ admin: isAuthenticated });
+  const { getOrderStats } = useOrders({ admin: isAuthenticated });
   const { uploadImage, uploading: variationImageUploading } = useImageUpload();
   const [currentView, setCurrentView] = useState<'dashboard' | 'items' | 'add' | 'edit' | 'categories' | 'payments' | 'settings' | 'orders' | 'branches'>('dashboard');
   const [orderStats, setOrderStats] = useState({
@@ -255,20 +270,24 @@ const AdminDashboard: React.FC = () => {
   };
 
   const loadOrderStats = useCallback(async () => {
+    if (!isAuthenticated) {
+      return;
+    }
+
     try {
       const stats = await getOrderStats();
       setOrderStats(stats);
     } catch (error) {
       console.error('Error loading order stats:', error);
     }
-  }, [getOrderStats]);
+  }, [getOrderStats, isAuthenticated]);
 
   // Load order stats when dashboard is active
   useEffect(() => {
-    if (currentView === 'dashboard') {
-      loadOrderStats();
+    if (isAuthenticated && currentView === 'dashboard') {
+      void loadOrderStats();
     }
-  }, [currentView, loadOrderStats]);
+  }, [currentView, isAuthenticated, loadOrderStats]);
 
   // Dashboard Stats
   const totalItems = menuItems.length;
@@ -279,25 +298,47 @@ const AdminDashboard: React.FC = () => {
     count: menuItems.filter(item => item.category === cat.id).length
   }));
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (password === 'Starrs@Admin!2025') {
+    setLoginError('');
+
+    try {
+      const response = await adminFetch('/api/admin/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({ password }),
+      });
+      await parseApiResponse<{ success: boolean }>(response);
       setIsAuthenticated(true);
-      localStorage.setItem('beracah_admin_auth', 'true');
       setLoginError('');
-    } else {
-      setLoginError('Invalid password');
+      setPassword('');
+    } catch (error) {
+      setLoginError(error instanceof Error ? error.message : 'Failed to log in');
     }
   };
 
-  const handleLogout = () => {
-    setIsAuthenticated(false);
-    localStorage.removeItem('beracah_admin_auth');
-    setPassword('');
-    setCurrentView('dashboard');
+  const handleLogout = async () => {
+    try {
+      await adminFetch('/api/admin/auth/logout', {
+        method: 'POST',
+      });
+    } catch (error) {
+      console.error('Failed to log out:', error);
+    } finally {
+      setIsAuthenticated(false);
+      setPassword('');
+      setCurrentView('dashboard');
+    }
   };
 
   // Login Screen
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <LoadingFallback message="Checking admin session..." />
+      </div>
+    );
+  }
+
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -317,10 +358,16 @@ const AdminDashboard: React.FC = () => {
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                disabled={!adminConfigured}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent"
                 placeholder="Enter admin password"
                 required
               />
+              {!adminConfigured && (
+                <p className="text-amber-600 text-sm mt-2">
+                  Set `ADMIN_PASSWORD` and `ADMIN_SESSION_SECRET` before using the admin dashboard.
+                </p>
+              )}
               {loginError && (
                 <p className="text-red-500 text-sm mt-2">{loginError}</p>
               )}
@@ -328,7 +375,8 @@ const AdminDashboard: React.FC = () => {
 
             <button
               type="submit"
-              className="w-full bg-green-600 text-white py-3 rounded-lg hover:bg-green-700 transition-colors duration-200 font-medium"
+              disabled={!adminConfigured}
+              className="w-full bg-green-600 text-white py-3 rounded-lg hover:bg-green-700 transition-colors duration-200 font-medium disabled:cursor-not-allowed disabled:bg-gray-400"
             >
               Access Dashboard
             </button>
@@ -1090,12 +1138,12 @@ const AdminDashboard: React.FC = () => {
               <h1 className="text-2xl font-noto font-semibold text-black">Starr's Famous Shakes Admin</h1>
             </div>
             <div className="flex items-center space-x-4">
-              <a
+              <Link
                 href="/"
                 className="text-gray-600 hover:text-black transition-colors duration-200"
               >
                 View Website
-              </a>
+              </Link>
               <button
                 onClick={handleLogout}
                 className="text-gray-600 hover:text-black transition-colors duration-200"

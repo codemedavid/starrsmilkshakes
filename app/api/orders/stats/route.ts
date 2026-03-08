@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabaseServer } from '../../../../src/lib/supabase-server';
+import { requireAdminRequest } from '@/lib/admin-auth';
+import { supabaseServer } from '@/lib/supabase-server';
 import type { OrderStats } from '../../../../src/types';
 
 export const runtime = 'nodejs';
@@ -10,6 +11,11 @@ export const dynamic = 'force-dynamic';
  * Get order statistics
  */
 export async function GET(request: NextRequest) {
+  const unauthorized = requireAdminRequest(request);
+  if (unauthorized) {
+    return unauthorized;
+  }
+
   try {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -98,4 +104,3 @@ export async function GET(request: NextRequest) {
     );
   }
 }
-

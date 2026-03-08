@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import Header from '@/components/Header';
 import Menu from '@/components/Menu';
 import Cart from '@/components/Cart';
@@ -11,18 +11,21 @@ import { useMenu } from '@/hooks/useMenu';
 
 const HomePage = () => {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const cart = useCartContext();
   const { menuItems } = useMenu();
   const [currentView, setCurrentView] = React.useState<'menu' | 'cart'>('menu');
 
   // Handle URL-based view switching (e.g., /?view=cart)
   useEffect(() => {
-    const view = searchParams.get('view');
-    if (view === 'cart') {
-      setCurrentView('cart');
-    }
-  }, [searchParams]);
+    const syncViewFromUrl = () => {
+      const params = new URLSearchParams(window.location.search);
+      setCurrentView(params.get('view') === 'cart' ? 'cart' : 'menu');
+    };
+
+    syncViewFromUrl();
+    window.addEventListener('popstate', syncViewFromUrl);
+    return () => window.removeEventListener('popstate', syncViewFromUrl);
+  }, []);
 
   const handleViewChange = (view: 'menu' | 'cart') => {
     if (view === 'cart') {

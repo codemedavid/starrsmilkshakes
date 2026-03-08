@@ -9,7 +9,7 @@ interface CategoryManagerProps {
 }
 
 const CategoryManager: React.FC<CategoryManagerProps> = ({ onBack }) => {
-  const { categories, addCategory, updateCategory, deleteCategory, reorderCategories } = useCategories();
+  const { categories, addCategory, updateCategory, deleteCategory, reorderCategories } = useCategories({ admin: true });
   const [currentView, setCurrentView] = useState<'list' | 'add' | 'edit'>('list');
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [formData, setFormData] = useState({

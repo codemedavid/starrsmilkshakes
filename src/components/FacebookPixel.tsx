@@ -27,7 +27,7 @@ const FacebookPixel = () => {
     useEffect(() => {
         if (!loaded || !pixelId || !initialPageviewFired.current) return;
         pixel.pageview();
-    }, [pathname]);
+    }, [loaded, pathname, pixelId]);
 
     // Don't render anything if no pixel ID configured
     if (loading || !pixelId) {
