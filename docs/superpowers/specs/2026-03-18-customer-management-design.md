@@ -121,7 +121,7 @@ A Postgres function `update_customer_stats(customer_id uuid)` recalculates all c
 - `order_count` — count where `status NOT IN ('cancelled')`
 - `avg_order_value` — `total_spent / NULLIF(order_count, 0)`
 - `last_order_at` — max `created_at` (all non-cancelled)
-- `favorite_items` — top 5 items by count from `order_items` JOIN. Group by `menu_item_id` where non-null; fall back to `menu_item_name` for legacy rows where `menu_item_id IS NULL`. Result shape: `[{id, name, count}]`.
+- `favorite_items` — top 5 items by count from `order_items` JOIN. Group by `menu_item_id` where non-null; fall back to `menu_item_name` for legacy rows where `menu_item_id IS NULL`. Result shape: `[{id: string|null, name: string, count: number}]` — `id` is `null` for legacy rows. The `CustomerDetailPanel` bar chart component must guard against `null` id (use `name` as the React key fallback).
 - `preferred_service_type` — mode of `service_type`
 - `preferred_branch_id` — mode of `branch_id`; cast to uuid with `NULLIF` guard for legacy text rows
 - `avg_order_interval_days` — avg gap between consecutive order dates; write `NULL` when `order_count <= 1`
@@ -144,7 +144,7 @@ All routes require `requireAdminRequest()` (admin or super-admin session). No pu
 | `POST` | `/api/admin/customers/[id]/tags` | Add manual tag |
 | `DELETE` | `/api/admin/customers/[id]/tags/[tagId]` | Remove manual tag |
 | `GET` | `/api/admin/customers/suggest` | Phone-based match for order linking. Query: `phone` |
-| `PATCH` | `/api/orders/[id]` | Extended to accept `customer_id` (existing route) |
+| `PATCH` | `/api/orders/[id]` | Extended to accept `customer_id` (existing route — see extension rules below) |
 
 **List endpoint** (`GET /api/admin/customers`):
 - Default sort: `last_order_at DESC`
@@ -160,15 +160,22 @@ All routes require `requireAdminRequest()` (admin or super-admin session). No pu
 
 **Route resolution note:** `suggest` is a static segment sibling of `[id]` (dynamic segment). Next.js 15 App Router resolves static paths before dynamic ones — no routing conflict exists. No path restructuring needed.
 
+**`PATCH /api/orders/[id]` — `customer_id` extension rules:**
+- Accepted values: a valid UUID string (link) or `null` (unlink)
+- Input validation: if non-null, validate UUID format and confirm the customer exists — return `404` if not found
+- Null/unlink is explicitly allowed: `{ "customer_id": null }` removes the link without deleting the customer
+- If the order already has a `customer_id` set, the PATCH may overwrite it (no force-unlink step required — admin intent is clear)
+- Return `200` with the updated order on success; `422` for invalid UUID format
+
 ---
 
 ## 5. Messenger Auto-Population
 
-Inside the existing `POST /api/orders` route, after a successful order insert:
+Inside the existing `POST /api/orders` route, the customer upsert must be inserted **inside the `msession` block**, after `messenger_psid` has been confirmed written to the order row. Concretely, the insertion point is after the existing `orders.update({ messenger_psid, messenger_name })` call that writes the PSID to the row — use `checkoutSession.psid` (not `orders.messenger_psid`) as the upsert key, since the PSID is reliably available from the checkout session at that point.
 
-1. If `messenger_psid` is present on the new order:
-   - Upsert into `customers` — match on `messenger_psid`; if no match, insert with `name = messenger_name`, `source = 'messenger'`
-   - Set `orders.customer_id` to the resolved customer ID via a separate `UPDATE` call
+Steps:
+1. Upsert into `customers` — match on `messenger_psid` using `checkoutSession.psid`; if no match, insert with `name = checkoutSession` user's name (from `messenger_name` on the order), `source = 'messenger'`
+2. Set `orders.customer_id` to the resolved customer ID via a separate `UPDATE` call
 
 **Important:** The existing route uses sequential Supabase client calls with no transaction wrapper — `BEGIN`/`COMMIT` is not available via the JS client. These two steps are therefore **best-effort**, not atomic:
 - If the customer upsert succeeds but the `orders.customer_id` update fails: log the error with `order_id` and `customer_id` for manual reconciliation. Do **not** fail or roll back the order response — the order is valid, only the customer link is missing.
@@ -184,7 +191,7 @@ The stats trigger fires only when `orders.customer_id` is non-null — a missed 
 - **Phone normalization**: strip all non-digit characters before storage and lookup to prevent duplicate bypass
 - **Email normalization**: lowercase + trim before storage
 - **Uniqueness enforcement**: `UNIQUE` DB constraints on `phone`, `email`, `messenger_psid` — API returns `409 Conflict` with a safe error message on violation (no PII in error body)
-- **`customer_id` write protection**: the public `POST /api/orders` route never accepts `customer_id` from the client — only the internal Messenger auto-population path sets it
+- **`customer_id` write protection**: the public `POST /api/orders` route never accepts `customer_id` from the client — only the internal Messenger auto-population path sets it. On the admin `PATCH /api/orders/[id]` route, `customer_id` is intentionally writable (for order linking); it must be validated (UUID format + customer existence check) before the DB write, and accepts `null` to unlink.
 - **No PII in logs**: customer name, email, phone are never included in server-side log statements
 - **Trigger hardening**: `SECURITY DEFINER` + restricted `search_path` on the stats function
 - **Input validation**: all fields validated with Zod schemas before DB writes; email format, phone format (10–11 digits after normalization)
