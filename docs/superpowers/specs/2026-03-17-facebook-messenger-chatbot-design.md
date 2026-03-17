@@ -29,13 +29,20 @@ Integrate Facebook Messenger with Starr's Famous Shakes so customers can browse 
 - Session cookie: `super-admin-session` (separate from regular admin cookie).
 - Super Admin inherits all regular admin capabilities plus Facebook connection controls.
 
+### Super Admin Account Provisioning
+
+- First super admin account is created via a seed migration script (`supabase/seed-super-admin.sql`).
+- The script inserts a bcrypt-hashed password from the `SUPER_ADMIN_PASSWORD` environment variable.
+- Alternatively, a CLI script (`scripts/create-super-admin.ts`) can be run locally: `npx ts-node scripts/create-super-admin.ts --email admin@example.com --password <password>`.
+- No self-registration — super admin accounts are created manually by someone with database access.
+
 ### Facebook Page Connection Flow
 
 1. Super Admin navigates to **Site Settings > Facebook Integration**.
 2. Clicks "Connect Facebook Page" — triggers Facebook Login via Facebook JS SDK.
 3. OAuth scopes: `pages_manage_metadata`, `pages_messaging`, `pages_read_engagement`.
 4. Server exchanges short-lived user token for a **long-lived Page Access Token** via Graph API.
-5. Page token + Page ID stored in `site_settings` table.
+5. Page token + Page ID stored in a dedicated `facebook_config` table (super-admin-only RLS policy, separate from `site_settings` to prevent regular admin access).
 6. Server subscribes the Page to the webhook via the Subscriptions API.
 7. UI shows connected Page name with a "Disconnect" button.
 
@@ -54,9 +61,9 @@ Integrate Facebook Messenger with Starr's Famous Shakes so customers can browse 
 
 ### Webhook Endpoints
 
-- `GET /api/messenger/webhook` — Verification (Facebook sends a challenge token during setup).
-- `POST /api/messenger/webhook` — Receives incoming messages, postbacks, and events.
-- Request verification via App Secret HMAC-SHA256 signature.
+- `GET /api/messenger/webhook` — Verification endpoint. Must validate `hub.verify_token` query param against `FACEBOOK_VERIFY_TOKEN` env var before returning `hub.challenge`. Reject if token does not match.
+- `POST /api/messenger/webhook` — Receives incoming messages, postbacks, and events. Must be explicitly excluded from any same-origin/CSRF middleware since requests come from Facebook's servers.
+- All POST requests verified via `X-Hub-Signature-256` header using App Secret HMAC-SHA256 signature.
 
 ### Conversation State
 
@@ -67,6 +74,8 @@ Integrate Facebook Messenger with Starr's Famous Shakes so customers can browse 
 | `psid` | string (PK) | Facebook Page-Scoped User ID |
 | `state` | enum | `idle`, `browsing_categories`, `browsing_products`, `viewing_cart` |
 | `current_category` | string (nullable) | Selected category ID |
+| `selected_branch` | string (nullable) | Selected branch ID (for checkout) |
+| `current_page` | integer (default: 0) | Pagination offset within current category (for 10-card limit) |
 | `cart` | jsonb | Array of `{ menu_item_id, variation_id, add_on_ids[], quantity }` |
 | `updated_at` | timestamp | For session expiry (24 hours) |
 
@@ -85,8 +94,11 @@ Bot: Generic template with horizontal product cards
 
 Customer: taps [Add to Cart] on "Iced Latte"
 Bot: If item has variations -> quick replies for variation selection
-     If no variations -> added directly
-     "Iced Latte added! Cart: 1 item"
+     After variation (or if none) -> if item has add-ons -> quick replies for add-on selection
+       "Any extras? Tap to add, or skip."
+       [Extra Shot +20] [Whipped Cream +15] [Skip]
+     If no add-ons -> added directly
+     "Iced Latte (Large, Extra Shot) added! Cart: 1 item"
      [Continue Shopping] [View Cart] [Checkout]
 
 Customer: taps [View Cart]
@@ -94,10 +106,16 @@ Bot: Text summary of cart items with prices + total
      [Remove Item] [Clear Cart] [Checkout] [Continue Shopping]
 
 Customer: taps [Checkout]
+Bot: If multiple branches exist -> quick replies for branch selection
+     "Which branch would you like to order from?"
+     [Main Branch] [Branch 2] ...
+     If single branch -> skip, auto-assign
 Bot: Generates secure hash, sends button template:
      "Ready to complete your order? Tap below to checkout."
      [Complete Order on Website] (URL button with hash parameter)
 ```
+
+**Note:** Payment method, service type (dine-in/pickup/delivery), and customer details (name, contact, address) are all collected on the website checkout page, not in Messenger. Messenger handles only product browsing, cart management, and branch selection.
 
 ### Message Templates Used
 
@@ -121,7 +139,7 @@ When a customer taps "Checkout" in Messenger, they get a URL to the website with
 | `id` | uuid (PK) | Auto-generated |
 | `hash` | string (unique, indexed) | HMAC-SHA256 hash used as URL parameter |
 | `psid` | string | Messenger Page-Scoped User ID |
-| `cart` | jsonb | Snapshot of the Messenger cart at checkout time |
+| `cart` | jsonb | Fully hydrated cart snapshot (full item/variation/add-on objects, not just IDs) |
 | `status` | enum | `pending`, `completed`, `expired` |
 | `created_at` | timestamp | For expiry calculation |
 | `expires_at` | timestamp | 30 minutes after creation |
@@ -131,18 +149,21 @@ When a customer taps "Checkout" in Messenger, they get a URL to the website with
 
 1. **Customer taps "Checkout" in Messenger:**
    - Server generates random UUID + timestamp, hashes with HMAC-SHA256 using a secret key.
-   - Creates row in `messenger_checkout_sessions` with cart snapshot.
+   - Hydrates the cart: joins `menu_items`, `variations`, and `add_ons` tables to build a full `CartItem[]`-compatible structure from the ID-only Messenger session cart.
+   - Creates row in `messenger_checkout_sessions` with the hydrated cart snapshot.
    - Returns URL: `https://yoursite.com/checkout?msession={hash}`
 
 2. **Customer lands on website checkout:**
    - Website detects `msession` query param.
+   - **Important:** Suppress the existing empty-cart redirect when `msession` is present — the cart is initially empty in React context and must be hydrated from the API before the redirect logic runs.
    - Calls `GET /api/messenger/session/{hash}` to validate.
-   - If valid and not expired: pre-loads cart items into the checkout page.
+   - If valid and not expired: pre-loads hydrated cart items into CartContext and the checkout page.
    - If expired/invalid: shows "Session expired, please start again in Messenger."
 
 3. **Customer completes order on website:**
    - `POST /api/orders` checks for `msession` param.
-   - If present: marks session as `completed`, stores `order_id`, links to `psid`.
+   - If present: atomically marks session as `completed` using `UPDATE messenger_checkout_sessions SET status = 'completed', order_id = $1 WHERE hash = $2 AND status = 'pending' RETURNING *` — only proceeds if exactly one row is affected (prevents double-submit race condition).
+   - Creates `messenger_order_links` row to enable status notifications.
    - Triggers postback to Messenger via Send API with receipt.
 
 ### Security
@@ -151,7 +172,7 @@ When a customer taps "Checkout" in Messenger, they get a URL to the website with
 - 30-minute TTL.
 - One-time use (once `completed`, the hash cannot be reused).
 - PSID never exposed to the client.
-- Cleanup: expired sessions purged after 24 hours.
+- Cleanup: expired sessions purged after 24 hours via a Supabase pg_cron job (or a Next.js cron API route triggered by Vercel Cron / external scheduler). Same cleanup mechanism for expired `messenger_sessions`.
 
 ### API Endpoints
 
@@ -183,6 +204,7 @@ Created automatically when an order is placed via a Messenger checkout session.
 | `confirmed` | "Your order #{number} has been confirmed! We're getting it ready." |
 | `preparing` | "Your order #{number} is now being prepared." |
 | `ready` | "Your order #{number} is ready! {pickup/delivery-specific message}" |
+| `out_for_delivery` | "Your order #{number} is out for delivery! Track it here: {tracking_url}" |
 | `completed` | "Your order #{number} is complete. Thank you for ordering with Starr's Famous Shakes!" |
 | `cancelled` | "Your order #{number} has been cancelled. Please contact us if you have questions." |
 
@@ -205,6 +227,8 @@ The existing `PATCH /api/orders/[id]` endpoint is extended:
 - Customer blocks the bot: Send API returns error, log it, do not retry.
 - Order placed on website without Messenger: no `messenger_order_links` row, no notification.
 - Admin toggles off notifications mid-order: next status change skips Messenger.
+- Facebook API rate limit hit (200 calls/user/hour): log and queue for retry with exponential backoff.
+- Page token invalidated/expired: log error, show warning in admin panel, skip notification gracefully.
 
 ---
 
@@ -282,14 +306,39 @@ After order is placed on the website via Messenger checkout session:
 ## New Supabase Tables
 
 1. `super_admins` — Super Admin credentials.
-2. `messenger_sessions` — Conversation state per Messenger user.
-3. `messenger_checkout_sessions` — Secure hash linking Messenger cart to website checkout.
-4. `messenger_order_links` — Links orders to Messenger PSIDs for status notifications.
+2. `facebook_config` — Facebook credentials with super-admin-only RLS (Page token, App ID, Page ID).
+3. `messenger_sessions` — Conversation state per Messenger user.
+4. `messenger_checkout_sessions` — Secure hash linking Messenger cart to website checkout.
+5. `messenger_order_links` — Links orders to Messenger PSIDs for status notifications.
 
 ## Modified Tables
 
 - `menu_items` — Add `show_in_messenger` boolean column.
-- `site_settings` — Store Facebook Page token, Page ID, App ID, App Secret.
+- `site_settings` — Store non-sensitive Facebook config (Page name, connection status display only).
+
+## New Table: `facebook_config`
+
+Dedicated table for Facebook credentials with super-admin-only RLS policy:
+
+| Field | Type | Purpose |
+|-------|------|---------|
+| `id` | uuid (PK) | Auto-generated |
+| `page_id` | string | Connected Facebook Page ID |
+| `page_name` | string | Page display name |
+| `page_access_token` | string | Long-lived Page Access Token |
+| `app_id` | string | Facebook App ID |
+| `connected_at` | timestamp | When the Page was connected |
+| `connected_by` | uuid | Super Admin who connected it |
+
+RLS policy: only accessible by super admin role. Regular admin endpoints cannot read this table.
+
+### Token Refresh Strategy
+
+Long-lived Page tokens obtained via user tokens expire in ~60 days. The system should:
+- Store token expiry date alongside the token.
+- Show a warning in the admin panel when the token is within 7 days of expiry.
+- Super Admin must re-authenticate via Facebook Login to refresh the token.
+- Future: consider using a System User for permanent tokens.
 
 ---
 
@@ -297,7 +346,7 @@ After order is placed on the website via Messenger checkout session:
 
 ```
 # New (add to .env.local)
-FACEBOOK_APP_ID=1477113107453692
+FACEBOOK_APP_ID=<your_app_id>
 FACEBOOK_APP_SECRET=<app_secret>
 FACEBOOK_VERIFY_TOKEN=<random_string_for_webhook_verification>
 MESSENGER_SESSION_SECRET=<random_string_for_HMAC_hashing>
