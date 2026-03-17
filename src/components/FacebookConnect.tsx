@@ -70,29 +70,48 @@ export default function FacebookConnect({ isSuperAdmin }: FacebookConnectProps) 
     }
   }, [isSuperAdmin]);
 
+  const connectWithToken = useCallback(async (accessToken: string) => {
+    try {
+      const res = await adminFetch('/api/admin/facebook/connect', {
+        method: 'POST',
+        body: JSON.stringify({ accessToken }),
+      });
+      if (res.ok) {
+        await fetchStatus();
+      } else {
+        const err = await res.json();
+        alert(err.error || 'Connection failed');
+      }
+    } catch {
+      alert('Connection failed');
+    } finally {
+      setConnecting(false);
+    }
+  }, [fetchStatus]);
+
   const handleConnect = () => {
     if (!window.FB) return;
+
+    // FB.login requires HTTPS — check and warn
+    if (window.location.protocol !== 'https:') {
+      alert(
+        'Facebook Login requires HTTPS. To test locally, run:\n\n' +
+        '  npx next dev --experimental-https\n\n' +
+        'Or deploy to your production URL.'
+      );
+      return;
+    }
+
     setConnecting(true);
 
+    // FB.login callback must be synchronous — extract token and handle async separately
     window.FB.login(
-      async (response: any) => {
+      (response: any) => {
         if (response.authResponse) {
-          try {
-            const res = await adminFetch('/api/admin/facebook/connect', {
-              method: 'POST',
-              body: JSON.stringify({ accessToken: response.authResponse.accessToken }),
-            });
-            if (res.ok) {
-              await fetchStatus();
-            } else {
-              const err = await res.json();
-              alert(err.error || 'Connection failed');
-            }
-          } catch {
-            alert('Connection failed');
-          }
+          connectWithToken(response.authResponse.accessToken);
+        } else {
+          setConnecting(false);
         }
-        setConnecting(false);
       },
       { scope: 'pages_manage_metadata,pages_messaging,pages_read_engagement' }
     );
