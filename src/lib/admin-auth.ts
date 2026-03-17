@@ -1,4 +1,4 @@
-import { createHmac, timingSafeEqual } from 'crypto';
+import { createHmac, randomBytes, timingSafeEqual } from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { isSuperAdminRequest } from '@/lib/super-admin-auth';
 
@@ -9,9 +9,7 @@ const INTERNAL_API_HEADER = 'x-starrs-internal-token';
 const getAdminPassword = () => process.env.ADMIN_PASSWORD?.trim() || '';
 
 const getAdminSessionSecret = () =>
-  process.env.ADMIN_SESSION_SECRET?.trim() ||
-  process.env.SUPABASE_SERVICE_ROLE_KEY?.trim() ||
-  '';
+  process.env.ADMIN_SESSION_SECRET?.trim() || '';
 
 const getInternalApiSecret = () => getAdminSessionSecret();
 
@@ -20,19 +18,21 @@ const toBuffer = (value: string) => Buffer.from(value, 'utf8');
 const constantTimeEquals = (left: string, right: string) => {
   const leftBuffer = toBuffer(left);
   const rightBuffer = toBuffer(right);
-
-  if (leftBuffer.length !== rightBuffer.length) {
-    return false;
-  }
-
-  return timingSafeEqual(leftBuffer, rightBuffer);
+  const maxLength = Math.max(leftBuffer.length, rightBuffer.length);
+  if (maxLength === 0) return true;
+  const paddedLeft = Buffer.alloc(maxLength);
+  const paddedRight = Buffer.alloc(maxLength);
+  leftBuffer.copy(paddedLeft);
+  rightBuffer.copy(paddedRight);
+  return timingSafeEqual(paddedLeft, paddedRight) && leftBuffer.length === rightBuffer.length;
 };
 
 const signValue = (value: string, secret: string) =>
   createHmac('sha256', secret).update(value).digest('base64url');
 
-export const isAdminAuthConfigured = () =>
-  Boolean(getAdminPassword() && getAdminSessionSecret());
+export const isAdminAuthConfigured = () => {
+  return Boolean(getAdminPassword() && getAdminSessionSecret());
+};
 
 export const verifyAdminPassword = (password: string) => {
   const adminPassword = getAdminPassword();
@@ -46,12 +46,14 @@ export const verifyAdminPassword = (password: string) => {
 export const createAdminSessionToken = (now = Date.now()) => {
   const secret = getAdminSessionSecret();
   if (!secret) {
-    throw new Error('Missing ADMIN_SESSION_SECRET or SUPABASE_SERVICE_ROLE_KEY');
+    throw new Error('Missing ADMIN_SESSION_SECRET');
   }
 
   const expiresAt = String(now + ADMIN_SESSION_TTL_MS);
-  const signature = signValue(expiresAt, secret);
-  return `${expiresAt}.${signature}`;
+  const nonce = randomBytes(16).toString('base64url');
+  const payload = `${expiresAt}.${nonce}`;
+  const signature = signValue(payload, secret);
+  return `${payload}.${signature}`;
 };
 
 const parseAdminSessionToken = (token?: string | null) => {
@@ -59,12 +61,20 @@ const parseAdminSessionToken = (token?: string | null) => {
     return null;
   }
 
-  const [expiresAt, signature] = token.split('.');
-  if (!expiresAt || !signature) {
-    return null;
+  const parts = token.split('.');
+  // Support new 3-part format: expiresAt.nonce.signature
+  if (parts.length === 3) {
+    const [expiresAt, nonce, signature] = parts;
+    if (!expiresAt || !nonce || !signature) return null;
+    return { expiresAt, nonce, signature, payload: `${expiresAt}.${nonce}` };
   }
-
-  return { expiresAt, signature };
+  // Legacy 2-part format: expiresAt.signature (for existing sessions)
+  if (parts.length === 2) {
+    const [expiresAt, signature] = parts;
+    if (!expiresAt || !signature) return null;
+    return { expiresAt, nonce: null, signature, payload: expiresAt };
+  }
+  return null;
 };
 
 export const isAdminSessionValid = (token?: string | null, now = Date.now()) => {
@@ -75,7 +85,7 @@ export const isAdminSessionValid = (token?: string | null, now = Date.now()) => 
     return false;
   }
 
-  const expectedSignature = signValue(parsed.expiresAt, secret);
+  const expectedSignature = signValue(parsed.payload, secret);
   const expiry = Number(parsed.expiresAt);
 
   if (!Number.isFinite(expiry) || expiry <= now) {
@@ -137,8 +147,13 @@ export const requireAdminRequest = (request: NextRequest) => {
   }
 
   // Also accept super admin sessions
-  const { valid } = isSuperAdminRequest(request);
-  if (valid) return null;
+  try {
+    const { valid } = isSuperAdminRequest(request);
+    if (valid) return null;
+  } catch {
+    // isSuperAdminRequest can throw if SUPABASE_SERVICE_ROLE_KEY is missing;
+    // fall through to 401 since regular admin check already failed
+  }
 
   return NextResponse.json({ error: 'Admin authentication required' }, { status: 401 });
 };
@@ -173,15 +188,8 @@ export const isTrustedInternalRequest = (request: NextRequest | Request) => {
 export const isSameOriginRequest = (request: NextRequest) => {
   const origin = request.headers.get('origin');
   const referer = request.headers.get('referer');
-  const host = request.headers.get('host');
-  const forwardedProto = request.headers.get('x-forwarded-proto') || 'https';
 
   const allowedOrigins = new Set<string>();
-  if (host) {
-    allowedOrigins.add(`${forwardedProto}://${host}`);
-    allowedOrigins.add(`https://${host}`);
-    allowedOrigins.add(`http://${host}`);
-  }
 
   const explicitOrigins = [
     process.env.NEXT_PUBLIC_APP_URL,

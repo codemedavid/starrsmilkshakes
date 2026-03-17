@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { adminFetch } from '@/lib/admin-api';
 
 interface SuperAdminLoginProps {
-  onLogin: (adminId: string) => void;
+  onLogin: () => void;
   onBack: () => void;
 }
 
@@ -30,7 +30,14 @@ export default function SuperAdminLogin({ onLogin, onBack }: SuperAdminLoginProp
         return;
       }
 
-      onLogin(data.adminId);
+      // Verify the session cookie was actually set by checking the session endpoint
+      const sessionRes = await adminFetch('/api/admin/auth/super-session');
+      if (!sessionRes.ok) {
+        setError('Login succeeded but session could not be verified. Please try again.');
+        return;
+      }
+
+      onLogin();
     } catch {
       setError('Network error');
     } finally {

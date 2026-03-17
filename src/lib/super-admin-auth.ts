@@ -1,4 +1,4 @@
-import { createHmac, timingSafeEqual } from 'crypto';
+import { createHmac, timingSafeEqual, randomBytes } from 'crypto';
 import bcrypt from 'bcryptjs';
 import { NextRequest, NextResponse } from 'next/server';
 
@@ -17,7 +17,8 @@ function sign(data: string): string {
 
 export function createSuperAdminSessionToken(adminId: string, now?: number): string {
   const expiresAt = (now ?? Date.now()) + SUPER_ADMIN_SESSION_TTL_MS;
-  const payload = `${expiresAt}.${adminId}`;
+  const nonce = randomBytes(16).toString('hex');
+  const payload = `${expiresAt}.${adminId}.${nonce}`;
   const signature = sign(payload);
   return `${payload}.${signature}`;
 }
@@ -26,24 +27,45 @@ export function isSuperAdminSessionValid(token?: string | null, now?: number): {
   if (!token) return { valid: false, adminId: null };
 
   const parts = token.split('.');
-  if (parts.length !== 3) return { valid: false, adminId: null };
+  // New 4-part format: expiresAt.adminId.nonce.signature
+  if (parts.length === 4) {
+    const [expiresAtStr, adminId, nonce, signature] = parts;
+    const expiresAt = Number(expiresAtStr);
+    if (!Number.isFinite(expiresAt)) return { valid: false, adminId: null };
+    if ((now ?? Date.now()) > expiresAt) return { valid: false, adminId: null };
 
-  const [expiresAtStr, adminId, signature] = parts;
-  const expiresAt = Number(expiresAtStr);
-  if (!Number.isFinite(expiresAt)) return { valid: false, adminId: null };
-  if ((now ?? Date.now()) > expiresAt) return { valid: false, adminId: null };
+    const expected = sign(`${expiresAtStr}.${adminId}.${nonce}`);
+    try {
+      const sigBuf = Buffer.from(signature, 'hex');
+      const expBuf = Buffer.from(expected, 'hex');
+      if (sigBuf.length !== expBuf.length) return { valid: false, adminId: null };
+      if (!timingSafeEqual(sigBuf, expBuf)) return { valid: false, adminId: null };
+    } catch {
+      return { valid: false, adminId: null };
+    }
 
-  const expected = sign(`${expiresAtStr}.${adminId}`);
-  try {
-    const sigBuf = Buffer.from(signature, 'hex');
-    const expBuf = Buffer.from(expected, 'hex');
-    if (sigBuf.length !== expBuf.length) return { valid: false, adminId: null };
-    if (!timingSafeEqual(sigBuf, expBuf)) return { valid: false, adminId: null };
-  } catch {
-    return { valid: false, adminId: null };
+    return { valid: true, adminId };
   }
+  // Legacy 3-part format: expiresAt.adminId.signature (for existing sessions)
+  if (parts.length === 3) {
+    const [expiresAtStr, adminId, signature] = parts;
+    const expiresAt = Number(expiresAtStr);
+    if (!Number.isFinite(expiresAt)) return { valid: false, adminId: null };
+    if ((now ?? Date.now()) > expiresAt) return { valid: false, adminId: null };
 
-  return { valid: true, adminId };
+    const expected = sign(`${expiresAtStr}.${adminId}`);
+    try {
+      const sigBuf = Buffer.from(signature, 'hex');
+      const expBuf = Buffer.from(expected, 'hex');
+      if (sigBuf.length !== expBuf.length) return { valid: false, adminId: null };
+      if (!timingSafeEqual(sigBuf, expBuf)) return { valid: false, adminId: null };
+    } catch {
+      return { valid: false, adminId: null };
+    }
+
+    return { valid: true, adminId };
+  }
+  return { valid: false, adminId: null };
 }
 
 export async function verifySuperAdminPassword(inputPassword: string, storedHash: string): Promise<boolean> {

@@ -10,6 +10,28 @@ import { useMenu } from '../hooks/useMenu';
 import { useCategories, Category } from '../hooks/useCategories';
 import { useOrders } from '../hooks/useOrders';
 import { useImageUpload } from '../hooks/useImageUpload';
+import type { AdminPrefetchedData } from '../types/admin';
+
+class ErrorBoundary extends React.Component<
+  { fallback: React.ReactNode; children: React.ReactNode },
+  { hasError: boolean }
+> {
+  constructor(props: { fallback: React.ReactNode; children: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false };
+  }
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+  render() {
+    if (this.state.hasError) return this.props.fallback;
+    return this.props.children;
+  }
+}
+
+interface AdminDashboardProps {
+  prefetchedData?: AdminPrefetchedData;
+}
 
 // Lazy load heavy sub-components for code splitting
 const ImageUpload = lazy(() => import('./ImageUpload'));
@@ -31,16 +53,31 @@ const LoadingFallback = ({ message = 'Loading...' }: { message?: string }) => (
   </div>
 );
 
-const AdminDashboard: React.FC = () => {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [authLoading, setAuthLoading] = useState(true);
-  const [adminConfigured, setAdminConfigured] = useState(true);
+const AdminDashboard: React.FC<AdminDashboardProps> = ({ prefetchedData }) => {
+  const [isAuthenticated, setIsAuthenticated] = useState(prefetchedData?.isAuthenticated ?? false);
+  const [authLoading, setAuthLoading] = useState(!prefetchedData);
+  const [adminConfigured, setAdminConfigured] = useState(prefetchedData?.adminConfigured ?? true);
   const [password, setPassword] = useState('');
   const [loginError, setLoginError] = useState('');
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [showSuperAdminLogin, setShowSuperAdminLogin] = useState(false);
 
   useEffect(() => {
+    // Skip session check if we already have prefetched auth state
+    if (prefetchedData) {
+      // Still check super admin status (not prefetched for security)
+      (async () => {
+        try {
+          const superRes = await adminFetch('/api/admin/auth/super-session');
+          if (superRes.ok) {
+            const superData = await superRes.json();
+            if (superData.authenticated) setIsSuperAdmin(true);
+          }
+        } catch {}
+      })();
+      return;
+    }
+
     const loadSession = async () => {
       try {
         const response = await adminFetch('/api/admin/auth/session');
@@ -64,13 +101,13 @@ const AdminDashboard: React.FC = () => {
     };
 
     void loadSession();
-  }, []);
-  const { menuItems, loading, addMenuItem, updateMenuItem, deleteMenuItem } = useMenu({ admin: isAuthenticated });
-  const { categories } = useCategories({ admin: isAuthenticated });
-  const { getOrderStats } = useOrders({ admin: isAuthenticated });
+  }, [prefetchedData]);
+  const { menuItems, loading, addMenuItem, updateMenuItem, deleteMenuItem, refetch: refetchMenu } = useMenu({ admin: isAuthenticated, initialData: prefetchedData?.menuItems });
+  const { categories } = useCategories({ admin: isAuthenticated, initialData: prefetchedData?.categories });
+  const { getOrderStats } = useOrders({ admin: isAuthenticated, enabled: false });
   const { uploadImage, uploading: variationImageUploading } = useImageUpload();
   const [currentView, setCurrentView] = useState<'dashboard' | 'items' | 'add' | 'edit' | 'categories' | 'payments' | 'settings' | 'orders' | 'branches'>('dashboard');
-  const [orderStats, setOrderStats] = useState({
+  const [orderStats, setOrderStats] = useState(prefetchedData?.orderStats ?? {
     total_orders: 0,
     pending_orders: 0,
     today_orders: 0,
@@ -103,6 +140,7 @@ const AdminDashboard: React.FC = () => {
       category: defaultCategory,
       popular: false,
       available: true,
+      show_in_messenger: false,
       variations: [],
       addOns: []
     });
@@ -211,6 +249,34 @@ const AdminDashboard: React.FC = () => {
     }
   };
 
+  const handleBulkMessengerToggle = async (showInMessenger: boolean) => {
+    const targetIds = selectedItems.length > 0 ? selectedItems : [];
+    const label = showInMessenger ? 'show' : 'hide';
+    const count = targetIds.length > 0 ? `${targetIds.length} selected` : 'all';
+    if (!confirm(`${showInMessenger ? 'Show' : 'Hide'} ${count} item(s) on Messenger?`)) return;
+
+    try {
+      setIsProcessing(true);
+      const res = await adminFetch('/api/admin/menu/bulk-messenger', {
+        method: 'PUT',
+        body: JSON.stringify({
+          itemIds: targetIds.length > 0 ? targetIds : 'all',
+          showInMessenger,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || `Failed to ${label} items`);
+      alert(`Successfully updated ${data.updated || 'all'} item(s) for Messenger.`);
+      setSelectedItems([]);
+      setShowBulkActions(false);
+      await refetchMenu();
+    } catch (error) {
+      alert(error instanceof Error ? error.message : `Failed to ${label} items on Messenger`);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   const handleSelectItem = (itemId: string) => {
     setSelectedItems(prev =>
       prev.includes(itemId)
@@ -305,6 +371,7 @@ const AdminDashboard: React.FC = () => {
   const totalItems = menuItems.length;
   const popularItems = menuItems.filter(item => item.popular).length;
   const availableItems = menuItems.filter(item => item.available).length;
+  const messengerItems = menuItems.filter(item => item.show_in_messenger).length;
   const categoryCounts = categories.map(cat => ({
     ...cat,
     count: menuItems.filter(item => item.category === cat.id).length
@@ -324,7 +391,11 @@ const AdminDashboard: React.FC = () => {
       setLoginError('');
       setPassword('');
     } catch (error) {
-      setLoginError(error instanceof Error ? error.message : 'Failed to log in');
+      if (error instanceof TypeError) {
+        setLoginError('Failed to connect. Please try again.');
+      } else {
+        setLoginError(error instanceof Error ? error.message : 'Failed to log in');
+      }
     }
   };
 
@@ -339,6 +410,8 @@ const AdminDashboard: React.FC = () => {
       setIsAuthenticated(false);
       setPassword('');
       setCurrentView('dashboard');
+      setIsSuperAdmin(false);
+      setShowSuperAdminLogin(false);
     }
   };
 
@@ -346,23 +419,39 @@ const AdminDashboard: React.FC = () => {
   if (authLoading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <LoadingFallback message="Checking admin session..." />
+        <div className="text-center">
+          <div className="mx-auto w-16 h-16 bg-green-600 rounded-full flex items-center justify-center mb-4">
+            <Lock className="h-8 w-8 text-white" />
+          </div>
+          <LoadingFallback message="Checking admin session..." />
+        </div>
       </div>
     );
   }
 
   if (showSuperAdminLogin) {
     return (
-      <Suspense fallback={<LoadingFallback />}>
-        <SuperAdminLogin
-          onLogin={(adminId) => {
-            setIsSuperAdmin(true);
-            setIsAuthenticated(true);
-            setShowSuperAdminLogin(false);
-          }}
-          onBack={() => setShowSuperAdminLogin(false)}
-        />
-      </Suspense>
+      <ErrorBoundary fallback={
+        <div className="min-h-screen flex items-center justify-center bg-gray-50">
+          <div className="text-center">
+            <p className="text-red-500 mb-4">Failed to load Super Admin Login</p>
+            <button onClick={() => setShowSuperAdminLogin(false)} className="text-gray-600 hover:text-gray-800">
+              Back to Admin Login
+            </button>
+          </div>
+        </div>
+      }>
+        <Suspense fallback={<LoadingFallback />}>
+          <SuperAdminLogin
+            onLogin={() => {
+              setIsSuperAdmin(true);
+              setIsAuthenticated(true);
+              setShowSuperAdminLogin(false);
+            }}
+            onBack={() => setShowSuperAdminLogin(false)}
+          />
+        </Suspense>
+      </ErrorBoundary>
     );
   }
 
@@ -410,7 +499,7 @@ const AdminDashboard: React.FC = () => {
             <button
               type="button"
               onClick={() => setShowSuperAdminLogin(true)}
-              className="w-full text-center text-sm text-gray-500 hover:text-gray-700 mt-2"
+              className="w-full text-center text-sm text-gray-500 hover:text-green-700 hover:underline mt-4 py-2"
             >
               Super Admin Login
             </button>
@@ -529,6 +618,18 @@ const AdminDashboard: React.FC = () => {
                     className="rounded border-gray-300 text-green-600 focus:ring-green-500"
                   />
                   <span className="text-sm font-medium text-black">Available for Order</span>
+                </label>
+              </div>
+
+              <div className="flex items-center">
+                <label className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    checked={formData.show_in_messenger || false}
+                    onChange={(e) => setFormData({ ...formData, show_in_messenger: e.target.checked })}
+                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  <span className="text-sm font-medium text-black">Show in Messenger</span>
                 </label>
               </div>
             </div>
@@ -818,6 +919,22 @@ const AdminDashboard: React.FC = () => {
                     </select>
                   </div>
 
+                  {/* Messenger Toggle */}
+                  <button
+                    onClick={() => handleBulkMessengerToggle(true)}
+                    disabled={isProcessing}
+                    className="flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                  >
+                    <span>{isProcessing ? 'Updating...' : 'Show on Messenger'}</span>
+                  </button>
+                  <button
+                    onClick={() => handleBulkMessengerToggle(false)}
+                    disabled={isProcessing}
+                    className="flex items-center space-x-2 bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                  >
+                    <span>{isProcessing ? 'Updating...' : 'Hide from Messenger'}</span>
+                  </button>
+
                   {/* Remove Items */}
                   <button
                     onClick={handleBulkRemove}
@@ -947,6 +1064,11 @@ const AdminDashboard: React.FC = () => {
                             }`}>
                             {item.available ? 'Available' : 'Unavailable'}
                           </span>
+                          {item.show_in_messenger && (
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                              Messenger
+                            </span>
+                          )}
                         </div>
                       </td>
                       <td className="px-6 py-4">
@@ -1043,7 +1165,7 @@ const AdminDashboard: React.FC = () => {
                   </div>
 
                   <div className="flex items-center justify-between mt-3">
-                    <div className="flex items-center space-x-2">
+                    <div className="flex items-center space-x-2 flex-wrap gap-1">
                       {item.popular && (
                         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-600 text-white">
                           Popular
@@ -1055,6 +1177,11 @@ const AdminDashboard: React.FC = () => {
                         }`}>
                         {item.available ? 'Available' : 'Unavailable'}
                       </span>
+                      {item.show_in_messenger && (
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                          Messenger
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1218,6 +1345,18 @@ const AdminDashboard: React.FC = () => {
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Available Items</p>
                 <p className="text-2xl font-semibold text-gray-900">{availableItems}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl shadow-sm p-6">
+            <div className="flex items-center">
+              <div className="p-2 bg-blue-500 rounded-lg">
+                <Coffee className="h-6 w-6 text-white" />
+              </div>
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-600">On Messenger</p>
+                <p className="text-2xl font-semibold text-gray-900">{messengerItems}</p>
               </div>
             </div>
           </div>
