@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { ArrowLeft, Search, CheckCircle, XCircle, Clock, Package, Truck, CheckSquare, Square, ExternalLink, DollarSign, Activity, RefreshCw } from 'lucide-react';
 import { useOrders } from '../hooks/useOrders';
 import { Order, OrderStatus, OrderFilters } from '../types';
+import CustomerLinkWidget from './CustomerLinkWidget';
 
 interface OrderManagerProps {
   onBack: () => void;
@@ -452,6 +453,9 @@ const OrderManager: React.FC<OrderManagerProps> = ({ onBack }) => {
                           <div>
                             <div className="font-medium text-gray-900">{order.customer_name}</div>
                             <div className="text-xs text-gray-500 mt-0.5">{order.contact_number}</div>
+                            <div className="mt-1">
+                              <CustomerLinkWidget order={order} onUpdate={() => fetchOrders(filters)} />
+                            </div>
                           </div>
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap">
@@ -552,6 +556,9 @@ const OrderManager: React.FC<OrderManagerProps> = ({ onBack }) => {
                           </div>
                           <div className="text-sm text-gray-600 mb-1">{order.customer_name}</div>
                           <div className="text-xs text-gray-500">{order.contact_number}</div>
+                          <div className="mt-1">
+                            <CustomerLinkWidget order={order} onUpdate={() => fetchOrders(filters)} />
+                          </div>
                         </div>
                       </div>
                       <select

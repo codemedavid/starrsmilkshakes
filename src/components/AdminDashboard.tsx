@@ -40,6 +40,7 @@ const PaymentMethodManager = lazy(() => import('./PaymentMethodManager'));
 const SiteSettingsManager = lazy(() => import('./SiteSettingsManager'));
 const OrderManager = lazy(() => import('./OrderManager'));
 const BranchManager = lazy(() => import('./BranchManager'));
+const CustomerManager = lazy(() => import('./CustomerManager'));
 const FacebookConnect = lazy(() => import('./FacebookConnect'));
 const SuperAdminLogin = lazy(() => import('./SuperAdminLogin'));
 
@@ -106,7 +107,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ prefetchedData }) => {
   const { categories } = useCategories({ admin: isAuthenticated, initialData: prefetchedData?.categories });
   const { getOrderStats } = useOrders({ admin: isAuthenticated, enabled: false });
   const { uploadImage, uploading: variationImageUploading } = useImageUpload();
-  const [currentView, setCurrentView] = useState<'dashboard' | 'items' | 'add' | 'edit' | 'categories' | 'payments' | 'settings' | 'orders' | 'branches'>('dashboard');
+  const [currentView, setCurrentView] = useState<'dashboard' | 'items' | 'add' | 'edit' | 'categories' | 'payments' | 'settings' | 'orders' | 'branches' | 'customers'>('dashboard');
   const [orderStats, setOrderStats] = useState(prefetchedData?.orderStats ?? {
     total_orders: 0,
     pending_orders: 0,
@@ -1206,6 +1207,19 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ prefetchedData }) => {
     );
   }
 
+  // Customers View
+  if (currentView === 'customers') {
+    return (
+      <Suspense fallback={
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+          <LoadingFallback message="Loading Customer Manager..." />
+        </div>
+      }>
+        <CustomerManager onBack={() => setCurrentView('dashboard')} />
+      </Suspense>
+    );
+  }
+
   // Categories View
   if (currentView === 'categories') {
     return (
@@ -1416,6 +1430,13 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ prefetchedData }) => {
                     {orderStats.pending_orders}
                   </span>
                 )}
+              </button>
+              <button
+                onClick={() => setCurrentView('customers')}
+                className="w-full flex items-center space-x-3 p-3 text-left hover:bg-gray-50 rounded-lg transition-colors duration-200"
+              >
+                <Users className="h-5 w-5 text-gray-400" />
+                <span className="font-medium text-gray-900">Manage Customers</span>
               </button>
               <button
                 onClick={() => setCurrentView('categories')}
