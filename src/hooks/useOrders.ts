@@ -17,6 +17,7 @@ interface CreateOrderOptions {
   deliveryLng?: number;
   branchId?: string;
   branch?: Branch;
+  msession?: string;
 }
 
 interface UseOrdersOptions {

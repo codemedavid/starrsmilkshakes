@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useEffect, useRef } from 'react';
-import { useRouter } from 'next/navigation';
+import React, { useEffect, useRef, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Header from '@/components/Header';
 import Checkout from '@/components/Checkout';
 import { useCartContext } from '@/contexts/CartContext';
@@ -10,9 +10,40 @@ import * as fpixel from '@/lib/fpixel';
 
 const CheckoutPage = () => {
     const router = useRouter();
+    const searchParams = useSearchParams();
+    const msession = searchParams.get('msession');
     const cart = useCartContext();
     const { siteSettings } = useSiteSettings();
     const hasTrackedCheckout = useRef(false);
+    const [messengerLoading, setMessengerLoading] = useState(!!msession);
+    const [messengerError, setMessengerError] = useState<string | null>(null);
+
+    // Load cart from Messenger session if msession param is present
+    useEffect(() => {
+        if (!msession) return;
+
+        const loadMessengerSession = async () => {
+            try {
+                const res = await fetch(`/api/messenger/session/${msession}`);
+                if (!res.ok) {
+                    const data = await res.json().catch(() => ({}));
+                    setMessengerError(data.error || 'Invalid or expired session link.');
+                    return;
+                }
+                const data = await res.json();
+                if (data.items && Array.isArray(data.items)) {
+                    cart.loadFromMessengerSession(data.items);
+                }
+            } catch {
+                setMessengerError('Failed to load your session. Please try again.');
+            } finally {
+                setMessengerLoading(false);
+            }
+        };
+
+        void loadMessengerSession();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [msession]);
 
     // Track InitiateCheckout on page load (only once)
     useEffect(() => {
@@ -29,16 +60,43 @@ const CheckoutPage = () => {
         }
     }, [cart, siteSettings?.currency_code]);
 
-    // Redirect to menu if cart is empty
+    // Redirect to menu if cart is empty — but not while waiting for msession to load
     useEffect(() => {
-        if (cart.cartItems.length === 0) {
+        if (!msession && cart.cartItems.length === 0) {
             router.push('/');
         }
-    }, [cart.cartItems.length, router]);
+    }, [cart.cartItems.length, router, msession]);
 
     const handleBack = () => {
         router.push('/?view=cart');
     };
+
+    if (messengerLoading) {
+        return (
+            <div className="min-h-screen bg-gradient-to-b from-starrs-mint-light to-starrs-cream-light font-inter flex items-center justify-center">
+                <div className="text-center">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-starrs-teal mx-auto mb-4"></div>
+                    <p className="text-starrs-teal-dark">Loading your order from Messenger...</p>
+                </div>
+            </div>
+        );
+    }
+
+    if (messengerError) {
+        return (
+            <div className="min-h-screen bg-gradient-to-b from-starrs-mint-light to-starrs-cream-light font-inter flex items-center justify-center">
+                <div className="text-center max-w-sm mx-auto p-6">
+                    <p className="text-red-600 font-semibold mb-4">{messengerError}</p>
+                    <button
+                        onClick={() => router.push('/')}
+                        className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                    >
+                        Go to Menu
+                    </button>
+                </div>
+            </div>
+        );
+    }
 
     if (cart.cartItems.length === 0) {
         return (
@@ -62,6 +120,7 @@ const CheckoutPage = () => {
                 cartItems={cart.cartItems}
                 totalPrice={cart.getTotalPrice()}
                 onBack={handleBack}
+                msession={msession ?? undefined}
             />
         </div>
     );
