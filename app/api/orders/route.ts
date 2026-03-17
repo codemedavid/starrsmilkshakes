@@ -584,6 +584,35 @@ export async function POST(request: NextRequest) {
             console.error('Failed to send Messenger receipt:', err);
           }
         })();
+
+        // Auto-create or link customer from Messenger PSID
+        try {
+          const psid = checkoutSession.psid;
+          const msgrName = customerName || psid;
+
+          // Atomic upsert on messenger_psid (ON CONFLICT DO UPDATE).
+          // Prevents duplicate customers when two concurrent orders arrive with the same PSID.
+          const { data: upsertedCustomer, error: upsertErr } = await (supabaseServer.from('customers') as any)
+            .upsert(
+              { name: msgrName, messenger_psid: psid, messenger_name: msgrName, source: 'messenger' },
+              { onConflict: 'messenger_psid', ignoreDuplicates: false }
+            )
+            .select('id')
+            .single();
+          if (upsertErr) throw upsertErr;
+          const linkedCustomerId = upsertedCustomer.id;
+
+          const { error: linkErr } = await (supabaseServer.from('orders') as any)
+            .update({ customer_id: linkedCustomerId })
+            .eq('id', orderData.id);
+
+          if (linkErr) {
+            console.error('[orders/route] Failed to link customer to order:', { orderId: orderData.id, customerId: linkedCustomerId, error: linkErr.message });
+          }
+        } catch (customerErr) {
+          console.error('[orders/route] Messenger customer upsert failed:', { orderId: orderData.id, error: String(customerErr) });
+          // Non-fatal — order is valid, customer link is missing
+        }
       }
     }
 

@@ -240,3 +240,53 @@ describe('GET /api/admin/customers/suggest', () => {
     expect(data.customer.name).toBe('Suggest Test');
   });
 });
+
+describe('Order linking via PATCH /api/orders/[id]', () => {
+  it('rejects invalid UUID format for customer_id', async () => {
+    const ordersRes = await adminFetch('/api/orders?limit=1');
+    const { orders } = await ordersRes.json();
+    if (!orders?.length) return;
+    const res = await adminFetch(`/api/orders/${orders[0].id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ customer_id: 'not-a-uuid' }),
+    });
+    expect(res.status).toBe(422);
+  });
+
+  it('accepts customer_id: null to unlink (always returns 200 — idempotent)', async () => {
+    const ordersRes = await adminFetch('/api/orders?limit=1');
+    const { orders } = await ordersRes.json();
+    if (!orders?.length) return;
+    const res = await adminFetch(`/api/orders/${orders[0].id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ customer_id: null }),
+    });
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.order.customer_id).toBeNull();
+  });
+});
+
+describe('Public POST /api/orders ignores customer_id', () => {
+  it('does not set customer_id even if sent in body', async () => {
+    const body = {
+      items: [{ id: 'test', name: 'Test Item', basePrice: 100, quantity: 1, totalPrice: 100 }],
+      customerName: 'Security Test',
+      contactNumber: '09123456789',
+      serviceType: 'pickup',
+      paymentMethod: 'gcash',
+      total: 100,
+      customer_id: '00000000-0000-0000-0000-000000000000',
+    };
+    const res = await fetch(`${BASE}/api/orders`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    expect(res.status).not.toBe(500);
+    if (res.status === 201) {
+      const data = await res.json();
+      expect(data.order?.customer_id ?? null).toBeNull();
+    }
+  });
+});

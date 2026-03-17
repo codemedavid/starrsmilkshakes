@@ -241,6 +241,7 @@ export async function GET(
       lalamove_order_id: data.lalamove_order_id,
       lalamove_status: data.lalamove_status,
       lalamove_tracking_url: data.lalamove_tracking_url,
+      customer_id: data.customer_id ?? null,
       order_items: (data.order_items as any[])?.map((item: any) => ({
         id: item.id,
         order_id: item.order_id,
@@ -291,6 +292,28 @@ export async function PATCH(
       );
     }
 
+    // Handle customer_id linking
+    const rawCustomerId = body.customer_id;
+    let customerId: string | null | undefined = undefined; // undefined = don't update
+
+    if (rawCustomerId !== undefined) {
+      if (rawCustomerId === null) {
+        customerId = null; // explicit unlink
+      } else {
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        if (!uuidRegex.test(String(rawCustomerId))) {
+          return NextResponse.json({ error: 'Invalid customer_id format' }, { status: 422 });
+        }
+        // Verify customer exists
+        const { data: customerExists } = await (supabaseServer.from('customers') as any)
+          .select('id').eq('id', rawCustomerId).maybeSingle();
+        if (!customerExists) {
+          return NextResponse.json({ error: 'Customer not found' }, { status: 404 });
+        }
+        customerId = String(rawCustomerId);
+      }
+    }
+
     // Build update object
     const updateData: any = {};
     
@@ -324,6 +347,10 @@ export async function PATCH(
     }
     if (lalamove_tracking_url !== undefined) {
       updateData.lalamove_tracking_url = lalamove_tracking_url;
+    }
+
+    if (customerId !== undefined) {
+      updateData.customer_id = customerId;
     }
 
     if (Object.keys(updateData).length === 0) {
@@ -478,6 +505,7 @@ export async function PATCH(
       lalamove_order_id: data.lalamove_order_id,
       lalamove_status: data.lalamove_status,
       lalamove_tracking_url: data.lalamove_tracking_url,
+      customer_id: data.customer_id ?? null,
       order_items: (data.order_items as any[])?.map((item: any) => ({
         id: item.id,
         order_id: item.order_id,
