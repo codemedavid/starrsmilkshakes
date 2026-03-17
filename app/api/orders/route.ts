@@ -532,6 +532,61 @@ export async function POST(request: NextRequest) {
       console.error('PostHog capture failed for order:', analyticsError);
     }
 
+    // Handle Messenger checkout session linking
+    const msession = body.msession || null;
+    if (msession && typeof msession === 'string') {
+      // Atomically mark session as completed (prevents race condition)
+      const { data: checkoutSession } = await supabaseServer
+        .from('messenger_checkout_sessions')
+        .update({ status: 'completed', order_id: formattedOrder.id })
+        .eq('hash', msession)
+        .eq('status', 'pending')
+        .select('psid')
+        .single() as { data: any; error: any };
+
+      if (checkoutSession) {
+        // Create messenger order link for status notifications
+        await supabaseServer.from('messenger_order_links').insert({
+          order_id: formattedOrder.id,
+          psid: checkoutSession.psid,
+          notify_enabled: true,
+        });
+
+        // Send receipt to Messenger (non-blocking)
+        (async () => {
+          try {
+            const { data: fbConfig } = await supabaseServer
+              .from('facebook_config')
+              .select('page_access_token')
+              .single() as { data: any; error: any };
+
+            if (fbConfig) {
+              const { sendTextMessage } = await import('@/lib/messenger');
+              const itemLines = (formattedOrder.order_items || [])
+                .map((oi: any) => `${oi.quantity}x ${oi.menu_item_name} — ₱${oi.total_price}`)
+                .join('\n');
+
+              const receipt = [
+                `Order #${formattedOrder.order_number} confirmed!`,
+                '',
+                itemLines,
+                '',
+                `Total: ₱${formattedOrder.total}`,
+                `Payment: ${paymentMethodName}`,
+                `Service: ${formattedOrder.service_type}`,
+                '',
+                'Thank you for your order!',
+              ].join('\n');
+
+              await sendTextMessage(checkoutSession.psid, receipt, fbConfig.page_access_token);
+            }
+          } catch (err) {
+            console.error('Failed to send Messenger receipt:', err);
+          }
+        })();
+      }
+    }
+
     return NextResponse.json({ order: formattedOrder }, { status: 201 });
   } catch (error) {
     console.error('Unexpected error in POST /api/orders:', error);
