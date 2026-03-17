@@ -39,23 +39,30 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     await subscribePageToWebhook(page.pageId, page.pageAccessToken);
 
     // Clear existing config and insert new
-    const { data: existingConfigs } = await supabaseServer.from('facebook_config').select('id');
+    const { data: existingConfigs } = await (supabaseServer
+      .from('facebook_config') as any)
+      .select('id');
     if (existingConfigs && existingConfigs.length > 0) {
       for (const config of existingConfigs) {
-        await supabaseServer.from('facebook_config').delete().eq('id', config.id);
+        await (supabaseServer.from('facebook_config') as any).delete().eq('id', config.id);
       }
     }
 
-    const { error: insertError } = await supabaseServer.from('facebook_config').insert({
+    const insertPayload = {
       page_id: page.pageId,
       page_name: page.pageName,
       page_access_token: page.pageAccessToken,
       app_id: process.env.FACEBOOK_APP_ID || '',
-      connected_by: adminId,
-    });
+      connected_by: adminId || null,
+    };
+
+    const { error: insertError } = await (supabaseServer
+      .from('facebook_config') as any)
+      .insert(insertPayload);
 
     if (insertError) {
-      return NextResponse.json({ error: 'Failed to save config' }, { status: 500 });
+      console.error('Facebook config insert error:', insertError);
+      return NextResponse.json({ error: `Failed to save config: ${insertError.message}` }, { status: 500 });
     }
 
     return NextResponse.json({
