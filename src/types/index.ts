@@ -137,6 +137,7 @@ export interface Order {
   lalamove_tracking_url?: string | null;
   branch_id?: string | null;
   msession?: string | null;
+  customer_id?: string | null;
 }
 
 export interface Branch {
