@@ -66,3 +66,10 @@ ALTER TABLE menu_items ADD COLUMN IF NOT EXISTS show_in_messenger boolean DEFAUL
 CREATE TRIGGER update_messenger_sessions_updated_at
   BEFORE UPDATE ON messenger_sessions
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- Enable RLS on sensitive tables (service role key bypasses RLS, anon key cannot access)
+ALTER TABLE super_admins ENABLE ROW LEVEL SECURITY;
+ALTER TABLE facebook_config ENABLE ROW LEVEL SECURITY;
+ALTER TABLE messenger_sessions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE messenger_checkout_sessions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE messenger_order_links ENABLE ROW LEVEL SECURITY;

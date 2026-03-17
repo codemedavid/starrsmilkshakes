@@ -6,7 +6,9 @@ const SUPER_ADMIN_SESSION_COOKIE = 'starrs_super_admin_session';
 const SUPER_ADMIN_SESSION_TTL_MS = 1000 * 60 * 60 * 12; // 12 hours
 
 function getSessionSecret(): string {
-  return process.env.SUPABASE_SERVICE_ROLE_KEY || 'fallback-dev-secret';
+  const secret = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!secret) throw new Error('SUPABASE_SERVICE_ROLE_KEY is not set');
+  return secret;
 }
 
 function sign(data: string): string {
@@ -14,8 +16,7 @@ function sign(data: string): string {
 }
 
 export function createSuperAdminSessionToken(adminId: string, now?: number): string {
-  // When `now` is provided it is used as the expiry directly (enables testing with past timestamps)
-  const expiresAt = now ?? (Date.now() + SUPER_ADMIN_SESSION_TTL_MS);
+  const expiresAt = (now ?? Date.now()) + SUPER_ADMIN_SESSION_TTL_MS;
   const payload = `${expiresAt}.${adminId}`;
   const signature = sign(payload);
   return `${payload}.${signature}`;

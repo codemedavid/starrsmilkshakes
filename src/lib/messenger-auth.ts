@@ -14,8 +14,16 @@ export async function exchangeForLongLivedToken(shortLivedToken: string): Promis
   const appSecret = process.env.FACEBOOK_APP_SECRET;
   if (!appId || !appSecret) throw new Error('Facebook app credentials not configured');
 
-  const url = `${GRAPH_API_BASE}/oauth/access_token?grant_type=fb_exchange_token&client_id=${appId}&client_secret=${appSecret}&fb_exchange_token=${shortLivedToken}`;
-  const res = await fetch(url);
+  const res = await fetch(`${GRAPH_API_BASE}/oauth/access_token`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      grant_type: 'fb_exchange_token',
+      client_id: appId,
+      client_secret: appSecret,
+      fb_exchange_token: shortLivedToken,
+    }),
+  });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error(`Token exchange failed: ${JSON.stringify(err)}`);
@@ -25,8 +33,9 @@ export async function exchangeForLongLivedToken(shortLivedToken: string): Promis
 }
 
 export async function getPageAccessToken(userAccessToken: string): Promise<PageInfo[]> {
-  const url = `${GRAPH_API_BASE}/me/accounts?access_token=${userAccessToken}&fields=id,name,access_token`;
-  const res = await fetch(url);
+  const res = await fetch(`${GRAPH_API_BASE}/me/accounts?fields=id,name,access_token`, {
+    headers: { Authorization: `Bearer ${userAccessToken}` },
+  });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error(`Failed to get pages: ${JSON.stringify(err)}`);

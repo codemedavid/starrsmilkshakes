@@ -28,7 +28,8 @@ describe('super-admin-auth', () => {
 
   it('isSuperAdminSessionValid rejects expired token', async () => {
     const { createSuperAdminSessionToken, isSuperAdminSessionValid } = await import('../../src/lib/super-admin-auth');
-    const pastTime = Date.now() - 100000;
+    // Create token with a "now" far enough in the past that the token has already expired
+    const pastTime = Date.now() - (13 * 60 * 60 * 1000); // 13 hours ago (TTL is 12h)
     const token = createSuperAdminSessionToken('test-admin-id', pastTime);
     const result = isSuperAdminSessionValid(token);
     expect(result).toEqual({ valid: false, adminId: null });

@@ -39,7 +39,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     await subscribePageToWebhook(page.pageId, page.pageAccessToken);
 
     // Clear existing config and insert new
-    await supabaseServer.from('facebook_config').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+    const { data: existingConfigs } = await supabaseServer.from('facebook_config').select('id');
+    if (existingConfigs && existingConfigs.length > 0) {
+      for (const config of existingConfigs) {
+        await supabaseServer.from('facebook_config').delete().eq('id', config.id);
+      }
+    }
 
     const { error: insertError } = await supabaseServer.from('facebook_config').insert({
       page_id: page.pageId,
