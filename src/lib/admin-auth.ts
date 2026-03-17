@@ -1,5 +1,6 @@
 import { createHmac, timingSafeEqual } from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
+import { isSuperAdminRequest } from '@/lib/super-admin-auth';
 
 export const ADMIN_SESSION_COOKIE = 'starrs_admin_session';
 const ADMIN_SESSION_TTL_MS = 1000 * 60 * 60 * 12;
@@ -134,6 +135,10 @@ export const requireAdminRequest = (request: NextRequest) => {
   if (isAdminRequest(request)) {
     return null;
   }
+
+  // Also accept super admin sessions
+  const { valid } = isSuperAdminRequest(request);
+  if (valid) return null;
 
   return NextResponse.json({ error: 'Admin authentication required' }, { status: 401 });
 };
