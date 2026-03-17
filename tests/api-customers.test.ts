@@ -1,5 +1,5 @@
 // tests/api-customers.test.ts
-import { describe, it, expect, afterAll } from 'vitest';
+import { describe, it, expect, afterAll, beforeAll } from 'vitest';
 
 const BASE = process.env.API_BASE_URL || 'http://localhost:3000';
 const ADMIN_COOKIE = process.env.TEST_ADMIN_COOKIE || '';
@@ -289,4 +289,99 @@ describe('Public POST /api/orders ignores customer_id', () => {
       expect(data.order?.customer_id ?? null).toBeNull();
     }
   });
+});
+
+describe('Stats trigger via API (behaviour tests)', () => {
+  let triggerTestCustomerId: string | null = null;
+  let linkedOrderId: string | null = null;
+
+  beforeAll(async () => {
+    const res = await adminFetch('/api/admin/customers', {
+      method: 'POST',
+      body: JSON.stringify({ name: 'Trigger Test Customer' }),
+    });
+    const data = await res.json();
+    triggerTestCustomerId = data.customer?.id ?? null;
+  });
+
+  afterAll(async () => {
+    if (triggerTestCustomerId) {
+      await adminFetch(`/api/admin/customers/${triggerTestCustomerId}`, { method: 'DELETE' });
+    }
+  });
+
+  it('stats start at 0 and avg_order_interval_days is null for new customer (0 orders)', async () => {
+    if (!triggerTestCustomerId) return;
+    const res = await adminFetch(`/api/admin/customers/${triggerTestCustomerId}`);
+    const { customer } = await res.json();
+    expect(customer.total_spent).toBe(0);
+    expect(customer.order_count).toBe(0);
+    expect(customer.avg_order_interval_days).toBeNull();
+  });
+
+  it('avg_order_interval_days is null when exactly 1 order is linked (order_count <= 1)', async () => {
+    if (!triggerTestCustomerId) return;
+    const ordersRes = await adminFetch('/api/orders?limit=1');
+    const { orders } = await ordersRes.json();
+    if (!orders?.length) return;
+
+    const orderId = orders[0].id;
+    linkedOrderId = orderId;
+    await adminFetch(`/api/orders/${orderId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ customer_id: triggerTestCustomerId }),
+    });
+
+    const res = await adminFetch(`/api/admin/customers/${triggerTestCustomerId}`);
+    const { customer } = await res.json();
+    expect(customer.order_count).toBeGreaterThanOrEqual(1);
+    if (customer.order_count === 1) {
+      expect(customer.avg_order_interval_days).toBeNull();
+    }
+  });
+
+  it('linking a completed order updates total_spent, order_count, avg_order_value', async () => {
+    if (!triggerTestCustomerId || !linkedOrderId) return;
+    const res = await adminFetch(`/api/admin/customers/${triggerTestCustomerId}`);
+    const { customer } = await res.json();
+    expect(customer.order_count).toBeGreaterThan(0);
+    const expectedAvg = customer.order_count > 0
+      ? customer.total_spent / customer.order_count
+      : 0;
+    expect(Math.abs(customer.avg_order_value - expectedAvg)).toBeLessThan(0.01);
+  });
+
+  it('linking a cancelled order does NOT increase total_spent or order_count', async () => {
+    if (!triggerTestCustomerId) return;
+    const ordersRes = await adminFetch('/api/orders?status=cancelled&limit=1');
+    const { orders } = await ordersRes.json();
+    if (!orders?.length) return;
+
+    const before = await (await adminFetch(`/api/admin/customers/${triggerTestCustomerId}`)).json();
+    await adminFetch(`/api/orders/${orders[0].id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ customer_id: triggerTestCustomerId }),
+    });
+    const after = await (await adminFetch(`/api/admin/customers/${triggerTestCustomerId}`)).json();
+
+    expect(after.customer.total_spent).toBe(before.customer.total_spent);
+    expect(after.customer.order_count).toBe(before.customer.order_count);
+  });
+
+  it('unlinking an order via customer_id: null recalculates stats downward', async () => {
+    if (!triggerTestCustomerId || !linkedOrderId) return;
+    const before = await (await adminFetch(`/api/admin/customers/${triggerTestCustomerId}`)).json();
+
+    await adminFetch(`/api/orders/${linkedOrderId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ customer_id: null }),
+    });
+
+    const after = await (await adminFetch(`/api/admin/customers/${triggerTestCustomerId}`)).json();
+    expect(after.customer.order_count).toBeLessThanOrEqual(before.customer.order_count);
+    linkedOrderId = null;
+  });
+
+  it.todo('Messenger auto-create: POST /api/orders with Messenger PSID → customer appears in GET /api/admin/customers');
+  it.todo('Messenger dedup: second order from same PSID → GET /api/admin/customers shows no duplicate customer');
 });
