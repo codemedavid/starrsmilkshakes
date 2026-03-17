@@ -16,6 +16,7 @@ const normalizeMenuPayload = (body: Record<string, unknown>) => ({
   discount_start_date: body.discountStartDate !== undefined ? (body.discountStartDate ? String(body.discountStartDate) : null) : undefined,
   discount_end_date: body.discountEndDate !== undefined ? (body.discountEndDate ? String(body.discountEndDate) : null) : undefined,
   discount_active: body.discountActive !== undefined ? Boolean(body.discountActive) : undefined,
+  show_in_messenger: body.showInMessenger !== undefined ? Boolean(body.showInMessenger) : undefined,
 });
 
 const normalizeVariationPayload = (value: unknown, menuItemId: string) =>
