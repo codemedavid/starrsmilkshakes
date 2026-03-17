@@ -31,8 +31,11 @@ const CheckoutPage = () => {
                     return;
                 }
                 const data = await res.json();
-                if (data.items && Array.isArray(data.items)) {
-                    cart.loadFromMessengerSession(data.items);
+                if (data.cart && Array.isArray(data.cart)) {
+                    cart.loadFromMessengerSession(data.cart);
+                }
+                if (data.branchId) {
+                    // branchId is available for use if needed
                 }
             } catch {
                 setMessengerError('Failed to load your session. Please try again.');

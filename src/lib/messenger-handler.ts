@@ -13,7 +13,6 @@ import {
 import { generateCheckoutHash, getCheckoutExpiresAt } from '@/lib/messenger-session';
 import type { MessengerSession, MessengerCartItem } from '@/types';
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000';
 const PRODUCTS_PER_PAGE = 10;
 
 export async function handleMessengerEvent(event: any, pageToken: string): Promise<void> {

@@ -122,7 +122,7 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const loadFromMessengerSession = useCallback((items: CartItem[]) => {
         setCartItems(items.map((item) => ({
             ...item,
-            totalPrice: (item.basePrice + (item.selectedVariation?.price || 0) + (item.selectedAddOns?.reduce((sum, a) => sum + a.price * (a.quantity || 1), 0) || 0)) * item.quantity,
+            totalPrice: item.basePrice + (item.selectedVariation?.price || 0) + (item.selectedAddOns?.reduce((sum, a) => sum + a.price * (a.quantity || 1), 0) || 0),
         })));
     }, []);
 
