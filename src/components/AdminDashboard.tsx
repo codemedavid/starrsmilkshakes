@@ -18,6 +18,8 @@ const PaymentMethodManager = lazy(() => import('./PaymentMethodManager'));
 const SiteSettingsManager = lazy(() => import('./SiteSettingsManager'));
 const OrderManager = lazy(() => import('./OrderManager'));
 const BranchManager = lazy(() => import('./BranchManager'));
+const FacebookConnect = lazy(() => import('./FacebookConnect'));
+const SuperAdminLogin = lazy(() => import('./SuperAdminLogin'));
 
 // Loading fallback component
 const LoadingFallback = ({ message = 'Loading...' }: { message?: string }) => (
@@ -35,6 +37,8 @@ const AdminDashboard: React.FC = () => {
   const [adminConfigured, setAdminConfigured] = useState(true);
   const [password, setPassword] = useState('');
   const [loginError, setLoginError] = useState('');
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [showSuperAdminLogin, setShowSuperAdminLogin] = useState(false);
 
   useEffect(() => {
     const loadSession = async () => {
@@ -49,6 +53,14 @@ const AdminDashboard: React.FC = () => {
       } finally {
         setAuthLoading(false);
       }
+
+      try {
+        const superRes = await adminFetch('/api/admin/auth/super-session');
+        if (superRes.ok) {
+          const superData = await superRes.json();
+          if (superData.authenticated) setIsSuperAdmin(true);
+        }
+      } catch {}
     };
 
     void loadSession();
@@ -339,6 +351,21 @@ const AdminDashboard: React.FC = () => {
     );
   }
 
+  if (showSuperAdminLogin) {
+    return (
+      <Suspense fallback={<LoadingFallback />}>
+        <SuperAdminLogin
+          onLogin={(adminId) => {
+            setIsSuperAdmin(true);
+            setIsAuthenticated(true);
+            setShowSuperAdminLogin(false);
+          }}
+          onBack={() => setShowSuperAdminLogin(false)}
+        />
+      </Suspense>
+    );
+  }
+
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -379,6 +406,13 @@ const AdminDashboard: React.FC = () => {
               className="w-full bg-green-600 text-white py-3 rounded-lg hover:bg-green-700 transition-colors duration-200 font-medium disabled:cursor-not-allowed disabled:bg-gray-400"
             >
               Access Dashboard
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowSuperAdminLogin(true)}
+              className="w-full text-center text-sm text-gray-500 hover:text-gray-700 mt-2"
+            >
+              Super Admin Login
             </button>
           </form>
         </div>
@@ -1096,6 +1130,9 @@ const AdminDashboard: React.FC = () => {
           <Suspense fallback={<LoadingFallback message="Loading Site Settings..." />}>
             <SiteSettingsManager />
           </Suspense>
+          <Suspense fallback={<LoadingFallback message="Loading Facebook settings..." />}>
+            <FacebookConnect isSuperAdmin={isSuperAdmin} />
+          </Suspense>
         </div>
       </div>
     );
@@ -1138,6 +1175,9 @@ const AdminDashboard: React.FC = () => {
               <h1 className="text-2xl font-noto font-semibold text-black">Starr's Famous Shakes Admin</h1>
             </div>
             <div className="flex items-center space-x-4">
+              {isSuperAdmin && (
+                <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">Super Admin</span>
+              )}
               <Link
                 href="/"
                 className="text-gray-600 hover:text-black transition-colors duration-200"
