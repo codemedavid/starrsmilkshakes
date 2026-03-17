@@ -47,7 +47,7 @@ Sections (top to bottom):
 
 ### Order Linking UI (in Order Manager)
 - Each order row shows a customer chip if linked, or a "Link Customer" button if not
-- Clicking opens a search box: admin types phone/name → live results
+- Clicking opens a search box: admin types phone/name → live results (300ms debounce, minimum 2 characters before search fires)
 - If phone matches an existing customer, a yellow suggestion banner appears ("Possible match: Maria Santos — confirm?")
 - Admin confirms to link or dismisses
 
@@ -61,8 +61,8 @@ Sections (top to bottom):
 |--------|------|-------|
 | `id` | `uuid` PK | Default `gen_random_uuid()` |
 | `name` | `text NOT NULL` | Required for all customers |
-| `email` | `text UNIQUE` | Nullable, normalized (lowercase, trimmed) |
-| `phone` | `text UNIQUE` | Nullable, normalized (digits only, e.g. `09171234567`) |
+| `email` | `text UNIQUE` | Nullable, normalized (lowercase, trimmed). PostgreSQL UNIQUE on nullable columns permits multiple NULL rows — only non-NULL values are deduplicated. |
+| `phone` | `text UNIQUE` | Nullable, normalized (digits only, e.g. `09171234567`). Same NULL semantics as email. |
 | `messenger_psid` | `text UNIQUE` | Nullable, set for Messenger customers |
 | `messenger_name` | `text` | Nullable, from Facebook Graph API |
 | `source` | `text` | `'messenger'` or `'manual'`; default `'manual'` |
@@ -73,8 +73,8 @@ Sections (top to bottom):
 | `last_order_at` | `timestamptz` | Cached; most recent order `created_at` |
 | `favorite_items` | `jsonb` | Cached; top 5 items: `[{id, name, count}]` |
 | `preferred_service_type` | `text` | Cached; most frequent service type across orders |
-| `preferred_branch_id` | `uuid → branches` | Cached; most frequent branch |
-| `avg_order_interval_days` | `numeric` | Cached; avg days between consecutive orders |
+| `preferred_branch_id` | `uuid → branches` | Cached; most frequent branch. Trigger must cast `orders.branch_id` to uuid safely — use `NULLIF` guard since some legacy rows may store branch_id as text. |
+| `avg_order_interval_days` | `numeric` | Cached; avg days between consecutive orders. Set to `NULL` when `order_count <= 1` (no gap computable). Default `0` applies only at row creation; trigger must write `NULL` for the single-order case. |
 | `created_at` | `timestamptz` | Default `now()` |
 | `updated_at` | `timestamptz` | Updated via trigger |
 
@@ -121,10 +121,10 @@ A Postgres function `update_customer_stats(customer_id uuid)` recalculates all c
 - `order_count` — count where `status NOT IN ('cancelled')`
 - `avg_order_value` — `total_spent / NULLIF(order_count, 0)`
 - `last_order_at` — max `created_at` (all non-cancelled)
-- `favorite_items` — top 5 `menu_item_name` by count from `order_items` JOIN
+- `favorite_items` — top 5 items by count from `order_items` JOIN. Group by `menu_item_id` where non-null; fall back to `menu_item_name` for legacy rows where `menu_item_id IS NULL`. Result shape: `[{id, name, count}]`.
 - `preferred_service_type` — mode of `service_type`
-- `preferred_branch_id` — mode of `branch_id`
-- `avg_order_interval_days` — avg gap between consecutive order dates
+- `preferred_branch_id` — mode of `branch_id`; cast to uuid with `NULLIF` guard for legacy text rows
+- `avg_order_interval_days` — avg gap between consecutive order dates; write `NULL` when `order_count <= 1`
 
 The trigger runs as `SECURITY DEFINER` with a restricted `search_path`.
 
@@ -150,12 +150,15 @@ All routes require `requireAdminRequest()` (admin or super-admin session). No pu
 - Default sort: `last_order_at DESC`
 - Supports: `?search=maria` (name/phone/email prefix), `?tag=VIP` (includes auto-tags), `?sort=total_spent`
 - Pagination: `?page=1&limit=20`
-- Response includes computed `auto_tags[]` alongside `manual_tags[]`
+- Response includes computed `auto_tags[]` alongside `manual_tags[]`. Auto-tags are derived in application code from the cached stat columns already present in each query result row — no per-row subqueries required.
 
 **Suggest endpoint** (`GET /api/admin/customers/suggest?phone=09171234567`):
+- Normalizes the input phone (digits only) before comparing against the stored normalized `phone` column — do not match against `orders.contact_number` directly, as that column stores un-normalized values
 - Returns top 1 customer matching normalized phone
 - Used by Order Manager for the yellow match-suggestion banner
 - Returns `null` if no match
+
+**Route resolution note:** `suggest` is a static segment sibling of `[id]` (dynamic segment). Next.js 15 App Router resolves static paths before dynamic ones — no routing conflict exists. No path restructuring needed.
 
 ---
 
@@ -165,8 +168,13 @@ Inside the existing `POST /api/orders` route, after a successful order insert:
 
 1. If `messenger_psid` is present on the new order:
    - Upsert into `customers` — match on `messenger_psid`; if no match, insert with `name = messenger_name`, `source = 'messenger'`
-   - Set `orders.customer_id` to the resolved customer ID
-2. This runs within the same transaction as order creation — no orphan states
+   - Set `orders.customer_id` to the resolved customer ID via a separate `UPDATE` call
+
+**Important:** The existing route uses sequential Supabase client calls with no transaction wrapper — `BEGIN`/`COMMIT` is not available via the JS client. These two steps are therefore **best-effort**, not atomic:
+- If the customer upsert succeeds but the `orders.customer_id` update fails: log the error with `order_id` and `customer_id` for manual reconciliation. Do **not** fail or roll back the order response — the order is valid, only the customer link is missing.
+- If the customer upsert itself fails: log the error and continue. The order is created without a customer link. No retry loop.
+
+The stats trigger fires only when `orders.customer_id` is non-null — a missed link means stats are not updated for that order. This is an acceptable best-effort trade-off for v1; atomic linking via a Postgres RPC is deferred to a future iteration.
 
 ---
 
@@ -211,13 +219,15 @@ Inside the existing `POST /api/orders` route, after a successful order insert:
 - `409` error body contains no PII
 - Soft-deleted orders still visible in order list after customer delete
 
-### DB trigger tests (`tests/db/customer-trigger.test.ts`)
+### Trigger behaviour tests (inside `tests/api-customers.test.ts`)
 
-- Order completed → `total_spent` increases
-- Order cancelled → `total_spent` unchanged, `order_count` unchanged
-- Order deleted → stats recalculated correctly
-- Messenger order created → customer auto-created, `orders.customer_id` set
-- Second order from same PSID → existing customer found, no duplicate
+Trigger behaviour is verified indirectly via the API using the existing fetch-to-localhost pattern — no separate DB client or `tests/db/` directory required:
+
+- `POST /api/orders` with `customer_id` set → `GET /api/admin/customers/[id]` returns updated `total_spent`, `order_count`, `avg_order_value`
+- Order with `status = 'cancelled'` → `total_spent` unchanged, `order_count` unchanged
+- `DELETE /api/orders/[id]` → stats recalculate correctly (confirmed via subsequent GET)
+- Messenger order (`messenger_psid` present) → customer auto-created, `GET /api/admin/customers/[id]` returns linked order
+- Second order from same PSID → `GET /api/admin/customers` shows no duplicate customer
 
 ---
 
