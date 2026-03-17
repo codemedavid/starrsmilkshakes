@@ -136,6 +136,7 @@ export interface Order {
   lalamove_status?: string | null;
   lalamove_tracking_url?: string | null;
   branch_id?: string | null;
+  msession?: string | null;
 }
 
 export interface Branch {
