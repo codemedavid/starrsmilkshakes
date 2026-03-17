@@ -419,6 +419,39 @@ export async function PATCH(
       })();
     }
 
+    // Send Messenger notification if applicable (non-blocking)
+    if (status) {
+      (async () => {
+        try {
+          const { data: messengerLink } = await supabaseServer
+            .from('messenger_order_links')
+            .select('psid, notify_enabled')
+            .eq('order_id', id)
+            .single() as { data: any; error: any };
+
+          if (messengerLink && messengerLink.notify_enabled) {
+            const { data: fbConfig } = await supabaseServer
+              .from('facebook_config')
+              .select('page_access_token')
+              .single() as { data: any; error: any };
+
+            if (fbConfig) {
+              const { sendTextMessage, buildStatusMessage } = await import('@/lib/messenger');
+              const message = buildStatusMessage(
+                currentOrder.order_number,
+                status,
+                currentOrder.service_type,
+                data.lalamove_tracking_url || undefined
+              );
+              await sendTextMessage(messengerLink.psid, message, fbConfig.page_access_token);
+            }
+          }
+        } catch (err) {
+          console.error('Failed to send Messenger status notification:', err);
+        }
+      })();
+    }
+
     // Format order
     const order: Order = {
       id: data.id,

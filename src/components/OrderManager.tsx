@@ -442,6 +442,11 @@ const OrderManager: React.FC<OrderManagerProps> = ({ onBack }) => {
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap">
                           <div className="font-semibold text-gray-900">{order.order_number}</div>
+                          {order.msession && (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-blue-100 text-blue-800 mt-1">
+                              Messenger
+                            </span>
+                          )}
                         </td>
                         <td className="px-4 py-3">
                           <div>
@@ -537,7 +542,14 @@ const OrderManager: React.FC<OrderManagerProps> = ({ onBack }) => {
                           )}
                         </button>
                         <div className="flex-1 min-w-0">
-                          <div className="font-semibold text-gray-900 mb-1">{order.order_number}</div>
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="font-semibold text-gray-900">{order.order_number}</span>
+                            {order.msession && (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-blue-100 text-blue-800">
+                                Messenger
+                              </span>
+                            )}
+                          </div>
                           <div className="text-sm text-gray-600 mb-1">{order.customer_name}</div>
                           <div className="text-xs text-gray-500">{order.contact_number}</div>
                         </div>

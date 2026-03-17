@@ -14,9 +14,10 @@ interface CheckoutProps {
   cartItems: CartItem[];
   totalPrice: number;
   onBack: () => void;
+  msession?: string;
 }
 
-const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack }) => {
+const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, msession }) => {
   const { paymentMethods } = usePaymentMethods();
   const { createOrder } = useOrders();
   const [step, setStep] = useState<'details' | 'payment'>('details');
@@ -138,7 +139,8 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack }) =>
           deliveryLat: serviceType === 'delivery' ? deliveryCoordinates?.lat : undefined,
           deliveryLng: serviceType === 'delivery' ? deliveryCoordinates?.lng : undefined,
           branchId: selectedBranch?.id,
-          branch: selectedBranch || undefined
+          branch: selectedBranch || undefined,
+          msession: msession || undefined
         }
       );
 

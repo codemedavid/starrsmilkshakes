@@ -15,6 +15,7 @@ interface CartContextType {
     getTotalItems: () => number;
     openCart: () => void;
     closeCart: () => void;
+    loadFromMessengerSession: (items: CartItem[]) => void;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -118,6 +119,13 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const openCart = useCallback(() => setIsCartOpen(true), []);
     const closeCart = useCallback(() => setIsCartOpen(false), []);
 
+    const loadFromMessengerSession = useCallback((items: CartItem[]) => {
+        setCartItems(items.map((item) => ({
+            ...item,
+            totalPrice: item.basePrice + (item.selectedVariation?.price || 0) + (item.selectedAddOns?.reduce((sum, a) => sum + a.price * (a.quantity || 1), 0) || 0),
+        })));
+    }, []);
+
     return (
         <CartContext.Provider value={{
             cartItems,
@@ -129,7 +137,8 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             getTotalPrice,
             getTotalItems,
             openCart,
-            closeCart
+            closeCart,
+            loadFromMessengerSession
         }}>
             {children}
         </CartContext.Provider>

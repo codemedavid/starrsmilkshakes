@@ -32,6 +32,7 @@ export interface MenuItem {
   // Computed effective price (calculated in the app)
   effectivePrice?: number;
   isOnDiscount?: boolean;
+  show_in_messenger?: boolean;
 }
 
 export interface CartItem extends MenuItem {
@@ -135,6 +136,7 @@ export interface Order {
   lalamove_status?: string | null;
   lalamove_tracking_url?: string | null;
   branch_id?: string | null;
+  msession?: string | null;
 }
 
 export interface Branch {
@@ -201,4 +203,56 @@ export interface AddressSuggestion {
     shop?: string;
     tourism?: string;
   };
+}
+
+// Messenger types
+export interface MessengerSession {
+  psid: string;
+  state: 'idle' | 'browsing_categories' | 'browsing_products' | 'viewing_cart' | 'selecting_variation' | 'selecting_addons' | 'selecting_branch';
+  current_category: string | null;
+  selected_branch: string | null;
+  current_page: number;
+  pending_item_id: string | null;
+  pending_variation_id: string | null;
+  pending_add_ons: string[];
+  cart: MessengerCartItem[];
+  updated_at: string;
+}
+
+export interface MessengerCartItem {
+  menu_item_id: string;
+  variation_id: string | null;
+  add_on_ids: string[];
+  quantity: number;
+}
+
+export interface MessengerCheckoutSession {
+  id: string;
+  hash: string;
+  psid: string;
+  cart: CartItem[];
+  branch_id: string | null;
+  status: 'pending' | 'completed' | 'expired';
+  created_at: string;
+  expires_at: string;
+  order_id: string | null;
+}
+
+export interface MessengerOrderLink {
+  id: string;
+  order_id: string;
+  psid: string;
+  notify_enabled: boolean;
+  created_at: string;
+}
+
+export interface FacebookConfig {
+  id: string;
+  page_id: string;
+  page_name: string;
+  page_access_token: string;
+  app_id: string;
+  token_expires_at: string | null;
+  connected_at: string;
+  connected_by: string;
 }

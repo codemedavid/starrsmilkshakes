@@ -17,6 +17,7 @@ interface CreateOrderOptions {
   deliveryLng?: number;
   branchId?: string;
   branch?: Branch;
+  msession?: string;
 }
 
 interface UseOrdersOptions {
@@ -116,6 +117,7 @@ export const useOrders = ({ admin = false }: UseOrdersOptions = {}) => {
           serviceType,
           paymentMethod,
           total,
+          msession: options?.msession || undefined,
           options
         }),
       });
