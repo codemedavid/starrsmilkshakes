@@ -9,14 +9,14 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   if (authError) return authError;
 
   try {
-    const { data: config } = await supabaseServer
-      .from('facebook_config')
+    const { data: config } = await (supabaseServer
+      .from('facebook_config') as any)
       .select('page_id, page_access_token')
       .single();
 
     if (config) {
       await unsubscribePageFromWebhook(config.page_id, config.page_access_token);
-      await supabaseServer.from('facebook_config').delete().eq('page_id', config.page_id);
+      await (supabaseServer.from('facebook_config') as any).delete().eq('page_id', config.page_id);
     }
 
     return NextResponse.json({ success: true });

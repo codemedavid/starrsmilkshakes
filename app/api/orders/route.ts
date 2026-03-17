@@ -536,8 +536,8 @@ export async function POST(request: NextRequest) {
     const msession = body.msession || null;
     if (msession && typeof msession === 'string') {
       // Atomically mark session as completed (prevents race condition)
-      const { data: checkoutSession } = await supabaseServer
-        .from('messenger_checkout_sessions')
+      const { data: checkoutSession } = await (supabaseServer
+        .from('messenger_checkout_sessions') as any)
         .update({ status: 'completed', order_id: formattedOrder.id })
         .eq('hash', msession)
         .eq('status', 'pending')
@@ -546,7 +546,7 @@ export async function POST(request: NextRequest) {
 
       if (checkoutSession) {
         // Create messenger order link for status notifications
-        await supabaseServer.from('messenger_order_links').insert({
+        await (supabaseServer.from('messenger_order_links') as any).insert({
           order_id: formattedOrder.id,
           psid: checkoutSession.psid,
           notify_enabled: true,
@@ -555,8 +555,8 @@ export async function POST(request: NextRequest) {
         // Send receipt to Messenger (non-blocking)
         (async () => {
           try {
-            const { data: fbConfig } = await supabaseServer
-              .from('facebook_config')
+            const { data: fbConfig } = await (supabaseServer
+              .from('facebook_config') as any)
               .select('page_access_token')
               .single() as { data: any; error: any };
 

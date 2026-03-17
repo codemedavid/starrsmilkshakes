@@ -21,8 +21,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: 'Email and password are required' }, { status: 400 });
   }
 
-  const { data: admin, error } = await supabaseServer
-    .from('super_admins')
+  const { data: admin, error } = await (supabaseServer
+    .from('super_admins') as any)
     .select('id, email, password_hash')
     .eq('email', email)
     .single();

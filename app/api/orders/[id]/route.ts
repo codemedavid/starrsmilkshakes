@@ -423,15 +423,15 @@ export async function PATCH(
     if (status) {
       (async () => {
         try {
-          const { data: messengerLink } = await supabaseServer
-            .from('messenger_order_links')
+          const { data: messengerLink } = await (supabaseServer
+            .from('messenger_order_links') as any)
             .select('psid, notify_enabled')
             .eq('order_id', id)
             .single() as { data: any; error: any };
 
           if (messengerLink && messengerLink.notify_enabled) {
-            const { data: fbConfig } = await supabaseServer
-              .from('facebook_config')
+            const { data: fbConfig } = await (supabaseServer
+              .from('facebook_config') as any)
               .select('page_access_token')
               .single() as { data: any; error: any };
 

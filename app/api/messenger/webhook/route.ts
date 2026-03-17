@@ -29,8 +29,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   }
 
   // Get page token from facebook_config
-  const { data: config } = await supabaseServer
-    .from('facebook_config')
+  const { data: config } = await (supabaseServer
+    .from('facebook_config') as any)
     .select('page_access_token')
     .single();
 

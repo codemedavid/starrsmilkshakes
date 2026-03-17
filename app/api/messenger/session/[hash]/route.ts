@@ -8,8 +8,8 @@ export async function GET(
 ): Promise<NextResponse> {
   const { hash } = await params;
 
-  const { data: session, error } = await supabaseServer
-    .from('messenger_checkout_sessions')
+  const { data: session, error } = await (supabaseServer
+    .from('messenger_checkout_sessions') as any)
     .select('hash, status, expires_at, cart, branch_id')
     .eq('hash', hash)
     .single();

@@ -12,8 +12,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
   }
 
-  const { data: config } = await supabaseServer
-    .from('facebook_config')
+  const { data: config } = await (supabaseServer
+    .from('facebook_config') as any)
     .select('page_id, page_name, app_id, connected_at, token_expires_at')
     .single();
 
