@@ -1,7 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { requireSuperAdmin } from '@/lib/admin-guard';
+import { requireSuperAdmin, checkActionRateLimit } from '@/lib/admin-guard';
 import { supabaseServer } from '@/lib/supabase-server';
 import {
   exchangeForLongLivedToken,
@@ -19,6 +19,8 @@ export async function connectFacebook(
   pageId?: string,
 ): Promise<ActionResult> {
   const { adminId } = await requireSuperAdmin();
+  const { allowed } = await checkActionRateLimit();
+  if (!allowed) return { success: false, error: 'Too many requests. Please try again later.' };
 
   if (!accessToken || typeof accessToken !== 'string') {
     return { success: false, error: 'accessToken is required' };
@@ -90,6 +92,8 @@ export async function connectFacebook(
 
 export async function disconnectFacebook(): Promise<ActionResult> {
   await requireSuperAdmin();
+  const { allowed } = await checkActionRateLimit();
+  if (!allowed) return { success: false, error: 'Too many requests. Please try again later.' };
 
   try {
     const { data: config } = await (supabaseServer

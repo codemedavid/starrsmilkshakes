@@ -1,7 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { requireAdmin } from '@/lib/admin-guard';
+import { requireAdmin, checkActionRateLimit } from '@/lib/admin-guard';
 import { supabaseServer } from '@/lib/supabase-server';
 import { siteSettingsSchema } from '@/lib/validation';
 import { mapSiteSettingsRows } from '@/lib/site-settings';
@@ -13,6 +13,8 @@ type ActionResult = { success: boolean; error?: string; data?: SiteSettings };
 
 export async function updateSiteSettings(input: unknown): Promise<ActionResult> {
   await requireAdmin();
+  const { allowed } = await checkActionRateLimit();
+  if (!allowed) return { success: false, error: 'Too many requests. Please try again later.' };
 
   const parsed = siteSettingsSchema.safeParse(input);
   if (!parsed.success) return { success: false, error: 'Invalid input' };

@@ -4,6 +4,7 @@ import { cookies, headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { ADMIN_SESSION_COOKIE, isAdminSessionValid } from '@/lib/admin-auth';
 import { SUPER_ADMIN_SESSION_COOKIE, isSuperAdminSessionValid } from '@/lib/super-admin-auth';
+import { checkServerRateLimit } from './server-rate-limit';
 
 export async function requireAdmin(): Promise<{ adminType: 'admin' | 'super_admin' }> {
   const cookieStore = await cookies();
@@ -41,4 +42,10 @@ export async function getClientIPFromHeaders(): Promise<string> {
   const forwarded = headerStore.get('x-forwarded-for');
   if (forwarded) return forwarded.split(',')[0].trim();
   return headerStore.get('x-real-ip') || 'unknown';
+}
+
+export async function checkActionRateLimit(): Promise<{ allowed: boolean }> {
+  const ip = await getClientIPFromHeaders();
+  const result = checkServerRateLimit(`action:${ip}`, 30, 60_000); // 30/min per IP
+  return { allowed: result.allowed };
 }

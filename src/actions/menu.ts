@@ -1,7 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { requireAdmin } from '@/lib/admin-guard';
+import { requireAdmin, checkActionRateLimit } from '@/lib/admin-guard';
 import { supabaseServer } from '@/lib/supabase-server';
 import { menuItemSchema, uuidSchema } from '@/lib/validation';
 import { z } from 'zod';
@@ -81,6 +81,8 @@ function toAddOnRows(
 
 export async function addMenuItem(input: unknown): Promise<ActionResult> {
   await requireAdmin();
+  const { allowed } = await checkActionRateLimit();
+  if (!allowed) return { success: false, error: 'Too many requests. Please try again later.' };
 
   const parsed = menuItemWithNested.safeParse(input);
   if (!parsed.success) return { success: false, error: 'Invalid input' };
@@ -125,6 +127,8 @@ export async function addMenuItem(input: unknown): Promise<ActionResult> {
 
 export async function updateMenuItem(id: unknown, input: unknown): Promise<ActionResult> {
   await requireAdmin();
+  const { allowed } = await checkActionRateLimit();
+  if (!allowed) return { success: false, error: 'Too many requests. Please try again later.' };
 
   const idResult = uuidSchema.safeParse(id);
   if (!idResult.success) return { success: false, error: 'Invalid ID' };
@@ -175,6 +179,8 @@ export async function updateMenuItem(id: unknown, input: unknown): Promise<Actio
 
 export async function deleteMenuItem(id: unknown): Promise<ActionResult> {
   await requireAdmin();
+  const { allowed } = await checkActionRateLimit();
+  if (!allowed) return { success: false, error: 'Too many requests. Please try again later.' };
 
   const idResult = uuidSchema.safeParse(id);
   if (!idResult.success) return { success: false, error: 'Invalid ID' };
@@ -207,6 +213,8 @@ const bulkMessengerSchema = z.object({
 
 export async function bulkUpdateMessengerVisibility(input: unknown): Promise<ActionResult> {
   await requireAdmin();
+  const { allowed } = await checkActionRateLimit();
+  if (!allowed) return { success: false, error: 'Too many requests. Please try again later.' };
 
   const parsed = bulkMessengerSchema.safeParse(input);
   if (!parsed.success) return { success: false, error: 'Invalid input' };

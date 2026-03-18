@@ -1,7 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { requireAdmin } from '@/lib/admin-guard';
+import { requireAdmin, checkActionRateLimit } from '@/lib/admin-guard';
 import { supabaseServer } from '@/lib/supabase-server';
 import { categorySchema, reorderSchema, uuidSchema } from '@/lib/validation';
 
@@ -11,6 +11,8 @@ type ActionResult = { success: boolean; error?: string; data?: any };
 
 export async function addCategory(input: unknown): Promise<ActionResult> {
   await requireAdmin();
+  const { allowed } = await checkActionRateLimit();
+  if (!allowed) return { success: false, error: 'Too many requests. Please try again later.' };
 
   const parsed = categorySchema.safeParse(input);
   if (!parsed.success) return { success: false, error: 'Invalid input' };
@@ -43,6 +45,8 @@ export async function addCategory(input: unknown): Promise<ActionResult> {
 
 export async function updateCategory(id: unknown, input: unknown): Promise<ActionResult> {
   await requireAdmin();
+  const { allowed } = await checkActionRateLimit();
+  if (!allowed) return { success: false, error: 'Too many requests. Please try again later.' };
 
   const idResult = uuidSchema.safeParse(id);
   if (!idResult.success) return { success: false, error: 'Invalid ID' };
@@ -75,6 +79,8 @@ export async function updateCategory(id: unknown, input: unknown): Promise<Actio
 
 export async function deleteCategory(id: unknown): Promise<ActionResult> {
   await requireAdmin();
+  const { allowed } = await checkActionRateLimit();
+  if (!allowed) return { success: false, error: 'Too many requests. Please try again later.' };
 
   const idResult = uuidSchema.safeParse(id);
   if (!idResult.success) return { success: false, error: 'Invalid ID' };
@@ -113,6 +119,8 @@ export async function deleteCategory(id: unknown): Promise<ActionResult> {
 
 export async function reorderCategories(input: unknown): Promise<ActionResult> {
   await requireAdmin();
+  const { allowed } = await checkActionRateLimit();
+  if (!allowed) return { success: false, error: 'Too many requests. Please try again later.' };
 
   const parsed = reorderSchema.safeParse(input);
   if (!parsed.success) return { success: false, error: 'Invalid input' };

@@ -1,7 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { requireAdmin, requireSuperAdmin, getClientIPFromHeaders } from '@/lib/admin-guard';
+import { requireAdmin, requireSuperAdmin, getClientIPFromHeaders, checkActionRateLimit } from '@/lib/admin-guard';
 import { supabaseServer } from '@/lib/supabase-server';
 import { customerLinkSchema, customerUnlinkSchema } from '@/lib/validation';
 
@@ -11,6 +11,8 @@ type ActionResult = { success: boolean; error?: string };
 
 export async function linkCustomer(input: unknown): Promise<ActionResult> {
   const { adminType } = await requireAdmin();
+  const { allowed } = await checkActionRateLimit();
+  if (!allowed) return { success: false, error: 'Too many requests. Please try again later.' };
   const parsed = customerLinkSchema.safeParse(input);
   if (!parsed.success) return { success: false, error: 'Invalid input' };
 
@@ -63,6 +65,8 @@ export async function linkCustomer(input: unknown): Promise<ActionResult> {
 
 export async function unlinkCustomer(input: unknown): Promise<ActionResult> {
   const { adminId } = await requireSuperAdmin(); // ONLY super admins
+  const { allowed } = await checkActionRateLimit();
+  if (!allowed) return { success: false, error: 'Too many requests. Please try again later.' };
   const parsed = customerUnlinkSchema.safeParse(input);
   if (!parsed.success) return { success: false, error: 'Invalid input' };
 
