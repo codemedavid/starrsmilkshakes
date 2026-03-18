@@ -177,8 +177,11 @@ begin
     perform public.update_customer_stats(old.customer_id);
   end if;
   -- handle new customer_id (on INSERT/UPDATE)
-  if (tg_op = 'INSERT' or tg_op = 'UPDATE') and new.customer_id is not null then
-    if new.customer_id <> old.customer_id or tg_op = 'INSERT' then
+  if tg_op = 'INSERT' and new.customer_id is not null then
+    -- INSERT: OLD does not exist, always recalculate
+    perform public.update_customer_stats(new.customer_id);
+  elsif tg_op = 'UPDATE' and new.customer_id is not null then
+    if new.customer_id is distinct from old.customer_id then
       perform public.update_customer_stats(new.customer_id);
     elsif new.status <> old.status or new.total <> old.total then
       perform public.update_customer_stats(new.customer_id);
@@ -194,7 +197,7 @@ create or replace trigger orders_customer_stats
 
 -- ── 6. updated_at trigger for customers ───────────────────────────────────
 create or replace function public.set_updated_at()
-returns trigger language plpgsql as $$
+returns trigger language plpgsql security definer set search_path = public as $$
 begin new.updated_at = now(); return new; end; $$;
 
 create or replace trigger customers_updated_at

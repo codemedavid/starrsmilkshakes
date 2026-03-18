@@ -31,6 +31,9 @@ export async function POST(
       if (error.code === '23505') {
         return NextResponse.json({ error: 'Tag already exists on this customer' }, { status: 409 });
       }
+      if (error.code === '23503') {
+        return NextResponse.json({ error: 'Customer not found' }, { status: 404 });
+      }
       console.error('[api/admin/customers/[id]/tags] POST error:', error.message);
       return NextResponse.json({ error: 'Failed to add tag' }, { status: 500 });
     }

@@ -22,8 +22,10 @@ export async function GET(request: NextRequest) {
     const AUTO_TAG_LABELS = ['VIP', 'Loyal', 'New', 'At Risk'];
     const isAutoTag = AUTO_TAG_LABELS.includes(tag);
 
+    // Use !inner join when filtering by manual tag so only matching customers are returned
+    const joinType = (tag && !AUTO_TAG_LABELS.includes(tag)) ? 'customer_tags!inner(*)' : 'customer_tags(*)';
     let query = (supabaseServer.from('customers') as any)
-      .select('*, customer_tags(*)', { count: 'exact' });
+      .select(`*, ${joinType}`, { count: 'exact' });
 
     if (search) {
       // Sanitize search input: escape PostgREST special characters to prevent filter injection
