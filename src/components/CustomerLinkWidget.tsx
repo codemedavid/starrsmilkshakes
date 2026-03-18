@@ -9,8 +9,16 @@ import {
   Sparkles,
   MessageCircle,
   RefreshCw,
+  AlertTriangle,
 } from 'lucide-react';
 import type { CustomerSummary } from '@/types/customer';
+import { linkCustomer as linkCustomerAction, unlinkCustomer as unlinkCustomerAction } from '@/actions/customers';
+
+const LINK_REASONS = ['Phone match', 'Messenger match', 'Manual identification', 'Other'] as const;
+const UNLINK_REASONS = ['Incorrect match', 'Customer request', 'Duplicate resolution', 'Other'] as const;
+
+type LinkReason = typeof LINK_REASONS[number];
+type UnlinkReason = typeof UNLINK_REASONS[number];
 
 interface CustomerLinkWidgetProps {
   /** The order object that may have customer_id and contact_number */
@@ -26,6 +34,8 @@ interface CustomerLinkWidgetProps {
   };
   /** Called after a customer is linked/unlinked to refresh the order list */
   onUpdate?: () => void;
+  /** Admin type — unlinking is only available for super_admin */
+  adminType?: 'admin' | 'super_admin';
 }
 
 interface SuggestedCustomer {
@@ -34,17 +44,26 @@ interface SuggestedCustomer {
   phone: string | null;
 }
 
-const CustomerLinkWidget: React.FC<CustomerLinkWidgetProps> = ({ order, onUpdate }) => {
+const CustomerLinkWidget: React.FC<CustomerLinkWidgetProps> = ({ order, onUpdate, adminType }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [results, setResults] = useState<CustomerSummary[]>([]);
   const [searching, setSearching] = useState(false);
   const [linking, setLinking] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   // Suggestion state
   const [suggestion, setSuggestion] = useState<SuggestedCustomer | null>(null);
   const [suggestionDismissed, setSuggestionDismissed] = useState(false);
+
+  // Link reason flow — show reason picker before confirming
+  const [pendingLinkCustomerId, setPendingLinkCustomerId] = useState<string | null>(null);
+  const [linkReason, setLinkReason] = useState<LinkReason>(LINK_REASONS[0]);
+
+  // Unlink modal state
+  const [showUnlinkModal, setShowUnlinkModal] = useState(false);
+  const [unlinkReason, setUnlinkReason] = useState<UnlinkReason>(UNLINK_REASONS[0]);
 
   const dropdownRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -52,32 +71,40 @@ const CustomerLinkWidget: React.FC<CustomerLinkWidgetProps> = ({ order, onUpdate
 
   // Close dropdown when clicking outside
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen && !showUnlinkModal) return;
     const handler = (e: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
         setIsOpen(false);
+        setPendingLinkCustomerId(null);
       }
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
-  }, [isOpen]);
+  }, [isOpen, showUnlinkModal]);
 
   // Close on Escape
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen && !showUnlinkModal) return;
     const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setIsOpen(false);
+      if (e.key === 'Escape') {
+        if (showUnlinkModal) {
+          setShowUnlinkModal(false);
+        } else {
+          setIsOpen(false);
+          setPendingLinkCustomerId(null);
+        }
+      }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [isOpen]);
+  }, [isOpen, showUnlinkModal]);
 
   // Focus search input when opening
   useEffect(() => {
-    if (isOpen && searchInputRef.current) {
+    if (isOpen && searchInputRef.current && !pendingLinkCustomerId) {
       searchInputRef.current.focus();
     }
-  }, [isOpen]);
+  }, [isOpen, pendingLinkCustomerId]);
 
   // Auto-suggest on open using order contact_number
   const fetchSuggestion = useCallback(async () => {
@@ -149,43 +176,62 @@ const CustomerLinkWidget: React.FC<CustomerLinkWidgetProps> = ({ order, onUpdate
     return () => { cancelled = true; };
   }, [isOpen, debouncedSearch]);
 
-  // Link a customer
-  const linkCustomer = async (customerId: string) => {
+  // Start link flow — show reason picker
+  const startLink = (customerId: string) => {
+    setPendingLinkCustomerId(customerId);
+    setLinkReason(LINK_REASONS[0]);
+    setActionError(null);
+  };
+
+  // Confirm link with reason via Server Action
+  const confirmLink = async () => {
+    if (!pendingLinkCustomerId) return;
     setLinking(true);
+    setActionError(null);
     try {
-      const res = await fetch(`/api/orders/${order.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ customer_id: customerId }),
+      const result = await linkCustomerAction({
+        order_id: order.id,
+        customer_id: pendingLinkCustomerId,
+        reason: linkReason,
       });
-      if (res.ok) {
+      if (result.success) {
         setIsOpen(false);
+        setPendingLinkCustomerId(null);
         onUpdate?.();
+      } else {
+        setActionError(result.error || 'Failed to link customer');
       }
     } catch {
-      // silently fail
+      setActionError('An unexpected error occurred');
     } finally {
       setLinking(false);
     }
   };
 
-  // Unlink customer
-  const unlinkCustomer = async () => {
-    if (!window.confirm('Unlink this customer from the order?')) return;
+  // Open unlink modal
+  const startUnlink = () => {
+    setShowUnlinkModal(true);
+    setUnlinkReason(UNLINK_REASONS[0]);
+    setActionError(null);
+  };
+
+  // Confirm unlink with reason via Server Action
+  const confirmUnlink = async () => {
     setLinking(true);
+    setActionError(null);
     try {
-      const res = await fetch(`/api/orders/${order.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ customer_id: null }),
+      const result = await unlinkCustomerAction({
+        order_id: order.id,
+        reason: unlinkReason,
       });
-      if (res.ok) {
+      if (result.success) {
+        setShowUnlinkModal(false);
         onUpdate?.();
+      } else {
+        setActionError(result.error || 'Failed to unlink customer');
       }
     } catch {
-      // silently fail
+      setActionError('An unexpected error occurred');
     } finally {
       setLinking(false);
     }
@@ -214,28 +260,83 @@ const CustomerLinkWidget: React.FC<CustomerLinkWidgetProps> = ({ order, onUpdate
 
   // Linked state — show chip with the customer record's name (not order.customer_name)
   const isCompleted = order.status === 'completed';
+  const canUnlink = adminType === 'super_admin' && !isCompleted;
+
   if (order.customer_id) {
     return (
-      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-[#7BBFB5]/10 border border-[#7BBFB5]/30 rounded-full cursor-pointer hover:bg-[#7BBFB5]/20 transition-all duration-200 group">
-        <User className="h-3 w-3 text-[#3D8A80]" />
-        <span className="text-xs font-nunito font-medium text-[#3D8A80] truncate max-w-[120px]">
-          {order.linked_customer_name || order.customer_name || 'Customer'}
+      <>
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-[#7BBFB5]/10 border border-[#7BBFB5]/30 rounded-full cursor-pointer hover:bg-[#7BBFB5]/20 transition-all duration-200 group">
+          <User className="h-3 w-3 text-[#3D8A80]" />
+          <span className="text-xs font-nunito font-medium text-[#3D8A80] truncate max-w-[120px]">
+            {order.linked_customer_name || order.customer_name || 'Customer'}
+          </span>
+          {canUnlink && (
+            <button
+              onClick={(e) => { e.stopPropagation(); startUnlink(); }}
+              className="opacity-0 group-hover:opacity-100 ml-0.5 p-0.5 rounded-full hover:bg-red-100 transition-all duration-200"
+              aria-label="Unlink customer"
+              disabled={linking}
+            >
+              {linking ? (
+                <Loader2 className="h-3 w-3 text-stone-400 animate-spin" />
+              ) : (
+                <X className="h-3 w-3 text-red-400 hover:text-red-600" />
+              )}
+            </button>
+          )}
         </span>
-        {!isCompleted && (
-          <button
-            onClick={(e) => { e.stopPropagation(); unlinkCustomer(); }}
-            className="opacity-0 group-hover:opacity-100 ml-0.5 p-0.5 rounded-full hover:bg-red-100 transition-all duration-200"
-            aria-label="Unlink customer"
-            disabled={linking}
+
+        {/* Unlink Confirmation Modal */}
+        {showUnlinkModal && (
+          <div
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40"
+            onClick={(e) => { if (e.target === e.currentTarget) setShowUnlinkModal(false); }}
           >
-            {linking ? (
-              <Loader2 className="h-3 w-3 text-stone-400 animate-spin" />
-            ) : (
-              <X className="h-3 w-3 text-red-400 hover:text-red-600" />
-            )}
-          </button>
+            <div className="bg-white rounded-xl shadow-2xl w-80 p-5 mx-4" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center gap-2 mb-3">
+                <AlertTriangle className="h-5 w-5 text-amber-500 flex-shrink-0" />
+                <h3 className="text-sm font-nunito font-bold text-stone-900">Unlink Customer</h3>
+              </div>
+              <p className="text-xs font-nunito text-stone-600 mb-3">
+                Remove <span className="font-semibold">{order.linked_customer_name || order.customer_name || 'Customer'}</span> from this order? This action will be logged.
+              </p>
+
+              <label className="block text-xs font-nunito font-medium text-stone-700 mb-1">Reason</label>
+              <select
+                value={unlinkReason}
+                onChange={(e) => setUnlinkReason(e.target.value as UnlinkReason)}
+                className="w-full px-2.5 py-2 border border-[#E8E3DA] rounded-lg text-xs font-nunito text-stone-900 bg-white focus:outline-none focus:ring-2 focus:ring-[#7BBFB5]/40 mb-3"
+              >
+                {UNLINK_REASONS.map((r) => (
+                  <option key={r} value={r}>{r}</option>
+                ))}
+              </select>
+
+              {actionError && (
+                <p className="text-xs font-nunito text-red-600 mb-2">{actionError}</p>
+              )}
+
+              <div className="flex items-center justify-end gap-2">
+                <button
+                  onClick={() => setShowUnlinkModal(false)}
+                  disabled={linking}
+                  className="px-3 py-1.5 text-xs font-nunito font-medium text-stone-600 hover:text-stone-900 transition-colors duration-200 disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmUnlink}
+                  disabled={linking}
+                  className="px-3 py-1.5 bg-red-500 text-white text-xs font-nunito font-semibold rounded-lg hover:bg-red-600 transition-colors duration-200 disabled:opacity-50 flex items-center gap-1.5"
+                >
+                  {linking && <Loader2 className="h-3 w-3 animate-spin" />}
+                  Unlink
+                </button>
+              </div>
+            </div>
+          </div>
         )}
-      </span>
+      </>
     );
   }
 
@@ -278,71 +379,111 @@ const CustomerLinkWidget: React.FC<CustomerLinkWidgetProps> = ({ order, onUpdate
       {/* Dropdown */}
       {isOpen && (
         <div className="absolute z-50 mt-1 w-64 bg-white border border-[#E8E3DA] rounded-xl shadow-lg overflow-hidden">
-          {/* Suggestion Banner */}
-          {suggestion && !suggestionDismissed && (
-            <div className="mx-2 mt-2 mb-1 px-3 py-2.5 bg-amber-50 border border-amber-200 rounded-lg flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Sparkles className="h-4 w-4 text-amber-500 flex-shrink-0" />
-                <span className="text-xs font-nunito text-amber-800">
-                  Possible match: <span className="font-semibold">{suggestion.name}</span>
-                </span>
-              </div>
-              <div className="flex items-center gap-1.5 flex-shrink-0">
+          {/* Link Reason Picker — shown after selecting a customer */}
+          {pendingLinkCustomerId ? (
+            <div className="p-3">
+              <h4 className="text-xs font-nunito font-bold text-stone-900 mb-2">Select a reason</h4>
+              <select
+                value={linkReason}
+                onChange={(e) => setLinkReason(e.target.value as LinkReason)}
+                className="w-full px-2.5 py-2 border border-[#E8E3DA] rounded-lg text-xs font-nunito text-stone-900 bg-white focus:outline-none focus:ring-2 focus:ring-[#7BBFB5]/40 mb-2"
+              >
+                {LINK_REASONS.map((r) => (
+                  <option key={r} value={r}>{r}</option>
+                ))}
+              </select>
+
+              {actionError && (
+                <p className="text-xs font-nunito text-red-600 mb-2">{actionError}</p>
+              )}
+
+              <div className="flex items-center justify-end gap-2">
                 <button
-                  onClick={() => linkCustomer(suggestion.id)}
+                  onClick={() => { setPendingLinkCustomerId(null); setActionError(null); }}
                   disabled={linking}
-                  className="px-2.5 py-1 bg-amber-500 text-white text-xs font-nunito font-semibold rounded-lg hover:bg-amber-600 transition-colors duration-200 disabled:opacity-50"
+                  className="px-2.5 py-1 text-xs font-nunito font-medium text-stone-500 hover:text-stone-700 transition-colors duration-200 disabled:opacity-50"
                 >
-                  {linking ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Confirm'}
+                  Back
                 </button>
                 <button
-                  onClick={() => setSuggestionDismissed(true)}
-                  className="px-2 py-1 text-amber-600 text-xs font-nunito hover:text-amber-800 transition-colors duration-200"
+                  onClick={confirmLink}
+                  disabled={linking}
+                  className="px-3 py-1.5 bg-[#3D8A80] text-white text-xs font-nunito font-semibold rounded-lg hover:bg-[#2E6F66] transition-colors duration-200 disabled:opacity-50 flex items-center gap-1.5"
                 >
-                  Dismiss
+                  {linking && <Loader2 className="h-3 w-3 animate-spin" />}
+                  Confirm Link
                 </button>
               </div>
             </div>
-          )}
-
-          {/* Search input */}
-          <input
-            ref={searchInputRef}
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search by name or phone..."
-            className="w-full px-3 py-2.5 border-b border-[#E8E3DA] text-sm font-nunito text-stone-900 placeholder:text-stone-400 focus:outline-none"
-          />
-
-          {/* Results */}
-          <div className="max-h-48 overflow-y-auto">
-            {searching ? (
-              <div className="px-3 py-4 text-center">
-                <Loader2 className="h-4 w-4 text-stone-400 animate-spin mx-auto" />
-              </div>
-            ) : debouncedSearch && results.length === 0 ? (
-              <div className="px-3 py-4 text-center text-sm font-nunito text-stone-400">
-                No customers found
-              </div>
-            ) : (
-              results.map((c) => (
-                <button
-                  key={c.id}
-                  onClick={() => linkCustomer(c.id)}
-                  disabled={linking}
-                  className="w-full px-3 py-2.5 flex items-center gap-2 cursor-pointer hover:bg-[#F2EEE8] transition-colors duration-150 border-b border-[#E8E3DA]/50 last:border-b-0 text-left disabled:opacity-50"
-                >
-                  <div>
-                    <div className="text-sm font-nunito font-medium text-stone-900">{c.name}</div>
-                    {c.phone && (
-                      <div className="text-xs font-nunito text-stone-500">{c.phone}</div>
-                    )}
+          ) : (
+            <>
+              {/* Suggestion Banner */}
+              {suggestion && !suggestionDismissed && (
+                <div className="mx-2 mt-2 mb-1 px-3 py-2.5 bg-amber-50 border border-amber-200 rounded-lg flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="h-4 w-4 text-amber-500 flex-shrink-0" />
+                    <span className="text-xs font-nunito text-amber-800">
+                      Possible match: <span className="font-semibold">{suggestion.name}</span>
+                    </span>
                   </div>
-                </button>
-              ))
-            )}
-          </div>
+                  <div className="flex items-center gap-1.5 flex-shrink-0">
+                    <button
+                      onClick={() => startLink(suggestion.id)}
+                      disabled={linking}
+                      className="px-2.5 py-1 bg-amber-500 text-white text-xs font-nunito font-semibold rounded-lg hover:bg-amber-600 transition-colors duration-200 disabled:opacity-50"
+                    >
+                      {linking ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Select'}
+                    </button>
+                    <button
+                      onClick={() => setSuggestionDismissed(true)}
+                      className="px-2 py-1 text-amber-600 text-xs font-nunito hover:text-amber-800 transition-colors duration-200"
+                    >
+                      Dismiss
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Search input */}
+              <input
+                ref={searchInputRef}
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search by name or phone..."
+                className="w-full px-3 py-2.5 border-b border-[#E8E3DA] text-sm font-nunito text-stone-900 placeholder:text-stone-400 focus:outline-none"
+              />
+
+              {/* Results */}
+              <div className="max-h-48 overflow-y-auto">
+                {searching ? (
+                  <div className="px-3 py-4 text-center">
+                    <Loader2 className="h-4 w-4 text-stone-400 animate-spin mx-auto" />
+                  </div>
+                ) : debouncedSearch && results.length === 0 ? (
+                  <div className="px-3 py-4 text-center text-sm font-nunito text-stone-400">
+                    No customers found
+                  </div>
+                ) : (
+                  results.map((c) => (
+                    <button
+                      key={c.id}
+                      onClick={() => startLink(c.id)}
+                      disabled={linking}
+                      className="w-full px-3 py-2.5 flex items-center gap-2 cursor-pointer hover:bg-[#F2EEE8] transition-colors duration-150 border-b border-[#E8E3DA]/50 last:border-b-0 text-left disabled:opacity-50"
+                    >
+                      <div>
+                        <div className="text-sm font-nunito font-medium text-stone-900">{c.name}</div>
+                        {c.phone && (
+                          <div className="text-xs font-nunito text-stone-500">{c.phone}</div>
+                        )}
+                      </div>
+                    </button>
+                  ))
+                )}
+              </div>
+            </>
+          )}
         </div>
       )}
     </div>

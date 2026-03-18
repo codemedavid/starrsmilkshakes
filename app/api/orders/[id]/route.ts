@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getInternalApiHeaders, requireAdminRequest } from '@/lib/admin-auth';
+import { isSuperAdminRequest } from '@/lib/super-admin-auth';
 import { mapSiteSettingsRows } from '@/lib/site-settings';
 import { supabaseServer } from '@/lib/supabase-server';
 import type { Order, OrderStatus, SiteSettings } from '../../../../src/types';
@@ -303,6 +304,11 @@ export async function PATCH(
 
     if (rawCustomerId !== undefined) {
       if (rawCustomerId === null) {
+        // Unlinking requires super admin privileges
+        const superAdminResult = isSuperAdminRequest(request);
+        if (!superAdminResult.valid) {
+          return NextResponse.json({ error: 'Super admin required for unlinking' }, { status: 403 });
+        }
         customerId = null; // explicit unlink
       } else {
         const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

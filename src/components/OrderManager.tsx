@@ -8,9 +8,10 @@ import CustomerLinkWidget from './CustomerLinkWidget';
 
 interface OrderManagerProps {
   onBack: () => void;
+  adminType?: 'admin' | 'super_admin';
 }
 
-const OrderManager: React.FC<OrderManagerProps> = ({ onBack }) => {
+const OrderManager: React.FC<OrderManagerProps> = ({ onBack, adminType }) => {
   const { orders, loading, fetchOrders, updateOrderStatus, bulkUpdateStatus, getOrderStats } = useOrders({ admin: true });
   const [selectedOrders, setSelectedOrders] = useState<string[]>([]);
   const [filters, setFilters] = useState<OrderFilters>({});
@@ -463,7 +464,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ onBack }) => {
                               </div>
                             )}
                             <div className="mt-1">
-                              <CustomerLinkWidget order={order} onUpdate={() => fetchOrders(filters)} />
+                              <CustomerLinkWidget order={order} onUpdate={() => fetchOrders(filters)} adminType={adminType} />
                             </div>
                           </div>
                         </td>
@@ -575,7 +576,7 @@ const OrderManager: React.FC<OrderManagerProps> = ({ onBack }) => {
                             </div>
                           )}
                           <div className="mt-1">
-                            <CustomerLinkWidget order={order} onUpdate={() => fetchOrders(filters)} />
+                            <CustomerLinkWidget order={order} onUpdate={() => fetchOrders(filters)} adminType={adminType} />
                           </div>
                         </div>
                       </div>

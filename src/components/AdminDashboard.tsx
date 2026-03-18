@@ -1202,7 +1202,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ prefetchedData }) => {
           <LoadingFallback message="Loading Order Manager..." />
         </div>
       }>
-        <OrderManager onBack={() => setCurrentView('dashboard')} />
+        <OrderManager onBack={() => setCurrentView('dashboard')} adminType={isSuperAdmin ? 'super_admin' : 'admin'} />
       </Suspense>
     );
   }
