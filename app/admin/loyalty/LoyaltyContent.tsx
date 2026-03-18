@@ -5,6 +5,8 @@ import type { LoyaltyConfig, LoyaltyReward, LoyaltyBooster } from '@/types/loyal
 import LoyaltyConfigTab from '@/components/admin/LoyaltyConfigTab';
 import LoyaltyRewardsTab from '@/components/admin/LoyaltyRewardsTab';
 import LoyaltyBoostersTab from '@/components/admin/LoyaltyBoostersTab';
+import LoyaltyRedemptionsTab from '@/components/admin/LoyaltyRedemptionsTab';
+import LoyaltyLookupTab from '@/components/admin/LoyaltyLookupTab';
 
 interface Props {
   initialConfig: LoyaltyConfig;
@@ -61,8 +63,8 @@ export default function LoyaltyContent({ initialConfig, initialRewards, initialB
       {activeTab === 'Configuration' && <LoyaltyConfigTab initialConfig={initialConfig} />}
       {activeTab === 'Rewards' && <LoyaltyRewardsTab initialRewards={initialRewards} />}
       {activeTab === 'Boosters' && <LoyaltyBoostersTab initialBoosters={initialBoosters} />}
-      {activeTab === 'Redemptions' && <PlaceholderTab name="Redemptions" />}
-      {activeTab === 'Lookup' && <PlaceholderTab name="Lookup" />}
+      {activeTab === 'Redemptions' && <LoyaltyRedemptionsTab />}
+      {activeTab === 'Lookup' && <LoyaltyLookupTab />}
     </div>
   );
 }

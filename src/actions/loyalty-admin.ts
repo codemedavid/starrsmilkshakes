@@ -205,6 +205,30 @@ export async function toggleBooster(id: unknown, isActive: boolean): Promise<Act
   return { success: true, data };
 }
 
+// ─── getRedemptions ──────────────────────────────────────────────────────────
+
+export async function getRedemptions(statusFilter?: string): Promise<ActionResult> {
+  await requireAdmin();
+
+  let query = (supabaseServer.from('loyalty_redemptions') as any)
+    .select('*, loyalty_cards!inner(customer_id, card_code, customers!inner(name, email)), loyalty_rewards!inner(name)')
+    .order('earned_at', { ascending: false })
+    .limit(50);
+
+  if (statusFilter && statusFilter !== 'all') {
+    query = query.eq('status', statusFilter);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    console.error('[getRedemptions] DB error:', error.code);
+    return { success: false, error: error.message };
+  }
+
+  return { success: true, data: data || [] };
+}
+
 // ─── getLoyaltyConfig ────────────────────────────────────────────────────────
 
 export async function getLoyaltyConfig(): Promise<ActionResult> {
