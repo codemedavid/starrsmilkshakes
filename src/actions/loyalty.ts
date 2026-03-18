@@ -536,6 +536,21 @@ export async function lookupCard(query: string): Promise<ActionResult> {
   return { success: true, data: results };
 }
 
+// ─── getCardByCustomerId ──────────────────────────────────────────────────────
+
+export async function getCardByCustomerId(customerId: string): Promise<ActionResult> {
+  await requireAdmin();
+  const idResult = uuidSchema.safeParse(customerId);
+  if (!idResult.success) return { success: false, error: 'Invalid ID' };
+
+  const { data: card } = await (supabaseServer.from('loyalty_cards') as any)
+    .select('*, loyalty_rewards!goal_reward_id(name, stamps_required, points_required)')
+    .eq('customer_id', idResult.data)
+    .maybeSingle();
+
+  return { success: true, data: card };
+}
+
 // ─── linkOrderToCard ─────────────────────────────────────────────────────────
 
 export async function linkOrderToCard(

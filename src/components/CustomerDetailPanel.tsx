@@ -15,6 +15,7 @@ import {
   Loader2,
 } from 'lucide-react';
 import CustomerTagBadge from './CustomerTagBadge';
+import CustomerLoyaltyWidget from './CustomerLoyaltyWidget';
 import { useCustomer } from '@/hooks/useCustomer';
 import type { CustomerProfile, FavoriteItem } from '@/types/customer';
 
@@ -496,6 +497,11 @@ const CustomerDetailPanel: React.FC<CustomerDetailPanelProps> = ({ customerId, o
             })}
           </div>
         )}
+      </div>
+
+      {/* Loyalty Card */}
+      <div className="px-6">
+        <CustomerLoyaltyWidget customerId={customer.id} />
       </div>
 
       {/* Recent Orders */}
