@@ -138,6 +138,8 @@ export interface Order {
   branch_id?: string | null;
   msession?: string | null;
   customer_id?: string | null;
+  messenger_psid?: string | null;
+  messenger_name?: string | null;
 }
 
 export interface Branch {

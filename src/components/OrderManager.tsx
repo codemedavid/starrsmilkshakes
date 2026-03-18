@@ -453,6 +453,15 @@ const OrderManager: React.FC<OrderManagerProps> = ({ onBack }) => {
                           <div>
                             <div className="font-medium text-gray-900">{order.customer_name}</div>
                             <div className="text-xs text-gray-500 mt-0.5">{order.contact_number}</div>
+                            {order.messenger_name && (
+                              <div className="text-xs text-blue-600 mt-0.5 flex items-center gap-1">
+                                <span>💬</span>
+                                <span>{order.messenger_name}</span>
+                                {order.messenger_psid && (
+                                  <span className="text-gray-400 text-[10px]">({order.messenger_psid})</span>
+                                )}
+                              </div>
+                            )}
                             <div className="mt-1">
                               <CustomerLinkWidget order={order} onUpdate={() => fetchOrders(filters)} />
                             </div>
@@ -556,6 +565,15 @@ const OrderManager: React.FC<OrderManagerProps> = ({ onBack }) => {
                           </div>
                           <div className="text-sm text-gray-600 mb-1">{order.customer_name}</div>
                           <div className="text-xs text-gray-500">{order.contact_number}</div>
+                          {order.messenger_name && (
+                            <div className="text-xs text-blue-600 mt-0.5 flex items-center gap-1">
+                              <span>💬</span>
+                              <span>{order.messenger_name}</span>
+                              {order.messenger_psid && (
+                                <span className="text-gray-400 text-[10px]">({order.messenger_psid})</span>
+                              )}
+                            </div>
+                          )}
                           <div className="mt-1">
                             <CustomerLinkWidget order={order} onUpdate={() => fetchOrders(filters)} />
                           </div>

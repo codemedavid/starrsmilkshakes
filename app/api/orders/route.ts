@@ -72,6 +72,8 @@ const formatOrder = (order: any): Order => ({
   lalamove_tracking_url: order.lalamove_tracking_url,
   branch_id: order.branch_id,
   customer_id: order.customer_id ?? null,
+  messenger_psid: order.messenger_psid ?? null,
+  messenger_name: order.messenger_name ?? null,
   order_items:
     (order.order_items as any[])?.map((item: any) => ({
       id: item.id,
@@ -589,13 +591,31 @@ export async function POST(request: NextRequest) {
         // Auto-create or link customer from Messenger PSID
         try {
           const psid = checkoutSession.psid;
-          const msgrName = customerName || psid;
+
+          // Fetch the customer's actual Facebook name from Graph API
+          let fbName: string | null = null;
+          try {
+            const { data: fbConfig } = await (supabaseServer
+              .from('facebook_config') as any)
+              .select('page_access_token')
+              .single() as { data: any; error: any };
+            if (fbConfig) {
+              const { getUserProfile } = await import('@/lib/messenger');
+              const profile = await getUserProfile(psid, fbConfig.page_access_token);
+              fbName = profile?.name || null;
+            }
+          } catch {
+            // Non-fatal — fall back to checkout form name
+          }
+
+          // Prefer Facebook name, fall back to checkout form name, then PSID
+          const msgrName = fbName || customerName || psid;
 
           // Atomic upsert on messenger_psid (ON CONFLICT DO UPDATE).
           // Prevents duplicate customers when two concurrent orders arrive with the same PSID.
           const { data: upsertedCustomer, error: upsertErr } = await (supabaseServer.from('customers') as any)
             .upsert(
-              { name: msgrName, messenger_psid: psid, messenger_name: msgrName, source: 'messenger' },
+              { name: msgrName, messenger_psid: psid, messenger_name: fbName || msgrName, source: 'messenger' },
               { onConflict: 'messenger_psid', ignoreDuplicates: false }
             )
             .select('id')

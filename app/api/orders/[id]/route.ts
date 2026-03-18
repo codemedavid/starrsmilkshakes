@@ -242,6 +242,8 @@ export async function GET(
       lalamove_status: data.lalamove_status,
       lalamove_tracking_url: data.lalamove_tracking_url,
       customer_id: data.customer_id ?? null,
+      messenger_psid: data.messenger_psid ?? null,
+      messenger_name: data.messenger_name ?? null,
       order_items: (data.order_items as any[])?.map((item: any) => ({
         id: item.id,
         order_id: item.order_id,
@@ -506,6 +508,8 @@ export async function PATCH(
       lalamove_status: data.lalamove_status,
       lalamove_tracking_url: data.lalamove_tracking_url,
       customer_id: data.customer_id ?? null,
+      messenger_psid: data.messenger_psid ?? null,
+      messenger_name: data.messenger_name ?? null,
       order_items: (data.order_items as any[])?.map((item: any) => ({
         id: item.id,
         order_id: item.order_id,

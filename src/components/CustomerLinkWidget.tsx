@@ -77,7 +77,9 @@ const CustomerLinkWidget: React.FC<CustomerLinkWidgetProps> = ({ order, onUpdate
   const fetchSuggestion = useCallback(async () => {
     if (!order.contact_number) return;
     try {
-      const res = await fetch(`/api/admin/customers/suggest?phone=${encodeURIComponent(order.contact_number)}`);
+      const res = await fetch(`/api/admin/customers/suggest?phone=${encodeURIComponent(order.contact_number)}`, {
+        credentials: 'include',
+      });
       if (res.ok) {
         const data = await res.json();
         if (data.customer) {
@@ -124,7 +126,9 @@ const CustomerLinkWidget: React.FC<CustomerLinkWidgetProps> = ({ order, onUpdate
     const doSearch = async () => {
       setSearching(true);
       try {
-        const res = await fetch(`/api/admin/customers?search=${encodeURIComponent(debouncedSearch)}&limit=5`);
+        const res = await fetch(`/api/admin/customers?search=${encodeURIComponent(debouncedSearch)}&limit=5`, {
+          credentials: 'include',
+        });
         if (res.ok && !cancelled) {
           const data = await res.json();
           setResults(data.customers || []);
