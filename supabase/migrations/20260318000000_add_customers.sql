@@ -71,25 +71,25 @@ begin
    where customer_id = p_customer_id
      and status = 'completed';
 
-  -- order_count: non-cancelled orders
+  -- order_count: completed orders only
   select coalesce(count(*), 0)
     into v_order_count
     from public.orders
    where customer_id = p_customer_id
-     and status <> 'cancelled';
+     and status = 'completed';
 
   -- avg_order_value: COALESCE wraps NULLIF so the NOT NULL column always gets 0 (not NULL)
   -- when no orders exist. Spec formula: total_spent / NULLIF(order_count, 0).
   v_avg_order_value := coalesce(v_total_spent / nullif(v_order_count, 0), 0);
 
-  -- last_order_at: most recent non-cancelled
+  -- last_order_at: most recent completed order
   select max(created_at)
     into v_last_order_at
     from public.orders
    where customer_id = p_customer_id
-     and status <> 'cancelled';
+     and status = 'completed';
 
-  -- favorite_items: top 5 by count.
+  -- favorite_items: top 5 by count (completed orders only).
   -- Group by menu_item_id when non-null; fall back to menu_item_name for legacy null-id rows.
   -- GROUP BY (menu_item_id, CASE ...) ensures null-id rows group by name, non-null by UUID.
   select jsonb_agg(item order by item_count desc)
@@ -105,35 +105,35 @@ begin
       from public.order_items oi
       join public.orders o on o.id = oi.order_id
      where o.customer_id = p_customer_id
-       and o.status <> 'cancelled'
+       and o.status = 'completed'
      group by oi.menu_item_id,
               case when oi.menu_item_id is null then oi.menu_item_name else null end
      order by count(*) desc
      limit 5
     ) sub;
 
-  -- preferred_service_type: mode
+  -- preferred_service_type: mode (completed orders only)
   select service_type
     into v_preferred_service_type
     from public.orders
    where customer_id = p_customer_id
-     and status <> 'cancelled'
+     and status = 'completed'
    group by service_type
    order by count(*) desc
    limit 1;
 
-  -- preferred_branch_id: mode (branch_id is uuid type, no cast needed)
+  -- preferred_branch_id: mode (completed orders only, branch_id is uuid type, no cast needed)
   select branch_id
     into v_preferred_branch_id
     from public.orders
    where customer_id = p_customer_id
-     and status <> 'cancelled'
+     and status = 'completed'
      and branch_id is not null
    group by branch_id
    order by count(*) desc
    limit 1;
 
-  -- avg_order_interval_days: NULL when <= 1 order
+  -- avg_order_interval_days: NULL when <= 1 order (completed orders only)
   if v_order_count <= 1 then
     v_avg_interval := null;
   else
@@ -143,7 +143,7 @@ begin
         select extract(epoch from (created_at - lag(created_at) over (order by created_at))) / 86400.0 as gap_days
           from public.orders
          where customer_id = p_customer_id
-           and status <> 'cancelled'
+           and status = 'completed'
       ) gaps
      where gap_days is not null;
   end if;

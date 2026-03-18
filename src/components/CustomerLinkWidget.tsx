@@ -7,6 +7,8 @@ import {
   X,
   Loader2,
   Sparkles,
+  MessageCircle,
+  RefreshCw,
 } from 'lucide-react';
 import type { CustomerSummary } from '@/types/customer';
 
@@ -17,6 +19,8 @@ interface CustomerLinkWidgetProps {
     contact_number: string;
     customer_id?: string | null;
     customer_name?: string;
+    messenger_psid?: string | null;
+    messenger_name?: string | null;
   };
   /** Called after a customer is linked/unlinked to refresh the order list */
   onUpdate?: () => void;
@@ -185,6 +189,27 @@ const CustomerLinkWidget: React.FC<CustomerLinkWidgetProps> = ({ order, onUpdate
     }
   };
 
+  // Retry Messenger auto-link
+  const retryMessengerLink = async () => {
+    if (!order.messenger_psid) return;
+    setLinking(true);
+    try {
+      const res = await fetch(`/api/orders/${order.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ retry_messenger_link: true }),
+      });
+      if (res.ok) {
+        onUpdate?.();
+      }
+    } catch {
+      // silently fail
+    } finally {
+      setLinking(false);
+    }
+  };
+
   // Linked state — show chip
   if (order.customer_id) {
     return (
@@ -203,6 +228,31 @@ const CustomerLinkWidget: React.FC<CustomerLinkWidgetProps> = ({ order, onUpdate
             <Loader2 className="h-3 w-3 text-stone-400 animate-spin" />
           ) : (
             <X className="h-3 w-3 text-red-400 hover:text-red-600" />
+          )}
+        </button>
+      </span>
+    );
+  }
+
+  // Messenger PSID present but auto-link failed — show Messenger indicator with retry
+  if (order.messenger_psid) {
+    return (
+      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-blue-50 border border-blue-200 rounded-full transition-all duration-200 group">
+        <MessageCircle className="h-3 w-3 text-blue-500" />
+        <span className="text-xs font-nunito font-medium text-blue-700 truncate max-w-[120px]">
+          {order.messenger_name || 'Messenger'}
+        </span>
+        <button
+          onClick={(e) => { e.stopPropagation(); retryMessengerLink(); }}
+          className="opacity-0 group-hover:opacity-100 ml-0.5 p-0.5 rounded-full hover:bg-blue-100 transition-all duration-200"
+          aria-label="Retry auto-link"
+          title="Retry auto-link"
+          disabled={linking}
+        >
+          {linking ? (
+            <Loader2 className="h-3 w-3 text-blue-400 animate-spin" />
+          ) : (
+            <RefreshCw className="h-3 w-3 text-blue-400 hover:text-blue-600" />
           )}
         </button>
       </span>

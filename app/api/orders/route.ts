@@ -623,8 +623,12 @@ export async function POST(request: NextRequest) {
           if (upsertErr) throw upsertErr;
           const linkedCustomerId = upsertedCustomer.id;
 
+          const orderPatch: Record<string, any> = { customer_id: linkedCustomerId, messenger_psid: psid };
+          if (fbName || msgrName) {
+            orderPatch.messenger_name = fbName || msgrName;
+          }
           const { error: linkErr } = await (supabaseServer.from('orders') as any)
-            .update({ customer_id: linkedCustomerId })
+            .update(orderPatch)
             .eq('id', orderData.id);
 
           if (linkErr) {

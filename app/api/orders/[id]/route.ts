@@ -316,6 +316,119 @@ export async function PATCH(
       }
     }
 
+    // Handle retry_messenger_link: re-attempt auto-link from messenger_psid
+    if (body.retry_messenger_link === true) {
+      // Fetch the current order to get its messenger_psid
+      const { data: currentOrderForRetry } = await supabaseServer
+        .from('orders')
+        .select('messenger_psid, messenger_name, customer_name, customer_id')
+        .eq('id', id)
+        .single() as { data: any; error: any };
+
+      if (!currentOrderForRetry?.messenger_psid) {
+        return NextResponse.json({ error: 'Order has no Messenger PSID to link' }, { status: 400 });
+      }
+      if (currentOrderForRetry.customer_id) {
+        return NextResponse.json({ error: 'Order is already linked to a customer' }, { status: 400 });
+      }
+
+      const psid = currentOrderForRetry.messenger_psid;
+      const fallbackName = currentOrderForRetry.messenger_name || currentOrderForRetry.customer_name || psid;
+
+      // Fetch FB name
+      let fbName: string | null = null;
+      try {
+        const { data: fbConfig } = await (supabaseServer
+          .from('facebook_config') as any)
+          .select('page_access_token')
+          .single() as { data: any; error: any };
+        if (fbConfig) {
+          const { getUserProfile } = await import('@/lib/messenger');
+          const profile = await getUserProfile(psid, fbConfig.page_access_token);
+          fbName = profile?.name || null;
+        }
+      } catch {
+        // Non-fatal
+      }
+
+      const msgrName = fbName || fallbackName;
+
+      // Upsert customer
+      const { data: upsertedCustomer, error: upsertErr } = await (supabaseServer.from('customers') as any)
+        .upsert(
+          { name: msgrName, messenger_psid: psid, messenger_name: fbName || msgrName, source: 'messenger' },
+          { onConflict: 'messenger_psid', ignoreDuplicates: false }
+        )
+        .select('id')
+        .single();
+
+      if (upsertErr || !upsertedCustomer) {
+        return NextResponse.json({ error: 'Failed to create/find customer from Messenger PSID' }, { status: 500 });
+      }
+
+      // Link to order and update messenger_name if we got a fresh FB name
+      const retryUpdate: any = { customer_id: upsertedCustomer.id };
+      if (fbName && fbName !== currentOrderForRetry.messenger_name) {
+        retryUpdate.messenger_name = fbName;
+      }
+
+      const { data: retryData, error: retryErr } = await supabaseServer
+        .from('orders')
+        // @ts-expect-error - Supabase type definitions may not include all fields
+        .update(retryUpdate)
+        .eq('id', id)
+        .select('*, order_items (*)')
+        .single() as { data: any; error: any };
+
+      if (retryErr) {
+        return NextResponse.json({ error: 'Failed to link customer' }, { status: 500 });
+      }
+
+      const retryOrder: Order = {
+        id: retryData.id,
+        order_number: retryData.order_number,
+        customer_name: retryData.customer_name,
+        contact_number: retryData.contact_number,
+        service_type: retryData.service_type,
+        address: retryData.address,
+        landmark: retryData.landmark,
+        pickup_time: retryData.pickup_time,
+        party_size: retryData.party_size,
+        dine_in_time: retryData.dine_in_time,
+        payment_method: retryData.payment_method,
+        reference_number: retryData.reference_number,
+        status: retryData.status,
+        total: Number(retryData.total),
+        notes: retryData.notes,
+        customer_ip: retryData.customer_ip,
+        created_at: retryData.created_at,
+        updated_at: retryData.updated_at,
+        completed_at: retryData.completed_at,
+        delivery_fee: retryData.delivery_fee ? Number(retryData.delivery_fee) : null,
+        lalamove_quotation_id: retryData.lalamove_quotation_id,
+        lalamove_order_id: retryData.lalamove_order_id,
+        lalamove_status: retryData.lalamove_status,
+        lalamove_tracking_url: retryData.lalamove_tracking_url,
+        customer_id: retryData.customer_id ?? null,
+        messenger_psid: retryData.messenger_psid ?? null,
+        messenger_name: retryData.messenger_name ?? null,
+        order_items: (retryData.order_items as any[])?.map((item: any) => ({
+          id: item.id,
+          order_id: item.order_id,
+          menu_item_id: item.menu_item_id,
+          menu_item_name: item.menu_item_name,
+          quantity: item.quantity,
+          unit_price: Number(item.unit_price),
+          total_price: Number(item.total_price),
+          selected_variation: item.selected_variation,
+          selected_add_ons: item.selected_add_ons,
+          created_at: item.created_at,
+        })) || [],
+      };
+
+      return NextResponse.json({ order: retryOrder }, { status: 200 });
+    }
+
     // Build update object
     const updateData: any = {};
     
