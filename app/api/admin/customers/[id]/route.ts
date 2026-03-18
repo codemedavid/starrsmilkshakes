@@ -61,7 +61,11 @@ export async function PATCH(
     }
 
     const updates: Record<string, unknown> = {};
-    if (body.name !== undefined) updates.name = String(body.name).trim();
+    if (body.name !== undefined) {
+      const trimmedName = String(body.name).trim();
+      if (!trimmedName) return NextResponse.json({ error: 'name cannot be empty' }, { status: 400 });
+      updates.name = trimmedName;
+    }
     if (body.notes !== undefined) updates.notes = body.notes ? String(body.notes).trim() : null;
     if (body.email !== undefined) {
       const email = normalizeEmail(body.email as string | null) || null;

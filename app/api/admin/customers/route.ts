@@ -26,9 +26,13 @@ export async function GET(request: NextRequest) {
       .select('*, customer_tags(*)', { count: 'exact' });
 
     if (search) {
-      query = query.or(
-        `name.ilike.%${search}%,phone.ilike.%${search}%,email.ilike.%${search}%`
-      );
+      // Sanitize search input: escape PostgREST special characters to prevent filter injection
+      const sanitized = search.replace(/[%_\\,().*]/g, '');
+      if (sanitized) {
+        query = query.or(
+          `name.ilike.%${sanitized}%,phone.ilike.%${sanitized}%,email.ilike.%${sanitized}%`
+        );
+      }
     }
 
     if (tag && !isAutoTag) {

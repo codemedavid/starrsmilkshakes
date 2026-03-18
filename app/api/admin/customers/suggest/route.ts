@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
     if (!phone) return NextResponse.json({ customer: null });
 
     const { data } = await (supabaseServer.from('customers') as any)
-      .select('id, name, phone, email, messenger_psid, source')
+      .select('id, name, phone, email, source')
       .eq('phone', phone)
       .limit(1)
       .maybeSingle();
