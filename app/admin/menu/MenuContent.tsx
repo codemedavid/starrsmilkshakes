@@ -12,8 +12,7 @@ import {
   Eye,
   EyeOff,
 } from 'lucide-react';
-import type { MenuItem } from '@/types';
-import type { Category } from '@/hooks/useCategories';
+import type { MenuItem, Category } from '@/types';
 import { deleteMenuItem, bulkUpdateMessengerVisibility } from '@/actions/menu';
 import MenuItemForm from '@/components/admin/MenuItemForm';
 

@@ -260,3 +260,29 @@ export interface FacebookConfig {
   connected_at: string;
   connected_by: string;
 }
+
+// ─── Admin entity types ───────────────────────────────────────────────────────
+
+export interface Category {
+  id: string;
+  name: string;
+  icon: string;
+  sort_order: number;
+  active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Full payment-method row (admin & public). Named AdminPaymentMethod to avoid
+ *  collision with the `PaymentMethod` union type used on order forms. */
+export interface AdminPaymentMethod {
+  id: string;
+  name: string;
+  account_number: string;
+  account_name: string;
+  qr_code_url: string;
+  active: boolean;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+}

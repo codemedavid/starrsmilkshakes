@@ -3,7 +3,7 @@
 import { useState, useTransition } from 'react';
 import { ChevronUp, ChevronDown, GripVertical, AlertTriangle } from 'lucide-react';
 import { reorderCategories } from '@/actions/categories';
-import type { Category } from '@/hooks/useCategories';
+import type { Category } from '@/types';
 
 interface CategoryReorderListProps {
   categories: Category[];

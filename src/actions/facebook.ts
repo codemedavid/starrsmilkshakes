@@ -12,6 +12,43 @@ import {
 
 type ActionResult = { success: boolean; error?: string; data?: any };
 
+// ─── getFacebookStatus ────────────────────────────────────────────────────────
+
+export interface FBStatus {
+  connected: boolean;
+  pageName?: string;
+  pageId?: string;
+  connectedAt?: string;
+  tokenExpiring?: boolean;
+}
+
+export async function getFacebookStatus(): Promise<FBStatus> {
+  try {
+    await requireSuperAdmin();
+  } catch {
+    return { connected: false };
+  }
+
+  const { data: config } = await (supabaseServer
+    .from('facebook_config') as any)
+    .select('page_id, page_name, app_id, connected_at, token_expires_at')
+    .single();
+
+  if (!config) return { connected: false };
+
+  const tokenExpiring = config.token_expires_at
+    ? new Date(config.token_expires_at).getTime() - Date.now() < 7 * 24 * 60 * 60 * 1000
+    : false;
+
+  return {
+    connected: true,
+    pageName: config.page_name,
+    pageId: config.page_id,
+    connectedAt: config.connected_at,
+    tokenExpiring,
+  };
+}
+
 // ─── connectFacebook ─────────────────────────────────────────────────────────
 
 export async function connectFacebook(

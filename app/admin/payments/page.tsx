@@ -1,7 +1,7 @@
 import { requireAdmin } from '@/lib/admin-guard';
 import { supabaseServer } from '@/lib/supabase-server';
 import PaymentsContent from './PaymentsContent';
-import type { PaymentMethod } from '@/hooks/usePaymentMethods';
+import type { AdminPaymentMethod as PaymentMethod } from '@/types';
 
 export default async function PaymentsPage() {
   await requireAdmin();

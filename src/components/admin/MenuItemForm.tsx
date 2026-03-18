@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { Loader2, Plus, Trash2 } from 'lucide-react';
 import type { MenuItem, Variation, AddOn } from '@/types';
-import type { Category } from '@/hooks/useCategories';
+import type { Category } from '@/types';
 import { addMenuItem, updateMenuItem } from '@/actions/menu';
 import ImageUpload from '@/components/ImageUpload';
 

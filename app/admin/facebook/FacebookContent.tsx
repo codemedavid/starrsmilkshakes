@@ -1,18 +1,8 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { adminFetch } from '@/lib/admin-api';
-import { connectFacebook, disconnectFacebook } from '@/actions/facebook';
-
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-interface FBStatus {
-  connected: boolean;
-  pageName?: string;
-  pageId?: string;
-  connectedAt?: string;
-  tokenExpiring?: boolean;
-}
+import { connectFacebook, disconnectFacebook, getFacebookStatus } from '@/actions/facebook';
+import type { FBStatus } from '@/actions/facebook';
 
 declare global {
   interface Window {
@@ -35,11 +25,8 @@ export default function FacebookContent() {
   const fetchStatus = useCallback(async () => {
     setErrorMessage(null);
     try {
-      const res = await adminFetch('/api/admin/facebook/status');
-      if (res.ok) {
-        const data = await res.json();
-        setStatus(data);
-      }
+      const data = await getFacebookStatus();
+      setStatus(data);
     } catch (err) {
       console.error('[FacebookContent] Failed to fetch FB status:', err);
     } finally {

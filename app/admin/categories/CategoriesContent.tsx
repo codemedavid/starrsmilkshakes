@@ -4,7 +4,7 @@ import { useState, useTransition } from 'react';
 import { Plus, Edit2, Trash2, LayoutList, AlertTriangle } from 'lucide-react';
 import { addCategory, updateCategory, deleteCategory } from '@/actions/categories';
 import CategoryReorderList from '@/components/admin/CategoryReorderList';
-import type { Category } from '@/hooks/useCategories';
+import type { Category } from '@/types';
 
 interface CategoriesContentProps {
   categories: Category[];

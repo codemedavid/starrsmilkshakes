@@ -3,7 +3,7 @@
 import { useState, useTransition } from 'react';
 import { ChevronUp, ChevronDown, Loader2 } from 'lucide-react';
 import { reorderPaymentMethods } from '@/actions/payments';
-import type { PaymentMethod } from '@/hooks/usePaymentMethods';
+import type { AdminPaymentMethod as PaymentMethod } from '@/types';
 
 interface PaymentReorderListProps {
   paymentMethods: PaymentMethod[];

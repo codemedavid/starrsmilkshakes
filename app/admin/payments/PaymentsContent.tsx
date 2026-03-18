@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import { Plus, Edit2, Trash2, CreditCard, AlertTriangle, Loader2, QrCode } from 'lucide-react';
-import type { PaymentMethod } from '@/hooks/usePaymentMethods';
+import type { AdminPaymentMethod as PaymentMethod } from '@/types';
 import {
   addPaymentMethod,
   updatePaymentMethod,
