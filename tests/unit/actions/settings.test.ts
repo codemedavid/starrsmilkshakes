@@ -4,6 +4,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // Mock admin-guard
 vi.mock('@/lib/admin-guard', () => ({
+  checkActionRateLimit: vi.fn().mockResolvedValue({ allowed: true }),
   requireAdmin: vi.fn(),
 }));
 

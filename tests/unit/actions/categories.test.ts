@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 // ─── Mocks ────────────────────────────────────────────────────────────────────
 
 vi.mock('@/lib/admin-guard', () => ({
+  checkActionRateLimit: vi.fn().mockResolvedValue({ allowed: true }),
   requireAdmin: vi.fn(),
 }));
 

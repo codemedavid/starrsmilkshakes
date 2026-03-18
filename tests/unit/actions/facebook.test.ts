@@ -4,6 +4,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // Mock admin-guard — requireSuperAdmin returns { adminId } or throws
 vi.mock('@/lib/admin-guard', () => ({
+  checkActionRateLimit: vi.fn().mockResolvedValue({ allowed: true }),
   requireSuperAdmin: vi.fn(),
 }));
 
