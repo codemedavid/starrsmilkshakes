@@ -71,6 +71,7 @@ const formatOrder = (order: any): Order => ({
   lalamove_status: order.lalamove_status,
   lalamove_tracking_url: order.lalamove_tracking_url,
   branch_id: order.branch_id,
+  customer_id: order.customer_id ?? null,
   order_items:
     (order.order_items as any[])?.map((item: any) => ({
       id: item.id,

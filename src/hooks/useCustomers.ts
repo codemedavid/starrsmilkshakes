@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { adminFetch, parseApiResponse } from '@/lib/admin-api';
 import type { CustomerFilters, CustomerSummary } from '@/types/customer';
 
 export const useCustomers = () => {
@@ -18,9 +19,8 @@ export const useCustomers = () => {
       if (filters.page)    params.set('page', String(filters.page));
       if (filters.limit)   params.set('limit', String(filters.limit));
 
-      const res = await fetch(`/api/admin/customers?${params}`);
-      if (!res.ok) throw new Error('Failed to fetch customers');
-      const data = await res.json();
+      const res = await adminFetch(`/api/admin/customers?${params}`);
+      const data = await parseApiResponse<{ customers: CustomerSummary[]; total: number }>(res);
       setCustomers(data.customers);
       setTotal(data.total);
     } catch (err) {
@@ -31,21 +31,17 @@ export const useCustomers = () => {
   }, []);
 
   const createCustomer = useCallback(async (input: { name: string; email?: string; phone?: string; notes?: string }) => {
-    const res = await fetch('/api/admin/customers', {
+    const res = await adminFetch('/api/admin/customers', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(input),
     });
-    if (!res.ok) {
-      const data = await res.json();
-      throw new Error(data.error || 'Failed to create customer');
-    }
-    return (await res.json()).customer;
+    const data = await parseApiResponse<{ customer: CustomerSummary }>(res);
+    return data.customer;
   }, []);
 
   const deleteCustomer = useCallback(async (id: string) => {
-    const res = await fetch(`/api/admin/customers/${id}`, { method: 'DELETE' });
-    if (!res.ok) throw new Error('Failed to delete customer');
+    const res = await adminFetch(`/api/admin/customers/${id}`, { method: 'DELETE' });
+    await parseApiResponse(res);
   }, []);
 
   return { customers, total, loading, error, fetchCustomers, createCustomer, deleteCustomer };
