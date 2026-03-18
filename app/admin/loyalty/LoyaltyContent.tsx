@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import type { LoyaltyConfig, LoyaltyReward } from '@/types/loyalty';
 import LoyaltyConfigTab from '@/components/admin/LoyaltyConfigTab';
+import LoyaltyRewardsTab from '@/components/admin/LoyaltyRewardsTab';
 
 interface Props {
   initialConfig: LoyaltyConfig;
@@ -56,7 +57,7 @@ export default function LoyaltyContent({ initialConfig, initialRewards, initialS
 
       {/* Tab Content */}
       {activeTab === 'Configuration' && <LoyaltyConfigTab initialConfig={initialConfig} />}
-      {activeTab === 'Rewards' && <PlaceholderTab name="Rewards" />}
+      {activeTab === 'Rewards' && <LoyaltyRewardsTab initialRewards={initialRewards} />}
       {activeTab === 'Boosters' && <PlaceholderTab name="Boosters" />}
       {activeTab === 'Redemptions' && <PlaceholderTab name="Redemptions" />}
       {activeTab === 'Lookup' && <PlaceholderTab name="Lookup" />}
