@@ -11,6 +11,7 @@ import {
   type QuickReply,
 } from '@/lib/messenger';
 import { generateCheckoutHash, getCheckoutExpiresAt } from '@/lib/messenger-session';
+import { generateLoyaltyToken, getLoyaltySessionExpiry } from '@/lib/loyalty-hash';
 import type { MessengerSession, MessengerCartItem } from '@/types';
 
 const PRODUCTS_PER_PAGE = 10;
@@ -59,9 +60,13 @@ async function updateSession(psid: string, updates: Partial<MessengerSession>): 
   await supabaseServer.from('messenger_sessions').update(updates).eq('psid', psid);
 }
 
-async function handleTextMessage(psid: string, _text: string, _session: MessengerSession, pageToken: string): Promise<void> {
-  // Any text message shows the main menu
-  await showCategories(psid, pageToken);
+async function handleTextMessage(psid: string, text: string, _session: MessengerSession, pageToken: string): Promise<void> {
+  const lower = text.toLowerCase().trim();
+  if (lower === 'loyalty' || lower === 'loyalty card' || lower === 'starr card' || lower === 'my card') {
+    await handleLoyaltyCard(psid, pageToken);
+  } else {
+    await showCategories(psid, pageToken);
+  }
 }
 
 async function handlePostback(psid: string, payload: string, session: MessengerSession, pageToken: string): Promise<void> {
@@ -101,6 +106,8 @@ async function handlePostback(psid: string, payload: string, session: MessengerS
   } else if (payload.startsWith('REMOVE_ITEM_')) {
     const index = parseInt(payload.replace('REMOVE_ITEM_', ''), 10);
     await handleRemoveItem(psid, index, pageToken);
+  } else if (payload === 'LOYALTY_CARD') {
+    await handleLoyaltyCard(psid, pageToken);
   }
 }
 
@@ -459,6 +466,53 @@ async function handleRemoveItem(psid: string, index: number, pageToken: string):
     await sendTextMessage(psid, 'Item removed.', pageToken);
   }
   await showCart(psid, pageToken);
+}
+
+async function handleLoyaltyCard(psid: string, pageToken: string): Promise<void> {
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+
+  // Check if this PSID has a loyalty card (via customer)
+  const { data: customer } = await (supabaseServer
+    .from('customers') as any)
+    .select('id')
+    .eq('messenger_psid', psid)
+    .maybeSingle();
+
+  let hasCard = false;
+  if (customer) {
+    const { data: card } = await (supabaseServer
+      .from('loyalty_cards') as any)
+      .select('id')
+      .eq('customer_id', customer.id)
+      .maybeSingle();
+    hasCard = !!card;
+  }
+
+  // Generate session token
+  const token = generateLoyaltyToken();
+  const expiresAt = getLoyaltySessionExpiry();
+
+  await (supabaseServer
+    .from('loyalty_sessions') as any)
+    .insert({
+      token,
+      psid,
+      purpose: hasCard ? 'card_view' : 'registration',
+      expires_at: expiresAt,
+    });
+
+  const url = hasCard
+    ? `${siteUrl}/loyalty/card/${token}`
+    : `${siteUrl}/loyalty/register/${token}`;
+
+  const buttonTitle = hasCard ? 'View My Card' : 'Get My Starr Card';
+  const messageText = hasCard
+    ? '⭐ Tap below to view your Starr Card!'
+    : '⭐ Earn starrs with every order! Tap below to get your loyalty card.';
+
+  await sendButtonTemplate(psid, messageText, [
+    { type: 'web_url', title: buttonTitle, url, webview_height_ratio: 'tall' },
+  ], pageToken);
 }
 
 function getSiteUrl(): string {
