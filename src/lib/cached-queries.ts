@@ -142,6 +142,18 @@ export const getCachedLoyaltyRewards = unstable_cache(
   { revalidate: 60, tags: ['loyalty-rewards'] }
 );
 
+// ── Loyalty Boosters ────────────────────────────────────────
+export const getCachedLoyaltyBoosters = unstable_cache(
+  async () => {
+    const { data } = await (supabaseServer.from('loyalty_boosters') as any)
+      .select('*')
+      .order('starts_at', { ascending: false });
+    return data || [];
+  },
+  ['admin-loyalty-boosters'],
+  { revalidate: 60, tags: ['loyalty-boosters'] }
+);
+
 // ── Loyalty Stats ───────────────────────────────────────────
 export const getCachedLoyaltyStats = unstable_cache(
   async () => {

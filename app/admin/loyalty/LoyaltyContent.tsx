@@ -1,20 +1,22 @@
 'use client';
 
 import { useState } from 'react';
-import type { LoyaltyConfig, LoyaltyReward } from '@/types/loyalty';
+import type { LoyaltyConfig, LoyaltyReward, LoyaltyBooster } from '@/types/loyalty';
 import LoyaltyConfigTab from '@/components/admin/LoyaltyConfigTab';
 import LoyaltyRewardsTab from '@/components/admin/LoyaltyRewardsTab';
+import LoyaltyBoostersTab from '@/components/admin/LoyaltyBoostersTab';
 
 interface Props {
   initialConfig: LoyaltyConfig;
   initialRewards: LoyaltyReward[];
+  initialBoosters: LoyaltyBooster[];
   initialStats: { active_cards: number; pending_claims: number; rewards_claimed: number };
 }
 
 const tabs = ['Configuration', 'Rewards', 'Boosters', 'Redemptions', 'Lookup'] as const;
 type Tab = typeof tabs[number];
 
-export default function LoyaltyContent({ initialConfig, initialRewards, initialStats }: Props) {
+export default function LoyaltyContent({ initialConfig, initialRewards, initialBoosters, initialStats }: Props) {
   const [activeTab, setActiveTab] = useState<Tab>('Configuration');
 
   return (
@@ -58,7 +60,7 @@ export default function LoyaltyContent({ initialConfig, initialRewards, initialS
       {/* Tab Content */}
       {activeTab === 'Configuration' && <LoyaltyConfigTab initialConfig={initialConfig} />}
       {activeTab === 'Rewards' && <LoyaltyRewardsTab initialRewards={initialRewards} />}
-      {activeTab === 'Boosters' && <PlaceholderTab name="Boosters" />}
+      {activeTab === 'Boosters' && <LoyaltyBoostersTab initialBoosters={initialBoosters} />}
       {activeTab === 'Redemptions' && <PlaceholderTab name="Redemptions" />}
       {activeTab === 'Lookup' && <PlaceholderTab name="Lookup" />}
     </div>
