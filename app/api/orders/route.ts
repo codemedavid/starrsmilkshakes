@@ -74,6 +74,7 @@ const formatOrder = (order: any): Order => ({
   customer_id: order.customer_id ?? null,
   messenger_psid: order.messenger_psid ?? null,
   messenger_name: order.messenger_name ?? null,
+  linked_customer_name: order.customers?.name ?? null,
   order_items:
     (order.order_items as any[])?.map((item: any) => ({
       id: item.id,
@@ -219,9 +220,11 @@ export async function GET(request: NextRequest) {
 
     let query = supabaseServer
       .from('orders')
+      // @ts-expect-error - customers join not in generated types
       .select(`
         *,
-        order_items (*)
+        order_items (*),
+        customers (name)
       `)
       .order('created_at', { ascending: false });
 

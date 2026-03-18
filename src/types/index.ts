@@ -140,6 +140,7 @@ export interface Order {
   customer_id?: string | null;
   messenger_psid?: string | null;
   messenger_name?: string | null;
+  linked_customer_name?: string | null;
 }
 
 export interface Branch {

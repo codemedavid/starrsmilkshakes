@@ -193,9 +193,11 @@ export async function GET(
 
     const { data, error } = await supabaseServer
       .from('orders')
+      // @ts-expect-error - customers join not in generated types
       .select(`
         *,
-        order_items (*)
+        order_items (*),
+        customers (name)
       `)
       .eq('id', id)
       .single() as { data: any; error: any };
@@ -244,6 +246,7 @@ export async function GET(
       customer_id: data.customer_id ?? null,
       messenger_psid: data.messenger_psid ?? null,
       messenger_name: data.messenger_name ?? null,
+      linked_customer_name: data.customers?.name ?? null,
       order_items: (data.order_items as any[])?.map((item: any) => ({
         id: item.id,
         order_id: item.order_id,
@@ -377,7 +380,7 @@ export async function PATCH(
         // @ts-expect-error - Supabase type definitions may not include all fields
         .update(retryUpdate)
         .eq('id', id)
-        .select('*, order_items (*)')
+        .select('*, order_items (*), customers (name)')
         .single() as { data: any; error: any };
 
       if (retryErr) {
@@ -412,6 +415,7 @@ export async function PATCH(
         customer_id: retryData.customer_id ?? null,
         messenger_psid: retryData.messenger_psid ?? null,
         messenger_name: retryData.messenger_name ?? null,
+        linked_customer_name: retryData.customers?.name ?? null,
         order_items: (retryData.order_items as any[])?.map((item: any) => ({
           id: item.id,
           order_id: item.order_id,
@@ -498,7 +502,8 @@ export async function PATCH(
       .eq('id', id)
       .select(`
         *,
-        order_items (*)
+        order_items (*),
+        customers (name)
       `)
       .single() as { data: any; error: any };
 
@@ -623,6 +628,7 @@ export async function PATCH(
       customer_id: data.customer_id ?? null,
       messenger_psid: data.messenger_psid ?? null,
       messenger_name: data.messenger_name ?? null,
+      linked_customer_name: data.customers?.name ?? null,
       order_items: (data.order_items as any[])?.map((item: any) => ({
         id: item.id,
         order_id: item.order_id,

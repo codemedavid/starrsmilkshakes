@@ -21,6 +21,8 @@ interface CustomerLinkWidgetProps {
     customer_name?: string;
     messenger_psid?: string | null;
     messenger_name?: string | null;
+    linked_customer_name?: string | null;
+    status?: string;
   };
   /** Called after a customer is linked/unlinked to refresh the order list */
   onUpdate?: () => void;
@@ -210,26 +212,29 @@ const CustomerLinkWidget: React.FC<CustomerLinkWidgetProps> = ({ order, onUpdate
     }
   };
 
-  // Linked state — show chip
+  // Linked state — show chip with the customer record's name (not order.customer_name)
+  const isCompleted = order.status === 'completed';
   if (order.customer_id) {
     return (
       <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-[#7BBFB5]/10 border border-[#7BBFB5]/30 rounded-full cursor-pointer hover:bg-[#7BBFB5]/20 transition-all duration-200 group">
         <User className="h-3 w-3 text-[#3D8A80]" />
         <span className="text-xs font-nunito font-medium text-[#3D8A80] truncate max-w-[120px]">
-          {order.customer_name || 'Customer'}
+          {order.linked_customer_name || order.customer_name || 'Customer'}
         </span>
-        <button
-          onClick={(e) => { e.stopPropagation(); unlinkCustomer(); }}
-          className="opacity-0 group-hover:opacity-100 ml-0.5 p-0.5 rounded-full hover:bg-red-100 transition-all duration-200"
-          aria-label="Unlink customer"
-          disabled={linking}
-        >
-          {linking ? (
-            <Loader2 className="h-3 w-3 text-stone-400 animate-spin" />
-          ) : (
-            <X className="h-3 w-3 text-red-400 hover:text-red-600" />
-          )}
-        </button>
+        {!isCompleted && (
+          <button
+            onClick={(e) => { e.stopPropagation(); unlinkCustomer(); }}
+            className="opacity-0 group-hover:opacity-100 ml-0.5 p-0.5 rounded-full hover:bg-red-100 transition-all duration-200"
+            aria-label="Unlink customer"
+            disabled={linking}
+          >
+            {linking ? (
+              <Loader2 className="h-3 w-3 text-stone-400 animate-spin" />
+            ) : (
+              <X className="h-3 w-3 text-red-400 hover:text-red-600" />
+            )}
+          </button>
+        )}
       </span>
     );
   }
