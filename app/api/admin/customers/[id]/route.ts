@@ -3,6 +3,8 @@ import { requireAdminRequest } from '@/lib/admin-auth';
 import { supabaseServer } from '@/lib/supabase-server';
 import { normalizePhone, normalizeEmail, computeAutoTags } from '@/lib/customer-utils';
 
+const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export const runtime = 'nodejs';
 
 export async function GET(
@@ -14,6 +16,9 @@ export async function GET(
     if (unauthorized) return unauthorized;
 
     const { id } = await params;
+    if (!uuidRegex.test(id)) {
+      return NextResponse.json({ error: 'Invalid ID format' }, { status: 400 });
+    }
 
     const { data: customer, error } = await (supabaseServer.from('customers') as any)
       .select('*, customer_tags(*)')
@@ -40,7 +45,7 @@ export async function GET(
       },
     });
   } catch (err) {
-    console.error('[api/admin/customers/[id]] GET unhandled:', err);
+    console.error('[api/admin/customers/[id]] GET unhandled:', err instanceof Error ? err.message : 'Unknown error');
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
@@ -54,6 +59,9 @@ export async function PATCH(
     if (unauthorized) return unauthorized;
 
     const { id } = await params;
+    if (!uuidRegex.test(id)) {
+      return NextResponse.json({ error: 'Invalid ID format' }, { status: 400 });
+    }
 
     let body: Record<string, unknown>;
     try { body = await request.json(); } catch {
@@ -105,7 +113,7 @@ export async function PATCH(
 
     return NextResponse.json({ customer: data });
   } catch (err) {
-    console.error('[api/admin/customers/[id]] PATCH unhandled:', err);
+    console.error('[api/admin/customers/[id]] PATCH unhandled:', err instanceof Error ? err.message : 'Unknown error');
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
@@ -119,6 +127,9 @@ export async function DELETE(
     if (unauthorized) return unauthorized;
 
     const { id } = await params;
+    if (!uuidRegex.test(id)) {
+      return NextResponse.json({ error: 'Invalid ID format' }, { status: 400 });
+    }
 
     const { error } = await (supabaseServer.from('customers') as any)
       .delete()
@@ -136,7 +147,7 @@ export async function DELETE(
 
     return NextResponse.json({ success: true });
   } catch (err) {
-    console.error('[api/admin/customers/[id]] DELETE unhandled:', err);
+    console.error('[api/admin/customers/[id]] DELETE unhandled:', err instanceof Error ? err.message : 'Unknown error');
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAdminRequest } from '@/lib/admin-auth';
 import { supabaseServer } from '@/lib/supabase-server';
 
+const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export const runtime = 'nodejs';
 
 export async function DELETE(
@@ -13,6 +15,9 @@ export async function DELETE(
     if (unauthorized) return unauthorized;
 
     const { id, tagId } = await params;
+    if (!uuidRegex.test(id) || !uuidRegex.test(tagId)) {
+      return NextResponse.json({ error: 'Invalid ID format' }, { status: 400 });
+    }
 
     const { data: deleted, error } = await (supabaseServer.from('customer_tags') as any)
       .delete()
@@ -31,7 +36,7 @@ export async function DELETE(
 
     return NextResponse.json({ success: true });
   } catch (err) {
-    console.error('[api/admin/customers/[id]/tags/[tagId]] DELETE unhandled:', err);
+    console.error('[api/admin/customers/[id]/tags/[tagId]] DELETE unhandled:', err instanceof Error ? err.message : 'Unknown error');
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

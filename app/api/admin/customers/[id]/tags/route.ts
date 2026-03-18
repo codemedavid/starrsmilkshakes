@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAdminRequest } from '@/lib/admin-auth';
 import { supabaseServer } from '@/lib/supabase-server';
 
+const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export const runtime = 'nodejs';
 
 export async function POST(
@@ -13,6 +15,9 @@ export async function POST(
     if (unauthorized) return unauthorized;
 
     const { id } = await params;
+    if (!uuidRegex.test(id)) {
+      return NextResponse.json({ error: 'Invalid ID format' }, { status: 400 });
+    }
 
     let body: Record<string, unknown>;
     try { body = await request.json(); } catch {
@@ -40,7 +45,7 @@ export async function POST(
 
     return NextResponse.json({ tag: data }, { status: 201 });
   } catch (err) {
-    console.error('[api/admin/customers/[id]/tags] POST unhandled:', err);
+    console.error('[api/admin/customers/[id]/tags] POST unhandled:', err instanceof Error ? err.message : 'Unknown error');
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

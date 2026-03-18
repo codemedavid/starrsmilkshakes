@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ customer: data ?? null });
   } catch (err) {
-    console.error('[api/admin/customers/suggest] GET unhandled:', err);
+    console.error('[api/admin/customers/suggest] GET unhandled:', err instanceof Error ? err.message : 'Unknown error');
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

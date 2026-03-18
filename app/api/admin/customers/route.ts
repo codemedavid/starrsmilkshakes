@@ -72,7 +72,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ customers, total: count ?? 0, page, limit });
   } catch (err) {
-    console.error('[api/admin/customers] GET unhandled:', err);
+    console.error('[api/admin/customers] GET unhandled:', err instanceof Error ? err.message : 'Unknown error');
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
@@ -116,7 +116,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ customer: data }, { status: 201 });
   } catch (err) {
-    console.error('[api/admin/customers] POST unhandled:', err);
+    console.error('[api/admin/customers] POST unhandled:', err instanceof Error ? err.message : 'Unknown error');
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
