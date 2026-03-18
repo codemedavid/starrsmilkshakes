@@ -148,3 +148,47 @@ export const reorderSchema = z.object({
 });
 
 export type ReorderInput = z.infer<typeof reorderSchema>;
+
+// ─── Loyalty Config ──────────────────────────────────────────────────────────
+
+export const loyaltyConfigSchema = z.object({
+  stamps_enabled: z.boolean(),
+  points_enabled: z.boolean(),
+  points_per_peso: z.number().min(0),
+  stamps_per_order: z.number().int().min(1),
+  filter_mode: z.enum(['allowlist', 'blocklist']),
+  filtered_category_ids: z.array(z.string().uuid()),
+  filtered_item_ids: z.array(z.string().uuid()),
+  claim_window_days: z.number().int().min(1).max(90),
+});
+
+export type LoyaltyConfigInput = z.infer<typeof loyaltyConfigSchema>;
+
+// ─── Loyalty Reward ──────────────────────────────────────────────────────────
+
+export const loyaltyRewardSchema = z.object({
+  name: sanitized.pipe(z.string().min(1).max(100)),
+  description: sanitized.pipe(z.string().max(500)).nullable().optional(),
+  image_url: z.string().url().nullable().optional(),
+  stamps_required: z.number().int().min(1).nullable().optional(),
+  points_required: z.number().int().min(1).nullable().optional(),
+  is_active: z.boolean().optional(),
+  sort_order: z.number().int().optional(),
+});
+
+export type LoyaltyRewardInput = z.infer<typeof loyaltyRewardSchema>;
+
+// ─── Loyalty Booster ─────────────────────────────────────────────────────────
+
+export const loyaltyBoosterSchema = z.object({
+  name: sanitized.pipe(z.string().min(1).max(100)),
+  multiplier: z.number().min(1.1).max(10),
+  applies_to: z.enum(['stamps', 'points', 'both']),
+  filter_mode: z.enum(['all', 'categories', 'items']),
+  filter_ids: z.array(z.string().uuid()),
+  starts_at: z.string().min(1),
+  ends_at: z.string().min(1),
+  is_active: z.boolean().optional(),
+});
+
+export type LoyaltyBoosterInput = z.infer<typeof loyaltyBoosterSchema>;
