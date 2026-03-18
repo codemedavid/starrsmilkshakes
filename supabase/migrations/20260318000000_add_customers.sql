@@ -122,14 +122,13 @@ begin
    order by count(*) desc
    limit 1;
 
-  -- preferred_branch_id: mode (cast with nullif guard for legacy text rows)
-  select (nullif(branch_id, ''))::uuid
+  -- preferred_branch_id: mode (branch_id is uuid type, no cast needed)
+  select branch_id
     into v_preferred_branch_id
     from public.orders
    where customer_id = p_customer_id
      and status <> 'cancelled'
      and branch_id is not null
-     and branch_id ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
    group by branch_id
    order by count(*) desc
    limit 1;
