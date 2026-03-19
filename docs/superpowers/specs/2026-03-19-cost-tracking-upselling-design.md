@@ -34,6 +34,12 @@ ALTER TABLE add_ons ADD COLUMN cost_price decimal(10,2);
 - Margin is always computed at runtime: `margin = selling_price - cost_price`
 - No stored margin columns — single source of truth
 
+Additionally, snapshot cost at order time for accurate historical analytics:
+```sql
+ALTER TABLE order_items ADD COLUMN cost_price decimal(10,2);
+```
+When an order is created, `cost_price` is copied from the menu item's current `cost_price`. This ensures margin calculations remain accurate even if ingredient costs change later.
+
 ### 1B. Bundle System — New Tables
 
 ```sql
@@ -71,7 +77,8 @@ CREATE TABLE bundle_slot_items (
   slot_id         uuid NOT NULL REFERENCES bundle_slots(id) ON DELETE CASCADE,
   menu_item_id    uuid NOT NULL REFERENCES menu_items(id) ON DELETE CASCADE,
   price_override  decimal(10,2),           -- nullable; replaces item base_price within bundle
-  sort_order      integer DEFAULT 0
+  sort_order      integer DEFAULT 0,
+  UNIQUE (slot_id, menu_item_id)           -- prevent duplicate items in same slot
 );
 ```
 
@@ -80,6 +87,20 @@ CREATE TABLE bundle_slot_items (
 - `bundle_slot_items` references `menu_items`, so selected items retain their own variations and add-ons
 - `price_override` allows bundle-specific pricing per slot item (nullable = use item's own price)
 - Bundles have their own discount mechanism (same pattern as menu_items)
+
+**Triggers:**
+```sql
+CREATE TRIGGER update_bundles_updated_at
+  BEFORE UPDATE ON bundles
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+```
+
+**Indexes:**
+```sql
+CREATE INDEX idx_bundles_category ON bundles(category);
+CREATE INDEX idx_bundle_slots_bundle_id ON bundle_slots(bundle_id);
+CREATE INDEX idx_bundle_slot_items_slot_id ON bundle_slot_items(slot_id);
+```
 
 ### 1C. Upsell System — New Tables
 
@@ -93,11 +114,12 @@ CREATE TABLE upsell_rules (
   name                  text NOT NULL,
   phase                 upsell_phase NOT NULL,
   trigger_type          upsell_trigger_type NOT NULL,
-  trigger_ids           uuid[] NOT NULL DEFAULT '{}',
-  trigger_min_total     decimal(10,2),          -- for cart_total triggers
+  trigger_item_ids      uuid[] NOT NULL DEFAULT '{}',   -- for 'item' triggers (menu_item UUIDs)
+  trigger_category_ids  text[] NOT NULL DEFAULT '{}',   -- for 'category' triggers (category text IDs)
+  trigger_min_total     decimal(10,2),                  -- for 'cart_total' triggers
   offer_type            upsell_offer_type NOT NULL,
-  offer_item_id         uuid REFERENCES menu_items(id) ON DELETE CASCADE,
-  offer_bundle_id       uuid REFERENCES bundles(id) ON DELETE CASCADE,
+  offer_item_id         uuid REFERENCES menu_items(id) ON DELETE SET NULL,
+  offer_bundle_id       uuid REFERENCES bundles(id) ON DELETE SET NULL,
   offer_discount_percent decimal(5,2),
   offer_message         text,
   priority              integer NOT NULL DEFAULT 0,
@@ -105,7 +127,12 @@ CREATE TABLE upsell_rules (
   starts_at             timestamptz,
   ends_at               timestamptz,
   created_at            timestamptz DEFAULT now(),
-  updated_at            timestamptz DEFAULT now()
+  updated_at            timestamptz DEFAULT now(),
+  CONSTRAINT upsell_rules_offer_check CHECK (
+    (offer_type = 'item' AND offer_item_id IS NOT NULL) OR
+    (offer_type = 'bundle' AND offer_bundle_id IS NOT NULL) OR
+    (offer_type IN ('discount', 'loyalty_nudge'))
+  )
 );
 
 CREATE TABLE addon_suggestions (
@@ -115,62 +142,134 @@ CREATE TABLE addon_suggestions (
   suggestion_text text,                    -- "Most customers add this!"
   sort_order      integer DEFAULT 0,
   is_active       boolean DEFAULT true,
-  created_at      timestamptz DEFAULT now()
+  starts_at       timestamptz,             -- optional time bounds for consistency
+  ends_at         timestamptz,
+  created_at      timestamptz DEFAULT now(),
+  UNIQUE (menu_item_id, add_on_id)         -- prevent duplicate suggestions
 );
 
 CREATE TABLE pair_rules (
   id                  uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  source_item_id      uuid REFERENCES menu_items(id) ON DELETE CASCADE,
-  source_category_id  text REFERENCES categories(id) ON DELETE CASCADE,
-  paired_item_id      uuid REFERENCES menu_items(id) ON DELETE CASCADE,
-  paired_bundle_id    uuid REFERENCES bundles(id) ON DELETE CASCADE,
+  source_item_id      uuid REFERENCES menu_items(id) ON DELETE SET NULL,
+  source_category_id  text REFERENCES categories(id) ON DELETE SET NULL,
+  paired_item_id      uuid REFERENCES menu_items(id) ON DELETE SET NULL,
+  paired_bundle_id    uuid REFERENCES bundles(id) ON DELETE SET NULL,
   message             text,                -- "Goes great with your shake!"
   priority            integer NOT NULL DEFAULT 0,
   is_active           boolean DEFAULT true,
   created_at          timestamptz DEFAULT now(),
   updated_at          timestamptz DEFAULT now(),
-  CONSTRAINT pair_rules_source_check CHECK (
-    source_item_id IS NOT NULL OR source_category_id IS NOT NULL
+  -- XOR: exactly one source and exactly one paired target
+  CONSTRAINT pair_rules_source_xor CHECK (
+    (source_item_id IS NOT NULL) != (source_category_id IS NOT NULL)
   ),
-  CONSTRAINT pair_rules_paired_check CHECK (
-    paired_item_id IS NOT NULL OR paired_bundle_id IS NOT NULL
+  CONSTRAINT pair_rules_paired_xor CHECK (
+    (paired_item_id IS NOT NULL) != (paired_bundle_id IS NOT NULL)
   )
 );
+
+-- When referenced items/bundles are deleted (SET NULL), rules become broken.
+-- The upsell engine skips rules where the paired target is NULL.
+```
+
+**Indexes:**
+```sql
+CREATE INDEX idx_upsell_rules_phase_active ON upsell_rules(phase, is_active);
+CREATE INDEX idx_addon_suggestions_item_active ON addon_suggestions(menu_item_id, is_active);
+CREATE INDEX idx_pair_rules_source_item ON pair_rules(source_item_id) WHERE source_item_id IS NOT NULL;
+CREATE INDEX idx_pair_rules_source_category ON pair_rules(source_category_id) WHERE source_category_id IS NOT NULL;
+```
+
+**RLS Policies:**
+```sql
+-- Bundles: public read, admin write
+ALTER TABLE bundles ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Public can read available bundles" ON bundles FOR SELECT USING (true);
+CREATE POLICY "Admin can manage bundles" ON bundles FOR ALL USING (auth.role() = 'service_role');
+
+ALTER TABLE bundle_slots ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Public can read slots" ON bundle_slots FOR SELECT USING (true);
+CREATE POLICY "Admin can manage slots" ON bundle_slots FOR ALL USING (auth.role() = 'service_role');
+
+ALTER TABLE bundle_slot_items ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Public can read slot items" ON bundle_slot_items FOR SELECT USING (true);
+CREATE POLICY "Admin can manage slot items" ON bundle_slot_items FOR ALL USING (auth.role() = 'service_role');
+
+-- Upsell tables: public read (customer actions need to read rules), admin write
+ALTER TABLE upsell_rules ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Public can read active rules" ON upsell_rules FOR SELECT USING (true);
+CREATE POLICY "Admin can manage rules" ON upsell_rules FOR ALL USING (auth.role() = 'service_role');
+
+ALTER TABLE addon_suggestions ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Public can read suggestions" ON addon_suggestions FOR SELECT USING (true);
+CREATE POLICY "Admin can manage suggestions" ON addon_suggestions FOR ALL USING (auth.role() = 'service_role');
+
+ALTER TABLE pair_rules ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Public can read pair rules" ON pair_rules FOR SELECT USING (true);
+CREATE POLICY "Admin can manage pair rules" ON pair_rules FOR ALL USING (auth.role() = 'service_role');
 ```
 
 ### 1D. Analytics — Materialized View
 
+Two materialized views — one for regular menu items, one for bundles:
+
 ```sql
+-- Item performance uses snapshotted cost_price from order_items (not current menu_items.cost_price)
+-- This ensures historical accuracy even when ingredient costs change.
 CREATE MATERIALIZED VIEW item_performance_mv AS
 SELECT
   oi.menu_item_id,
   mi.name AS item_name,
   mi.category,
   mi.base_price AS sell_price,
-  mi.cost_price,
+  mi.cost_price AS current_cost_price,
   COUNT(DISTINCT oi.order_id) AS total_orders,
   SUM(oi.quantity) AS total_quantity,
   SUM(oi.total_price) AS total_revenue,
-  CASE WHEN mi.cost_price IS NOT NULL
-    THEN SUM(oi.quantity * mi.cost_price)
+  CASE WHEN SUM(CASE WHEN oi.cost_price IS NOT NULL THEN 1 ELSE 0 END) > 0
+    THEN SUM(oi.quantity * COALESCE(oi.cost_price, 0))
     ELSE NULL
   END AS total_cost,
-  CASE WHEN mi.cost_price IS NOT NULL AND SUM(oi.total_price) > 0
+  CASE WHEN SUM(CASE WHEN oi.cost_price IS NOT NULL THEN 1 ELSE 0 END) > 0
+       AND SUM(oi.total_price) > 0
     THEN ROUND(
-      (SUM(oi.total_price) - SUM(oi.quantity * mi.cost_price)) / SUM(oi.total_price) * 100, 2
+      (SUM(oi.total_price) - SUM(oi.quantity * COALESCE(oi.cost_price, 0)))
+      / SUM(oi.total_price) * 100, 2
     )
     ELSE NULL
-  END AS margin_percent
+  END AS margin_percent,
+  SUM(oi.total_price) - SUM(oi.quantity * COALESCE(oi.cost_price, 0)) AS gross_profit
 FROM order_items oi
 JOIN menu_items mi ON mi.id = oi.menu_item_id
 JOIN orders o ON o.id = oi.order_id
 WHERE o.status = 'completed'
+  AND oi.menu_item_id IS NOT NULL         -- exclude bundle rows
 GROUP BY oi.menu_item_id, mi.name, mi.category, mi.base_price, mi.cost_price;
 
 CREATE UNIQUE INDEX idx_item_performance_mv_item ON item_performance_mv(menu_item_id);
+
+-- Bundle performance (separate view for bundle-level analytics)
+CREATE MATERIALIZED VIEW bundle_performance_mv AS
+SELECT
+  oi.bundle_id,
+  b.name AS bundle_name,
+  b.category,
+  b.base_price AS sell_price,
+  b.cost_price AS current_cost_price,
+  COUNT(DISTINCT oi.order_id) AS total_orders,
+  SUM(oi.quantity) AS total_quantity,
+  SUM(oi.total_price) AS total_revenue
+FROM order_items oi
+JOIN bundles b ON b.id = oi.bundle_id
+JOIN orders o ON o.id = oi.order_id
+WHERE o.status = 'completed'
+  AND oi.bundle_id IS NOT NULL
+GROUP BY oi.bundle_id, b.name, b.category, b.base_price, b.cost_price;
+
+CREATE UNIQUE INDEX idx_bundle_performance_mv_bundle ON bundle_performance_mv(bundle_id);
 ```
 
-Refreshed on demand via `REFRESH MATERIALIZED VIEW CONCURRENTLY item_performance_mv`.
+Refreshed on demand via `REFRESH MATERIALIZED VIEW CONCURRENTLY item_performance_mv` and `REFRESH MATERIALIZED VIEW CONCURRENTLY bundle_performance_mv`.
 
 ---
 
@@ -207,9 +306,14 @@ validateBundleSelections(bundle: Bundle, slotSelections: SlotSelection[])
   → { valid: boolean, errors: string[] }
   // Checks: min/max selections per slot, all required slots filled, items valid for slot
 
-calculateBundlePrice(bundle: Bundle, slotSelections: SlotSelection[])
-  → { basePrice: number, addOnsTotal: number, variationsExtra: number, total: number }
-  // basePrice = bundle.base_price; add-ons/variations from selected items add on top
+getBundleEffectivePrice(bundle: Bundle, now: Date)
+  → number
+  // Returns discount_price if discount is active and within date range, else base_price
+  // Same logic as existing getEffectiveBasePrice for menu items
+
+calculateBundlePrice(bundle: Bundle, slotSelections: SlotSelection[], now: Date)
+  → { effectivePrice: number, addOnsTotal: number, variationsExtra: number, total: number }
+  // effectivePrice = getBundleEffectivePrice(bundle, now); add-ons/variations from selected items add on top
 
 calculateBundleSavings(bundle: Bundle, slotSelections: SlotSelection[])
   → { individualTotal: number, bundleTotal: number, savings: number, savingsPercent: number }
@@ -524,6 +628,8 @@ Browse Menu → Add Item
 
 Located in `src/types/`.
 
+**Convention note:** New types use `snake_case` field names matching the DB columns directly. The existing codebase uses `camelCase` for older types (e.g., `MenuItem.basePrice`). For new domains (cost, bundle, upsell, analytics), we use `snake_case` consistently since all data flows through server actions that return DB rows directly. This avoids an unnecessary mapping layer. Existing types (MenuItem, CartItem, etc.) remain unchanged.
+
 ### 6A. Cost Types (`src/types/cost.ts`)
 
 ```typescript
@@ -610,7 +716,8 @@ export interface UpsellRule {
   name: string;
   phase: UpsellPhase;
   trigger_type: UpsellTriggerType;
-  trigger_ids: string[];
+  trigger_item_ids: string[];       // menu_item UUIDs for 'item' triggers
+  trigger_category_ids: string[];   // category text IDs for 'category' triggers
   trigger_min_total: number | null;
   offer_type: UpsellOfferType;
   offer_item_id: string | null;
@@ -638,6 +745,8 @@ export interface AddonSuggestion {
   suggestion_text: string | null;
   sort_order: number;
   is_active: boolean;
+  starts_at: string | null;
+  ends_at: string | null;
   add_on?: AddOn;  // joined
 }
 
@@ -683,7 +792,7 @@ export interface ItemPerformanceRow {
   total_quantity: number;
   total_revenue: number;
   total_cost: number | null;
-  gross_profit: number | null;
+  gross_profit: number | null;    // from materialized view (total_revenue - total_cost)
   margin_percent: number | null;
 }
 
@@ -846,8 +955,10 @@ The spreadsheet data maps to existing menu items by name:
 
 The `bulkImportCosts` action handles this:
 1. Accept array of `{ name, costPrice }` pairs
-2. Fuzzy-match against `menu_items.name` (case-insensitive, trimmed)
-3. Return `{ updated, notFound[] }` for admin review
+2. **Exact match** after normalization: `LOWER(TRIM(name))` on both sides. No fuzzy matching — exact normalized string comparison only.
+3. **Preview step**: Return `{ matches: { name, menuItemId, menuItemName, costPrice }[], notFound: string[] }` for admin review before applying
+4. **Apply step**: Admin confirms, action updates `cost_price` for all matched items
+5. Return `{ updated: number, notFound: string[] }` after application
 
 Variation and add-on costs will be set manually by admin after initial import (since spreadsheets only have base item costs).
 
@@ -892,3 +1003,55 @@ This requires two new columns on `order_items`:
 ALTER TABLE order_items ADD COLUMN bundle_id uuid REFERENCES bundles(id) ON DELETE SET NULL;
 ALTER TABLE order_items ADD COLUMN bundle_selections jsonb;
 ```
+
+### 10B. Order API Changes for Bundles
+
+The existing `POST /api/orders` route must be updated to handle bundle items in the cart payload.
+
+**Cart item format for bundles:**
+```typescript
+// Existing cart item (unchanged)
+interface CartItemPayload {
+  menu_item_id: string;
+  quantity: number;
+  selected_variation?: { id: string; name: string; price: number };
+  selected_add_ons?: { id: string; name: string; price: number; quantity: number }[];
+}
+
+// New bundle cart item
+interface BundleCartItemPayload {
+  bundle_id: string;                    // instead of menu_item_id
+  quantity: number;
+  slot_selections: {
+    slot_id: string;
+    items: {
+      menu_item_id: string;
+      selected_variation?: { id: string; name: string; price: number };
+      selected_add_ons?: { id: string; name: string; price: number; quantity: number }[];
+    }[];
+  }[];
+}
+```
+
+**Server-side validation flow for bundles:**
+1. Fetch bundle with slots and slot_items from DB
+2. Validate each slot selection using `bundle-engine.validateBundleSelections()`
+3. Recompute price server-side using `bundle-engine.calculateBundlePrice()` (prevent price manipulation)
+4. Snapshot `cost_price` from the bundle's current cost
+5. Insert order_item with `bundle_id`, `bundle_selections` JSONB, and server-computed price
+6. Auto-credit loyalty (using bundle's effective price as qualifying total)
+
+---
+
+## 11. Edge Cases & Defensive Behavior
+
+| Scenario | Behavior |
+|----------|----------|
+| Bundle with all slot items unavailable | Bundle marked unavailable automatically (`isBundleAvailable` returns false) |
+| Upsell rule references deleted item | `offer_item_id` set to NULL via ON DELETE SET NULL; engine skips rules with null targets |
+| Pair rule references deleted item/bundle | Same SET NULL behavior; engine skips broken rules |
+| Admin deletes menu item that's in a bundle slot | `bundle_slot_items` row cascade-deleted; bundle may become invalid if slot falls below `min_selections` |
+| No upsell rules match cart | Upsell screen silently skipped, flow proceeds to next step |
+| Cost price is null for some items | Analytics shows "—" for margin, item still appears in popularity rankings |
+| Bundle ordered after bundle definition changes | `bundle_selections` JSONB preserves the exact selections at order time; order is not affected |
+| Concurrent admin edits on same upsell rule | Last write wins (standard Supabase behavior); no locking needed |
