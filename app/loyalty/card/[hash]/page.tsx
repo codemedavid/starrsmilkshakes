@@ -68,52 +68,13 @@ export default async function CardPage({ params }: PageProps) {
     return <ErrorState message="No loyalty card found. Open Messenger to register." />;
   }
 
-  // ── 3. Load all remaining data in parallel ────────────────────────────────
-
-  const now = new Date().toISOString();
-
-  const [goalRewardResult, boostersResult, transactionsResult, redemptionsResult] =
-    await Promise.all([
-      // Goal reward
-      card.goal_reward_id
-        ? (supabaseServer.from('loyalty_rewards') as any)
-            .select('id, name, stamps_required, points_required, image_url')
-            .eq('id', card.goal_reward_id)
-            .single()
-        : Promise.resolve({ data: null }),
-
-      // Active boosters
-      (supabaseServer.from('loyalty_boosters') as any)
-        .select('name, ends_at')
-        .eq('is_active', true)
-        .lte('starts_at', now)
-        .gte('ends_at', now),
-
-      // Recent transactions (last 10)
-      (supabaseServer.from('loyalty_transactions') as any)
-        .select('id, type, stamps_delta, points_delta, description, created_at')
-        .eq('card_id', card.id)
-        .order('created_at', { ascending: false })
-        .limit(10),
-
-      // Pending redemptions
-      (supabaseServer.from('loyalty_redemptions') as any)
-        .select('id, expires_at, loyalty_rewards(name)')
-        .eq('card_id', card.id)
-        .eq('status', 'earned'),
-    ]);
-
-  const goalReward = goalRewardResult.data ?? null;
-  const boosters: Array<{ name: string; ends_at: string }> = boostersResult.data ?? [];
-  const transactions = transactionsResult.data ?? [];
-  const pendingRedemptions: Array<{
-    id: string;
-    expires_at: string;
-    loyalty_rewards: { name: string } | null;
-  }> = redemptionsResult.data ?? [];
+  // ── 3. Load goal reward from cached rewards catalog ──────────────────────
+  const rewards = await getCachedActiveRewards();
+  const goalReward = card.goal_reward_id
+    ? rewards.find((r: any) => r.id === card.goal_reward_id) ?? null
+    : null;
 
   // ── 4. Derived values ─────────────────────────────────────────────────────
-
   const customerName: string = card.customers?.name ?? 'Friend';
   const firstName = customerName.split(' ')[0];
   const cardCode: string = card.card_code;
@@ -146,67 +107,12 @@ export default async function CardPage({ params }: PageProps) {
         {/* ── Content stack ────────────────────────────────────────────────── */}
         <div className="px-4 space-y-4 -mt-4 relative z-10">
 
-          {/* ── Pending redemptions (PRIORITY: show at top!) ──────────────── */}
-          {pendingRedemptions.length > 0 && (
-            <div
-              className="bg-gradient-to-br from-emerald-50 to-emerald-50/50 border-2 border-emerald-200 rounded-2xl p-5 shadow-sm relative overflow-hidden"
-              role="region"
-              aria-label="Rewards ready to claim"
-            >
-              {/* Celebration decoration */}
-              <div className="absolute top-0 right-0 w-20 h-20 bg-emerald-100/50 rounded-full -translate-y-1/2 translate-x-1/2" aria-hidden="true" />
+          {/* ── Pending redemptions (streamed) ─────────────────────────── */}
+          <Suspense fallback={<RedemptionsSkeleton />}>
+            <PendingRedemptionsSection cardId={card.id} />
+          </Suspense>
 
-              <div className="flex items-center gap-2 mb-3 relative z-10">
-                <div className="w-7 h-7 rounded-lg bg-emerald-100 flex items-center justify-center">
-                  <span className="text-sm" aria-hidden="true">🎁</span>
-                </div>
-                <h2 className="text-xs font-bold text-emerald-800 uppercase tracking-wide">
-                  Ready to Claim
-                </h2>
-                <span className="ml-auto text-[10px] font-bold bg-emerald-200 text-emerald-800 px-2 py-0.5 rounded-full">
-                  {pendingRedemptions.length}
-                </span>
-              </div>
-
-              <ul className="space-y-2.5 relative z-10">
-                {pendingRedemptions.map((r) => {
-                  const isExpiringSoon = new Date(r.expires_at).getTime() - Date.now() < 3 * 24 * 60 * 60 * 1000;
-                  return (
-                    <li
-                      key={r.id}
-                      className="flex items-center gap-3 bg-white border border-emerald-200/80 rounded-xl px-4 py-3.5 shadow-sm"
-                    >
-                      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-100 to-emerald-50 flex items-center justify-center shrink-0">
-                        <span className="text-lg" aria-hidden="true">🎁</span>
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-bold text-emerald-900 truncate">
-                          {r.loyalty_rewards?.name ?? 'Reward'}
-                        </p>
-                        <p className="text-xs text-emerald-600 mt-0.5 flex items-center gap-1">
-                          {isExpiringSoon && (
-                            <span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" aria-hidden="true" />
-                          )}
-                          <span>
-                            Claim by {formatDate(r.expires_at)}
-                            {' '}
-                            <span className="text-emerald-500 font-medium">
-                              ({formatExpiryCountdown(r.expires_at)})
-                            </span>
-                          </span>
-                        </p>
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
-              <p className="text-[11px] text-emerald-600/70 mt-3 text-center relative z-10">
-                Show this to the cashier to claim your reward
-              </p>
-            </div>
-          )}
-
-          {/* ── Progress card ──────────────────────────────────────────────── */}
+          {/* ── Progress card ──────────────────────────────────────────── */}
           <div className="bg-white border border-[#E8E3DA] rounded-2xl p-5 shadow-sm">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
@@ -254,32 +160,22 @@ export default async function CardPage({ params }: PageProps) {
             )}
           </div>
 
-          {/* ── Points bar ─────────────────────────────────────────────────── */}
+          {/* ── Points bar ─────────────────────────────────────────────── */}
           <div className="bg-white border border-[#E8E3DA] rounded-2xl overflow-hidden shadow-sm">
             <PointsBar currentPoints={currentPoints} lifetimePoints={lifetimePoints} />
           </div>
 
-          {/* ── Active boosters ────────────────────────────────────────────── */}
-          {boosters.length > 0 && (
-            <div className="bg-white border border-[#E8E3DA] rounded-2xl p-5 shadow-sm">
-              <div className="flex items-center gap-2 mb-3">
-                <div className="w-6 h-6 rounded-md bg-purple-100 flex items-center justify-center">
-                  <span className="text-xs" aria-hidden="true">🚀</span>
-                </div>
-                <p className="text-xs font-semibold text-stone-500 uppercase tracking-wide">
-                  Active Boosters
-                </p>
-              </div>
-              <BoosterBanner boosters={boosters} />
-            </div>
-          )}
+          {/* ── Active boosters (streamed, cached) ─────────────────────── */}
+          <Suspense fallback={<BoosterSkeleton />}>
+            <BoostersSection />
+          </Suspense>
 
-          {/* ── Activity list ──────────────────────────────────────────────── */}
-          <div className="bg-white border border-[#E8E3DA] rounded-2xl p-5 shadow-sm">
-            <ActivityList transactions={transactions} />
-          </div>
+          {/* ── Activity list (streamed) ───────────────────────────────── */}
+          <Suspense fallback={<ActivitySkeleton />}>
+            <ActivitySection cardId={card.id} />
+          </Suspense>
 
-          {/* ── View all rewards CTA ───────────────────────────────────────── */}
+          {/* ── View all rewards CTA ───────────────────────────────────── */}
           <Link
             href={`/loyalty/card/${hash}/goals`}
             className="flex items-center justify-center gap-2 w-full py-3.5 rounded-2xl
@@ -291,7 +187,7 @@ export default async function CardPage({ params }: PageProps) {
             Browse All Rewards
           </Link>
 
-          {/* ── Footer ─────────────────────────────────────────────────────── */}
+          {/* ── Footer ─────────────────────────────────────────────────── */}
           <p className="text-[11px] text-stone-400 text-center pt-2 pb-4">
             Starr&apos;s Famous Shakes Loyalty Program
           </p>
