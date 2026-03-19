@@ -130,16 +130,16 @@ export const getCachedLoyaltyConfig = unstable_cache(
   { revalidate: 60, tags: ['loyalty-config'] }
 );
 
-// ── Loyalty Rewards ─────────────────────────────────────────
-export const getCachedLoyaltyRewards = unstable_cache(
+// ── Loyalty Goals ───────────────────────────────────────────
+export const getCachedLoyaltyGoals = unstable_cache(
   async () => {
-    const { data } = await (supabaseServer.from('loyalty_rewards') as any)
+    const { data } = await (supabaseServer.from('loyalty_goals') as any)
       .select('*')
       .order('sort_order', { ascending: true });
     return data || [];
   },
-  ['admin-loyalty-rewards'],
-  { revalidate: 60, tags: ['loyalty-rewards'] }
+  ['admin-loyalty-goals'],
+  { revalidate: 60, tags: ['loyalty-goals'] }
 );
 
 // ── Loyalty Boosters ────────────────────────────────────────
@@ -224,10 +224,10 @@ export const getCachedLoyaltyStats = unstable_cache(
   { revalidate: 60, tags: ['loyalty-cards', 'loyalty-redemptions'] }
 );
 
-// ── Customer-Facing: Active Rewards ─────────────────────────
-export const getCachedActiveRewards = unstable_cache(
+// ── Customer-Facing: Active Goals ───────────────────────────
+export const getCachedActiveGoals = unstable_cache(
   async () => {
-    const { data } = await (supabaseServer.from('loyalty_rewards') as any)
+    const { data } = await (supabaseServer.from('loyalty_goals') as any)
       .select(
         'id, name, description, image_url, stamps_required, points_required, is_active, sort_order, created_at, updated_at',
       )
@@ -235,8 +235,8 @@ export const getCachedActiveRewards = unstable_cache(
       .order('sort_order', { ascending: true });
     return data || [];
   },
-  ['customer-active-rewards'],
-  { revalidate: 60, tags: ['loyalty-rewards'] }
+  ['customer-active-goals'],
+  { revalidate: 60, tags: ['loyalty-goals'] }
 );
 
 // ── Customer-Facing: Active Boosters ────────────────────────
@@ -251,4 +251,29 @@ export const getCachedActiveBoosters = unstable_cache(
   },
   ['customer-active-boosters'],
   { revalidate: 60, tags: ['loyalty-boosters'] }
+);
+
+// ── Loyalty Milestones ─────────────────────────────────────
+export const getCachedLoyaltyMilestones = unstable_cache(
+  async () => {
+    const { data } = await (supabaseServer.from('loyalty_milestones') as any)
+      .select('*')
+      .order('stamps_required', { ascending: true });
+    return data || [];
+  },
+  ['admin-loyalty-milestones'],
+  { revalidate: 60, tags: ['loyalty-milestones'] }
+);
+
+// ── Customer-Facing: Active Milestones ─────────────────────
+export const getCachedActiveMilestones = unstable_cache(
+  async () => {
+    const { data } = await (supabaseServer.from('loyalty_milestones') as any)
+      .select('id, name, description, image_url, stamps_required, is_active, sort_order')
+      .eq('is_active', true)
+      .order('stamps_required', { ascending: true });
+    return data || [];
+  },
+  ['customer-active-milestones'],
+  { revalidate: 60, tags: ['loyalty-milestones'] }
 );
