@@ -18,6 +18,7 @@ import {
   X,
   Shield,
   ShieldCheck,
+  BarChart3,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -30,6 +31,7 @@ const navItems = [
   { label: 'Categories', href: '/admin/categories', icon: LayoutGrid },
   { label: 'Customers', href: '/admin/customers', icon: Users },
   { label: 'Loyalty', href: '/admin/loyalty', icon: Star },
+  { label: 'Analytics', href: '/admin/analytics', icon: BarChart3 },
   { label: 'Branches', href: '/admin/branches', icon: MapPin },
   { label: 'Payments', href: '/admin/payments', icon: CreditCard },
   { label: 'Settings', href: '/admin/settings', icon: Settings },
