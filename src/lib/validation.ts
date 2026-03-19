@@ -71,6 +71,7 @@ export const menuItemSchema = z.object({
   discountStartDate: z.string().optional().nullable(),
   discountEndDate: z.string().optional().nullable(),
   discountActive: z.boolean().optional().default(false),
+  costPrice: z.number().min(0).nullable().optional(),
 });
 
 export type MenuItemInput = z.infer<typeof menuItemSchema>;
@@ -157,9 +158,9 @@ export const loyaltyConfigSchema = z.object({
   points_per_peso: z.number().min(0),
   stamps_per_order: z.number().int().min(1),
   filter_mode: z.enum(['allowlist', 'blocklist']),
-  filtered_category_ids: z.array(z.string().uuid()),
-  filtered_item_ids: z.array(z.string().uuid()),
-  claim_window_days: z.number().int().min(1).max(90),
+  filtered_category_ids: z.array(z.string().min(1)),
+  filtered_item_ids: z.array(z.string().min(1)),
+  claim_window_days: z.number().int().min(1).max(365),
 });
 
 export type LoyaltyConfigInput = z.infer<typeof loyaltyConfigSchema>;
@@ -184,11 +185,45 @@ export const loyaltyBoosterSchema = z.object({
   name: sanitized.pipe(z.string().min(1).max(100)),
   multiplier: z.number().min(1.1).max(10),
   applies_to: z.enum(['stamps', 'points', 'both']),
-  filter_mode: z.enum(['all', 'categories', 'items']),
-  filter_ids: z.array(z.string().uuid()),
+  filter_mode: z.enum(['all', 'category', 'item']),
+  filter_ids: z.array(z.string().min(1)),
   starts_at: z.string().min(1),
   ends_at: z.string().min(1),
   is_active: z.boolean().optional(),
 });
 
 export type LoyaltyBoosterInput = z.infer<typeof loyaltyBoosterSchema>;
+
+// ─── Cost Tracking ──────────────────────────────────────────────────────────
+
+export const updateItemCostSchema = z.object({
+  itemId: z.string().uuid(),
+  costPrice: z.number().min(0).nullable(),
+});
+
+export type UpdateItemCostInput = z.infer<typeof updateItemCostSchema>;
+
+export const updateVariationCostSchema = z.object({
+  variationId: z.string().uuid(),
+  costPrice: z.number().min(0).nullable(),
+});
+
+export type UpdateVariationCostInput = z.infer<typeof updateVariationCostSchema>;
+
+export const updateAddOnCostSchema = z.object({
+  addOnId: z.string().uuid(),
+  costPrice: z.number().min(0).nullable(),
+});
+
+export type UpdateAddOnCostInput = z.infer<typeof updateAddOnCostSchema>;
+
+export const bulkImportCostItemSchema = z.object({
+  name: z.string().min(1),
+  costPrice: z.number().min(0),
+});
+
+export const bulkImportCostsSchema = z.object({
+  items: z.array(bulkImportCostItemSchema).min(1),
+});
+
+export type BulkImportCostsInput = z.infer<typeof bulkImportCostsSchema>;
