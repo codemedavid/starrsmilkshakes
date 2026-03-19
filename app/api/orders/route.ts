@@ -176,6 +176,7 @@ const buildOrderItemsFromCart = (cartItems: any[], menuItemsById: Map<string, an
       total_price: unitPrice * quantity,
       selected_variation: selectedVariationPayload,
       selected_add_ons: resolvedAddOns.length > 0 ? resolvedAddOns : null,
+      cost_price: menuItem.cost_price != null ? Number(menuItem.cost_price) : null,
     };
   });
 };
@@ -557,6 +558,11 @@ export async function POST(request: NextRequest) {
           psid: checkoutSession.psid,
           notify_enabled: true,
         });
+
+        // Clear the messenger session cart so the customer can start a new order
+        await (supabaseServer.from('messenger_sessions') as any)
+          .update({ cart: [], state: 'idle' })
+          .eq('psid', checkoutSession.psid);
 
         // Send receipt to Messenger (non-blocking)
         (async () => {
