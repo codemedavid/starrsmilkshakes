@@ -67,7 +67,7 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
         setCartItems(prev => {
             const existingItem = prev.find(cartItem =>
-                cartItem.id === item.id &&
+                (cartItem.menuItemId || cartItem.id) === item.id &&
                 cartItem.selectedVariation?.id === variation?.id &&
                 JSON.stringify(cartItem.selectedAddOns?.map(a => `${a.id}-${a.quantity || 1}`).sort()) === JSON.stringify(groupedAddOns?.map(a => `${a.id}-${a.quantity}`).sort())
             );
