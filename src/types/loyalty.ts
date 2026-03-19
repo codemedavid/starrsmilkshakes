@@ -20,7 +20,7 @@ export interface LoyaltyConfig {
   updated_at: string;
 }
 
-export interface LoyaltyReward {
+export interface LoyaltyGoal {
   id: string;
   name: string;
   description: string | null;
@@ -39,7 +39,7 @@ export interface LoyaltyCard {
   card_code: string;
   current_stamps: number;
   current_points: number;
-  goal_reward_id: string | null;
+  goal_id: string | null;
   lifetime_stamps: number;
   lifetime_points: number;
   created_at: string;
@@ -61,7 +61,7 @@ export interface LoyaltyTransaction {
 export interface LoyaltyRedemption {
   id: string;
   card_id: string;
-  reward_id: string;
+  goal_id: string;
   status: RedemptionStatus;
   earned_at: string;
   expires_at: string;
@@ -126,6 +126,30 @@ export interface LoyaltyCardLookup extends LoyaltyCard {
   customer_email: string | null;
   customer_phone: string | null;
   messenger_psid: string | null;
-  goal_reward: LoyaltyReward | null;
+  goal: LoyaltyGoal | null;
   pending_redemptions: LoyaltyRedemption[];
+  milestone_claims: LoyaltyMilestoneClaim[];
+}
+
+export interface LoyaltyMilestone {
+  id: string;
+  name: string;
+  description: string | null;
+  image_url: string | null;
+  stamps_required: number;
+  is_active: boolean;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface LoyaltyMilestoneClaim {
+  id: string;
+  card_id: string;
+  milestone_id: string;
+  goal_id: string;
+  earned_at: string;
+  claimed_at: string;
+  created_at: string;
+  milestone?: LoyaltyMilestone; // joined data
 }
