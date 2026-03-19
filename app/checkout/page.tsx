@@ -121,6 +121,7 @@ const CheckoutPage = () => {
             />
             <Checkout
                 cartItems={cart.cartItems}
+                bundleItems={cart.bundleItems}
                 totalPrice={cart.getTotalPrice()}
                 onBack={handleBack}
                 msession={msession ?? undefined}
