@@ -37,7 +37,7 @@ export async function createBundle(input: unknown): Promise<ActionResult> {
     .select()
     .single();
 
-  if (bundleError || !bundle) return { success: false, error: 'Failed to create bundle' };
+  if (bundleError || !bundle) return { success: false, error: 'Failed to create bundle: ' + (bundleError?.message ?? 'No data returned') };
 
   // Insert slots
   for (const slot of slots) {

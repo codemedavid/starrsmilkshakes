@@ -37,7 +37,7 @@ export default function BundleForm({ bundle, categories, menuItems, onClose }: P
   const [image, setImage] = useState<string | undefined>(bundle?.image_url ?? undefined);
   const [basePrice, setBasePrice] = useState(bundle?.base_price?.toString() ?? '');
   const [costPrice, setCostPrice] = useState(bundle?.cost_price?.toString() ?? '');
-  const [category, setCategory] = useState(bundle?.category ?? (categories[0]?.name ?? ''));
+  const [category, setCategory] = useState(bundle?.category ?? (categories[0]?.id ?? ''));
   const [available, setAvailable] = useState(bundle?.available ?? true);
   const [popular, setPopular] = useState(bundle?.popular ?? false);
 
@@ -254,7 +254,7 @@ export default function BundleForm({ bundle, categories, menuItems, onClose }: P
               >
                 <option value="" disabled>Select a category</option>
                 {categories.map((cat) => (
-                  <option key={cat.id} value={cat.name}>
+                  <option key={cat.id} value={cat.id}>
                     {cat.icon ? `${cat.icon} ` : ''}{cat.name}
                   </option>
                 ))}
