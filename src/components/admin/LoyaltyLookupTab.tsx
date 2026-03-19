@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
-import { AlertTriangle, CheckCircle, CreditCard, Gift, Search, X } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { AlertTriangle, CheckCircle, CreditCard, Gift, MapPin, Search, X } from 'lucide-react';
 import { useLoyaltyLookup } from '@/hooks/useLoyaltyLookup';
+import { supabase } from '@/lib/supabase';
 
 // ─── Skeleton ──────────────────────────────────────────────────────────────────
 
@@ -61,7 +62,18 @@ function initials(name: string | null | undefined): string {
 
 function LookupCard({ card, onRedeem, onCreditOrder }: LookupCardProps) {
   const [branchId, setBranchId] = useState('');
+  const [branches, setBranches] = useState<{ id: string; name: string }[]>([]);
   const [orderId, setOrderId] = useState('');
+
+  useEffect(() => {
+    supabase
+      .from('branches')
+      .select('id, name')
+      .eq('is_active', true)
+      .order('is_main', { ascending: false })
+      .order('name', { ascending: true })
+      .then(({ data }) => setBranches(data || []));
+  }, []);
   const [redeemError, setRedeemError] = useState<string | null>(null);
   const [orderError, setOrderError] = useState<string | null>(null);
   const [redeemLoading, setRedeemLoading] = useState(false);
@@ -79,7 +91,7 @@ function LookupCard({ card, onRedeem, onCreditOrder }: LookupCardProps) {
 
   const handleRedeem = async (redemptionId: string) => {
     if (!branchId.trim()) {
-      setRedeemError('Please enter a Branch ID.');
+      setRedeemError('Please select a branch.');
       return;
     }
     setRedeemLoading(true);
@@ -198,13 +210,19 @@ function LookupCard({ card, onRedeem, onCreditOrder }: LookupCardProps) {
               )}
 
               <div className="flex items-center gap-2">
-                <input
-                  type="text"
-                  value={branchId}
-                  onChange={e => { setBranchId(e.target.value); setRedeemError(null); }}
-                  placeholder="Branch ID (UUID)..."
-                  className="flex-1 bg-white border border-[#E8E3DA] rounded-lg px-3 py-1.5 text-xs text-stone-800 placeholder:text-stone-400 focus:ring-2 focus:ring-[#7BBFB5] focus:border-transparent outline-none min-w-0 font-nunito"
-                />
+                <div className="flex-1 flex items-center gap-1.5 bg-white border border-[#E8E3DA] rounded-lg px-3 py-1.5">
+                  <MapPin className="h-3 w-3 text-stone-400 shrink-0" />
+                  <select
+                    value={branchId}
+                    onChange={e => { setBranchId(e.target.value); setRedeemError(null); }}
+                    className="flex-1 bg-transparent text-xs text-stone-800 outline-none min-w-0 font-nunito cursor-pointer"
+                  >
+                    <option value="">Select branch...</option>
+                    {branches.map(b => (
+                      <option key={b.id} value={b.id}>{b.name}</option>
+                    ))}
+                  </select>
+                </div>
                 <button
                   type="button"
                   onClick={() => handleRedeem(r.id)}

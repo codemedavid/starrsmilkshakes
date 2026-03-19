@@ -1,9 +1,10 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { AlertTriangle, CheckCircle, Clock, Gift, RefreshCw, X } from 'lucide-react';
+import { AlertTriangle, CheckCircle, Clock, Gift, MapPin, RefreshCw, X } from 'lucide-react';
 import { getRedemptions } from '@/actions/loyalty-admin';
 import { redeemGoal } from '@/actions/loyalty';
+import { supabase } from '@/lib/supabase';
 
 type StatusFilter = 'all' | 'earned' | 'claimed' | 'expired';
 
@@ -245,6 +246,17 @@ export default function LoyaltyRedemptionsTab() {
   const [redeemSuccess, setRedeemSuccess] = useState(false);
   const [branchId, setBranchId] = useState('');
   const [branchIdError, setBranchIdError] = useState(false);
+  const [branches, setBranches] = useState<{ id: string; name: string }[]>([]);
+
+  useEffect(() => {
+    supabase
+      .from('branches')
+      .select('id, name')
+      .eq('is_active', true)
+      .order('is_main', { ascending: false })
+      .order('name', { ascending: true })
+      .then(({ data }) => setBranches(data || []));
+  }, []);
 
   const fetchRedemptions = useCallback(async (filter: StatusFilter) => {
     setLoading(true);
@@ -269,7 +281,7 @@ export default function LoyaltyRedemptionsTab() {
   const handleMarkRedeemed = useCallback(
     async (redemptionId: string) => {
       if (!branchId.trim()) {
-        setRedeemError('Please enter a Branch ID before marking as redeemed.');
+        setRedeemError('Please select a branch before marking as redeemed.');
         setBranchIdError(true);
         return;
       }
@@ -290,7 +302,7 @@ export default function LoyaltyRedemptionsTab() {
 
   const handleBranchIdNeeded = useCallback(() => {
     setBranchIdError(true);
-    setRedeemError('Please enter a Branch ID first.');
+    setRedeemError('Please select a branch first.');
   }, []);
 
   const pendingCount = redemptions.filter(r => r.status === 'earned').length;
@@ -339,25 +351,26 @@ export default function LoyaltyRedemptionsTab() {
         </div>
       )}
 
-      {/* Branch ID input */}
+      {/* Branch selector */}
       <div className={`flex items-center gap-3 rounded-xl px-4 py-3 transition-colors ${
         branchIdError
           ? 'bg-red-50 border-2 border-red-300'
           : 'bg-[#F8F6F3] border border-[#E8E3DA]'
       }`}>
+        <MapPin className="h-4 w-4 text-stone-400 shrink-0" />
         <label className="text-xs font-nunito font-medium text-stone-500 whitespace-nowrap">
-          Branch ID:
+          Branch:
         </label>
-        <input
-          type="text"
+        <select
           value={branchId}
           onChange={e => { setBranchId(e.target.value); setBranchIdError(false); setRedeemError(null); }}
-          placeholder="Enter branch UUID..."
-          className="flex-1 bg-transparent text-sm text-stone-800 placeholder:text-stone-400 outline-none min-w-0 font-nunito"
-        />
-        {branchId && (
-          <span className="text-[10px] font-nunito text-emerald-600 font-medium shrink-0">Set</span>
-        )}
+          className="flex-1 bg-transparent text-sm text-stone-800 outline-none min-w-0 font-nunito cursor-pointer"
+        >
+          <option value="">Select a branch...</option>
+          {branches.map(b => (
+            <option key={b.id} value={b.id}>{b.name}</option>
+          ))}
+        </select>
       </div>
 
       {/* Filter bar + refresh */}
