@@ -2,7 +2,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { createClient } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase';
 import { Branch } from '@/types';
 
 interface BranchStepProps {
@@ -20,7 +20,6 @@ export default function BranchStep({ selectedBranch, onSelect, onContinue }: Bra
 
   useEffect(() => {
     const fetchBranches = async () => {
-      const supabase = createClient();
       const { data } = await supabase
         .from('branches')
         .select('*')
