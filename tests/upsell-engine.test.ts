@@ -435,6 +435,142 @@ describe('matchUpgradeOffers', () => {
     const result = matchUpgradeOffers(cart, rules, NOW);
     expect(result[0].rule.id).toBe('high');
   });
+
+  // ─── savings calculation tests ──────────────────────────────────────────────
+
+  it('should calculate savings when offer price is less than triggered items total', () => {
+    // Cart item costs 200, bundle offer costs 150 → savings = 50
+    const offerBundle = {
+      ...makeBundle({ id: 'bundle-offer', base_price: 150 }),
+      discount_active: false,
+      discount_start_date: null,
+      discount_end_date: null,
+    } as any;
+    const rule = makeUpsellRule({
+      trigger_type: 'item',
+      trigger_item_ids: ['item-1'],
+      offer_type: 'bundle',
+      offer_bundle_id: 'bundle-offer',
+      offer_bundle: offerBundle,
+    });
+    const cart = [makeCartItem({ menu_item_id: 'item-1', unit_price: 200, quantity: 1 })];
+    const result = matchUpgradeOffers(cart, [rule], NOW);
+    expect(result).toHaveLength(1);
+    expect(result[0].savings).toBe(50); // 200 - 150
+    expect(result[0].display_price).toBe(150);
+  });
+
+  it('should return null savings when offer price exceeds triggered items total', () => {
+    // Cart item costs 100, bundle offer costs 250 → no savings
+    const offerBundle = {
+      ...makeBundle({ id: 'bundle-expensive', base_price: 250 }),
+      discount_active: false,
+      discount_start_date: null,
+      discount_end_date: null,
+    } as any;
+    const rule = makeUpsellRule({
+      trigger_type: 'item',
+      trigger_item_ids: ['item-1'],
+      offer_type: 'bundle',
+      offer_bundle_id: 'bundle-expensive',
+      offer_bundle: offerBundle,
+    });
+    const cart = [makeCartItem({ menu_item_id: 'item-1', unit_price: 100, quantity: 1 })];
+    const result = matchUpgradeOffers(cart, [rule], NOW);
+    expect(result).toHaveLength(1);
+    expect(result[0].savings).toBeNull();
+  });
+
+  it('should calculate display_price from bundle discount_price when discount is active', () => {
+    const offerBundle = {
+      ...makeBundle({
+        id: 'bundle-discounted',
+        base_price: 300,
+        discount_price: 220,
+      }),
+      discount_active: true,
+      discount_start_date: PAST,
+      discount_end_date: FUTURE,
+    } as any;
+    const rule = makeUpsellRule({
+      trigger_type: 'item',
+      trigger_item_ids: ['item-1'],
+      offer_type: 'bundle',
+      offer_bundle_id: 'bundle-discounted',
+      offer_bundle: offerBundle,
+    });
+    const cart = [makeCartItem({ menu_item_id: 'item-1', unit_price: 350, quantity: 1 })];
+    const result = matchUpgradeOffers(cart, [rule], NOW);
+    expect(result).toHaveLength(1);
+    expect(result[0].display_price).toBe(220);
+    // savings = 350 - 220 = 130
+    expect(result[0].savings).toBe(130);
+  });
+
+  it('should calculate display_price from bundle base_price when no discount', () => {
+    const offerBundle = {
+      ...makeBundle({
+        id: 'bundle-no-discount',
+        base_price: 300,
+        discount_price: null,
+      }),
+      discount_active: false,
+      discount_start_date: null,
+      discount_end_date: null,
+    } as any;
+    const rule = makeUpsellRule({
+      trigger_type: 'item',
+      trigger_item_ids: ['item-1'],
+      offer_type: 'bundle',
+      offer_bundle_id: 'bundle-no-discount',
+      offer_bundle: offerBundle,
+    });
+    const cart = [makeCartItem({ menu_item_id: 'item-1', unit_price: 400, quantity: 1 })];
+    const result = matchUpgradeOffers(cart, [rule], NOW);
+    expect(result).toHaveLength(1);
+    expect(result[0].display_price).toBe(300);
+  });
+
+  it('should calculate display_price from offer item basePrice', () => {
+    const offerItem = makeMenuItem({ id: 'premium-shake', basePrice: 250 });
+    const rule = makeUpsellRule({
+      trigger_type: 'item',
+      trigger_item_ids: ['item-1'],
+      offer_type: 'item',
+      offer_item_id: 'premium-shake',
+      offer_item: offerItem,
+    });
+    const cart = [makeCartItem({ menu_item_id: 'item-1', unit_price: 300, quantity: 1 })];
+    const result = matchUpgradeOffers(cart, [rule], NOW);
+    expect(result).toHaveLength(1);
+    expect(result[0].display_price).toBe(250);
+    // savings = 300 - 250 = 50
+    expect(result[0].savings).toBe(50);
+  });
+
+  // ─── ID matching tests ──────────────────────────────────────────────────────
+
+  it('should match when cart items use original menu_item_id (not composite IDs)', () => {
+    // Rule triggers on 'shake-1', cart item uses plain 'shake-1'
+    const rule = makeUpsellRule({
+      trigger_type: 'item',
+      trigger_item_ids: ['shake-1', 'shake-2'],
+    });
+    const cart = [makeCartItem({ menu_item_id: 'shake-1' })];
+    const result = matchUpgradeOffers(cart, [rule], NOW);
+    expect(result).toHaveLength(1);
+  });
+
+  it('should not match when cart items have composite IDs that don\'t match trigger_item_ids', () => {
+    // Rule triggers on 'shake-1', but cart uses a composite ID like 'shake-1__var-lg__addon-cream'
+    const rule = makeUpsellRule({
+      trigger_type: 'item',
+      trigger_item_ids: ['shake-1'],
+    });
+    const cart = [makeCartItem({ menu_item_id: 'shake-1__var-lg__addon-cream' })];
+    const result = matchUpgradeOffers(cart, [rule], NOW);
+    expect(result).toHaveLength(0);
+  });
 });
 
 // ─── suggestAddOns ────────────────────────────────────────────────────────────
@@ -568,6 +704,54 @@ describe('matchPairOffers', () => {
     const cart = [makeCartItem({ menu_item_id: 'item-1' })];
     const result = matchPairOffers(cart, [rule]);
     expect(result[0].bundle).toEqual(bundle);
+  });
+
+  // ─── data mapping tests ─────────────────────────────────────────────────────
+
+  it('should include paired_item from rule in offer', () => {
+    const pairedItem = makeMenuItem({
+      id: 'fries-1',
+      name: 'Loaded Fries',
+      basePrice: 120,
+      category: 'sides',
+    });
+    const rule = makePairRule({
+      source_item_id: 'item-1',
+      paired_item_id: 'fries-1',
+      paired_item: pairedItem,
+      paired_bundle_id: null,
+    });
+    const cart = [makeCartItem({ menu_item_id: 'item-1' })];
+    const result = matchPairOffers(cart, [rule]);
+    expect(result).toHaveLength(1);
+    expect(result[0].item).not.toBeNull();
+    expect(result[0].item!.id).toBe('fries-1');
+    expect(result[0].item!.name).toBe('Loaded Fries');
+    expect(result[0].item!.basePrice).toBe(120);
+    expect(result[0].bundle).toBeNull();
+  });
+
+  it('should include paired_bundle from rule in offer', () => {
+    const pairedBundle = makeBundle({
+      id: 'combo-2',
+      name: 'Shake + Fries Combo',
+      base_price: 280,
+      category: 'combos',
+    });
+    const rule = makePairRule({
+      source_item_id: 'item-1',
+      paired_item_id: null,
+      paired_bundle_id: 'combo-2',
+      paired_bundle: pairedBundle,
+    });
+    const cart = [makeCartItem({ menu_item_id: 'item-1' })];
+    const result = matchPairOffers(cart, [rule]);
+    expect(result).toHaveLength(1);
+    expect(result[0].bundle).not.toBeNull();
+    expect(result[0].bundle!.id).toBe('combo-2');
+    expect(result[0].bundle!.name).toBe('Shake + Fries Combo');
+    expect(result[0].bundle!.base_price).toBe(280);
+    expect(result[0].item).toBeNull();
   });
 });
 

@@ -1,11 +1,12 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { ArrowLeft, Clock, Search, Loader2, MapPin } from 'lucide-react';
-import { CartItem, PaymentMethod, ServiceType, AddressSuggestion, Branch } from '../types';
+import { CartItem, MenuItem, PaymentMethod, ServiceType, AddressSuggestion, Branch } from '../types';
 import BranchSelector from './BranchSelector';
 import { usePaymentMethods } from '../hooks/usePaymentMethods';
 import { useOrders } from '../hooks/useOrders';
 import { useAddressAutocomplete } from '../hooks/useAddressAutocomplete';
 import { useSiteSettings } from '../hooks/useSiteSettings';
+import { useCartContext } from '@/contexts/CartContext';
 import { fetchDeliveryQuotation, buildLalamoveConfig } from '../lib/lalamove';
 import * as fpixel from '../lib/fpixel';
 import { sendPurchaseEvent } from '../lib/meta-conversions';
@@ -29,9 +30,11 @@ type UpsellStep = 'upgrade' | 'pair' | 'checkout' | 'interstitial' | 'placing';
 const Checkout: React.FC<CheckoutProps> = ({ cartItems, bundleItems = [], totalPrice, onBack, msession }) => {
   const { paymentMethods } = usePaymentMethods();
   const { createOrder } = useOrders();
+  const { addToCart, addBundleToCart } = useCartContext();
   const [step, setStep] = useState<'details' | 'payment'>('details');
 
   // Upsell flow state
+  const [upsellLoading, setUpsellLoading] = useState(true);
   const [upsellStep, setUpsellStep] = useState<UpsellStep>('upgrade');
   const [upgradeOffers, setUpgradeOffers] = useState<UpsellOffer[]>([]);
   const [pairOffers, setPairOffers] = useState<PairOffer[]>([]);
@@ -70,29 +73,36 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, bundleItems = [], totalP
   // Fetch upsell data on mount and determine initial upsell step
   useEffect(() => {
     const fetchUpsellData = async () => {
-      const cartItemsMapped = cartItems.map(i => ({
-        menu_item_id: i.id,
-        category: i.category,
-        quantity: i.quantity,
-        unit_price: i.totalPrice / i.quantity,
-      }));
+      try {
+        const cartItemsMapped = cartItems.map(i => ({
+          menu_item_id: i.menuItemId || i.id,
+          category: i.category,
+          quantity: i.quantity,
+          unit_price: i.totalPrice / i.quantity,
+        }));
 
-      const [upgradeRes, pairRes] = await Promise.all([
-        getUpgradeOffers(cartItemsMapped),
-        getPairSuggestions(cartItemsMapped),
-      ]);
+        const [upgradeRes, pairRes] = await Promise.all([
+          getUpgradeOffers(cartItemsMapped),
+          getPairSuggestions(cartItemsMapped),
+        ]);
 
-      if (upgradeRes.success && upgradeRes.data?.length > 0) {
-        setUpgradeOffers(upgradeRes.data);
-        setUpsellStep('upgrade');
-      } else if (pairRes.success && pairRes.data?.length > 0) {
-        setPairOffers(pairRes.data);
-        setUpsellStep('pair');
-      } else {
+        if (upgradeRes.success && upgradeRes.data?.length > 0) {
+          setUpgradeOffers(upgradeRes.data);
+          setUpsellStep('upgrade');
+        } else if (pairRes.success && pairRes.data?.length > 0) {
+          setPairOffers(pairRes.data);
+          setUpsellStep('pair');
+        } else {
+          setUpsellStep('checkout');
+        }
+
+        if (pairRes.success) setPairOffers(pairRes.data || []);
+      } catch (err) {
+        console.error('Failed to fetch upsell data:', err);
         setUpsellStep('checkout');
+      } finally {
+        setUpsellLoading(false);
       }
-
-      if (pairRes.success) setPairOffers(pairRes.data || []);
     };
     fetchUpsellData();
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -290,7 +300,7 @@ Please confirm this order to proceed. Thank you for choosing Starr's Famous Shak
   // Intercept "Place Order" to show interstitial offer first if one exists
   const handlePrePlaceOrder = async () => {
     const cartItemsMapped = cartItems.map(i => ({
-      menu_item_id: i.id,
+      menu_item_id: i.menuItemId || i.id,
       category: i.category,
       quantity: i.quantity,
       unit_price: i.totalPrice / i.quantity,
@@ -443,17 +453,42 @@ Please confirm this order to proceed. Thank you for choosing Starr's Famous Shak
     (serviceType !== 'delivery' || (address && deliveryFee !== null)) &&
     (serviceType !== 'pickup' || (pickupTime !== 'custom' || customTime));
 
+  // Loading state for upsell data fetch
+  if (upsellLoading && (upsellStep === 'upgrade' || upsellStep === 'pair')) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] px-4">
+        <div className="animate-spin rounded-full h-12 w-12 border-4 border-stone-200 border-t-[#3D8A80] mb-6" />
+        <p className="text-lg font-nunito font-semibold text-[#3D8A80]">
+          Finding the best deals for you...
+        </p>
+        <div className="mt-8 w-full max-w-md space-y-4">
+          <div className="h-24 bg-stone-100 rounded-xl animate-pulse" />
+          <div className="h-24 bg-stone-100 rounded-xl animate-pulse delay-150" />
+          <div className="h-12 bg-[#7BBFB5]/20 rounded-xl animate-pulse delay-300" />
+        </div>
+      </div>
+    );
+  }
+
   // Phase 1: Upgrade Screen
   if (upsellStep === 'upgrade') {
     return (
       <UpgradeScreen
         offers={upgradeOffers}
-        onAcceptBundle={(_bundleId: string, _selections: SlotSelection[], _totalPrice: number) => {
-          // After accepting a bundle upgrade, move to pair step
+        onAcceptBundle={(bundleId: string, selections: SlotSelection[], bundleTotalPrice: number) => {
+          // Find the bundle from the upgrade offers and add to cart
+          const offer = upgradeOffers.find(o => o.rule.offer_bundle?.id === bundleId);
+          if (offer?.rule.offer_bundle) {
+            addBundleToCart(offer.rule.offer_bundle, selections, bundleTotalPrice);
+          }
           setUpsellStep(pairOffers.length > 0 ? 'pair' : 'checkout');
         }}
-        onAcceptItem={(_itemId: string) => {
-          // After accepting an item upgrade, move to pair step
+        onAcceptItem={(itemId: string) => {
+          // Find the item from the upgrade offers and add to cart
+          const offer = upgradeOffers.find(o => o.rule.offer_item_id === itemId);
+          if (offer?.rule.offer_item) {
+            addToCart(offer.rule.offer_item);
+          }
           setUpsellStep(pairOffers.length > 0 ? 'pair' : 'checkout');
         }}
         onSkip={() => setUpsellStep(pairOffers.length > 0 ? 'pair' : 'checkout')}
@@ -466,7 +501,13 @@ Please confirm this order to proceed. Thank you for choosing Starr's Famous Shak
     return (
       <BestPairScreen
         offers={pairOffers}
-        onAddItem={(_itemId: string) => {
+        onAddItem={(itemId: string) => {
+          const offer = pairOffers.find(o =>
+            o.rule.paired_item_id === itemId || o.rule.paired_bundle_id === itemId
+          );
+          if (offer?.item) {
+            addToCart(offer.item as MenuItem);
+          }
           setUpsellStep('checkout');
         }}
         onSkip={() => setUpsellStep('checkout')}
@@ -1149,6 +1190,16 @@ Please confirm this order to proceed. Thank you for choosing Starr's Famous Shak
         <CheckoutInterstitial
           offer={interstitialOffer}
           onAccept={() => {
+            if (interstitialOffer) {
+              if (interstitialOffer.item) {
+                addToCart(interstitialOffer.item as MenuItem);
+              }
+              // For loyalty_nudge, just go back to menu
+              if (interstitialOffer.type === 'loyalty_nudge') {
+                onBack();
+                return;
+              }
+            }
             setInterstitialOffer(null);
             setUpsellStep('checkout');
           }}

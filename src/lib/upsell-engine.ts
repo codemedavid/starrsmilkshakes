@@ -95,11 +95,42 @@ export function matchUpgradeOffers(
     }
   }
 
-  return prioritizeOffers(matchedRules, 3).map(rule => ({
-    rule,
-    savings: null,
-    display_price: 0,
-  }));
+  return prioritizeOffers(matchedRules, 3).map(rule => {
+    // Calculate display price from the offer target
+    let display_price = 0;
+    if (rule.offer_type === 'bundle' && rule.offer_bundle) {
+      // Use discount price if active, otherwise base price
+      const bundle = rule.offer_bundle;
+      const discountActive =
+        bundle.discount_price != null &&
+        bundle.discount_active &&
+        (!bundle.discount_start_date || new Date(bundle.discount_start_date) <= now) &&
+        (!bundle.discount_end_date || new Date(bundle.discount_end_date) >= now);
+      display_price = discountActive ? bundle.discount_price! : bundle.base_price;
+    } else if (rule.offer_type === 'item' && rule.offer_item) {
+      display_price = rule.offer_item.basePrice;
+    }
+
+    // Calculate savings: sum of cart items that triggered this rule vs offer price
+    let triggeredTotal = 0;
+    if (rule.trigger_type === 'item') {
+      triggeredTotal = cartItems
+        .filter(ci => rule.trigger_item_ids.includes(ci.menu_item_id))
+        .reduce((sum, ci) => sum + ci.unit_price * ci.quantity, 0);
+    } else if (rule.trigger_type === 'category') {
+      triggeredTotal = cartItems
+        .filter(ci => rule.trigger_category_ids.includes(ci.category))
+        .reduce((sum, ci) => sum + ci.unit_price * ci.quantity, 0);
+    } else if (rule.trigger_type === 'cart_total') {
+      triggeredTotal = cartItems.reduce((sum, ci) => sum + ci.unit_price * ci.quantity, 0);
+    }
+
+    const savings = triggeredTotal > 0 && display_price > 0 && triggeredTotal > display_price
+      ? triggeredTotal - display_price
+      : null;
+
+    return { rule, savings, display_price };
+  });
 }
 
 /** Phase 2: Get suggested add-ons for a menu item. */

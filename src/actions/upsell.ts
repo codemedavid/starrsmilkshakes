@@ -14,7 +14,7 @@ type ActionResult = { success: boolean; error?: string; data?: any };
 export async function getUpgradeOffers(cartItems: UpsellCartItem[]): Promise<ActionResult> {
   try {
     const { data: rules, error } = await (supabaseServer.from('upsell_rules') as any)
-      .select('*, menu_items(*), bundles(*)')
+      .select('*, offer_item:menu_items!offer_item_id(*), offer_bundle:bundles!offer_bundle_id(*)')
       .eq('phase', 'upgrade')
       .eq('is_active', true);
 
@@ -23,8 +23,8 @@ export async function getUpgradeOffers(cartItems: UpsellCartItem[]): Promise<Act
     // Map joined data to offer_item/offer_bundle
     const mappedRules = (rules || []).map((r: any) => ({
       ...r,
-      offer_item: r.menu_items ?? null,
-      offer_bundle: r.bundles ?? null,
+      offer_item: r.offer_item ?? null,
+      offer_bundle: r.offer_bundle ?? null,
     }));
 
     const offers = matchUpgradeOffers(cartItems, mappedRules, new Date());
@@ -37,7 +37,7 @@ export async function getUpgradeOffers(cartItems: UpsellCartItem[]): Promise<Act
 export async function getAddonSuggestions(menuItemId: string): Promise<ActionResult> {
   try {
     const { data: suggestions, error } = await (supabaseServer.from('addon_suggestions') as any)
-      .select('*, add_ons(*)')
+      .select('*, add_on:add_ons!add_on_id(*)')
       .eq('menu_item_id', menuItemId);
 
     if (error) return { success: false, error: 'Failed to fetch suggestions' };
@@ -45,7 +45,7 @@ export async function getAddonSuggestions(menuItemId: string): Promise<ActionRes
     // Map joined add_on data
     const mapped = (suggestions || []).map((s: any) => ({
       ...s,
-      add_on: s.add_ons ?? null,
+      add_on: s.add_on ?? null,
     }));
 
     const filtered = suggestAddOns(menuItemId, mapped, new Date());
@@ -58,7 +58,7 @@ export async function getAddonSuggestions(menuItemId: string): Promise<ActionRes
 export async function getPairSuggestions(cartItems: UpsellCartItem[]): Promise<ActionResult> {
   try {
     const { data: rules, error } = await (supabaseServer.from('pair_rules') as any)
-      .select('*, menu_items(*), bundles(*)')
+      .select('*, paired_item:menu_items!paired_item_id(*), paired_bundle:bundles!paired_bundle_id(*)')
       .eq('is_active', true);
 
     if (error) return { success: false, error: 'Failed to fetch pair rules' };
@@ -66,8 +66,8 @@ export async function getPairSuggestions(cartItems: UpsellCartItem[]): Promise<A
     // Map joined data
     const mapped = (rules || []).map((r: any) => ({
       ...r,
-      paired_item: r.paired_item_id ? r.menu_items : null,
-      paired_bundle: r.paired_bundle_id ? r.bundles : null,
+      paired_item: r.paired_item ?? null,
+      paired_bundle: r.paired_bundle ?? null,
     }));
 
     const offers = matchPairOffers(cartItems, mapped);
@@ -83,7 +83,7 @@ export async function getInterstitialOffers(
 ): Promise<ActionResult> {
   try {
     const { data: rules, error } = await (supabaseServer.from('upsell_rules') as any)
-      .select('*, menu_items(*), bundles(*)')
+      .select('*, offer_item:menu_items!offer_item_id(*), offer_bundle:bundles!offer_bundle_id(*)')
       .eq('phase', 'interstitial')
       .eq('is_active', true);
 
@@ -91,8 +91,8 @@ export async function getInterstitialOffers(
 
     const mappedRules = (rules || []).map((r: any) => ({
       ...r,
-      offer_item: r.menu_items ?? null,
-      offer_bundle: r.bundles ?? null,
+      offer_item: r.offer_item ?? null,
+      offer_bundle: r.offer_bundle ?? null,
     }));
 
     // Optionally fetch loyalty data for loyalty_nudge offers
