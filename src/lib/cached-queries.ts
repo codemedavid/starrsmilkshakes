@@ -170,7 +170,7 @@ export const getCachedBundles = unstable_cache(
 export const getCachedUpsellRules = unstable_cache(
   async () => {
     const { data } = await (supabaseServer.from('upsell_rules') as any)
-      .select('*, menu_items(id, name, base_price, image_url), bundles(id, name, base_price, image_url)')
+      .select('*, offer_item:menu_items!offer_item_id(id, name, base_price, image_url), offer_bundle:bundles!offer_bundle_id(id, name, base_price, image_url)')
       .order('priority', { ascending: false });
     return data || [];
   },
@@ -192,7 +192,7 @@ export const getCachedAddonSuggestions = unstable_cache(
 export const getCachedPairRules = unstable_cache(
   async () => {
     const { data } = await (supabaseServer.from('pair_rules') as any)
-      .select('*, menu_items(id, name, base_price, image_url), bundles(id, name, base_price, image_url)')
+      .select('*, paired_item:menu_items!paired_item_id(id, name, base_price, image_url), paired_bundle:bundles!paired_bundle_id(id, name, base_price, image_url)')
       .order('priority', { ascending: false });
     return data || [];
   },
