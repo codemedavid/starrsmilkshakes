@@ -166,6 +166,40 @@ export const getCachedBundles = unstable_cache(
   { revalidate: 300, tags: ['bundles'] }
 );
 
+// ── Upsell Rules ─────────────────────────────────────────────
+export const getCachedUpsellRules = unstable_cache(
+  async () => {
+    const { data } = await (supabaseServer.from('upsell_rules') as any)
+      .select('*, menu_items(id, name, base_price, image_url), bundles(id, name, base_price, image_url)')
+      .order('priority', { ascending: false });
+    return data || [];
+  },
+  ['admin-upsell-rules'],
+  { revalidate: 300, tags: ['upsell-rules'] }
+);
+
+export const getCachedAddonSuggestions = unstable_cache(
+  async () => {
+    const { data } = await (supabaseServer.from('addon_suggestions') as any)
+      .select('*, add_ons(id, name, price, category)')
+      .order('sort_order', { ascending: true });
+    return data || [];
+  },
+  ['admin-addon-suggestions'],
+  { revalidate: 300, tags: ['addon-suggestions'] }
+);
+
+export const getCachedPairRules = unstable_cache(
+  async () => {
+    const { data } = await (supabaseServer.from('pair_rules') as any)
+      .select('*, menu_items(id, name, base_price, image_url), bundles(id, name, base_price, image_url)')
+      .order('priority', { ascending: false });
+    return data || [];
+  },
+  ['admin-pair-rules'],
+  { revalidate: 300, tags: ['pair-rules'] }
+);
+
 // ── Loyalty Stats ───────────────────────────────────────────
 export const getCachedLoyaltyStats = unstable_cache(
   async () => {
