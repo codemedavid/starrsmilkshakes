@@ -120,9 +120,11 @@ export function calculateEarnings(
   const booster_multiplier = booster?.multiplier ?? 1;
   const booster_id = booster?.id ?? null;
 
+  // Stamps scale with total quantity of qualifying items
+  const qualifyingQuantity = qualifyingItems.reduce((sum, item) => sum + item.quantity, 0);
   const stamps =
-    config.stamps_enabled && qualifyingItems.length > 0
-      ? Math.floor(config.stamps_per_order * booster_multiplier)
+    config.stamps_enabled && qualifyingQuantity > 0
+      ? Math.floor(qualifyingQuantity * config.stamps_per_order * booster_multiplier)
       : 0;
 
   const points =

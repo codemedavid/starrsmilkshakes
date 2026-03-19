@@ -302,10 +302,26 @@ describe('calculateEarnings', () => {
     expect(result.qualifying_total).toBe(0);
   });
 
-  it('returns 1 stamp for a qualifying order regardless of subtotal', () => {
+  it('returns stamps based on qualifying quantity × stamps_per_order', () => {
     const cfg = baseConfig({ stamps_per_order: 1 });
-    const result = calculateEarnings([baseItem({ subtotal: 999 })], cfg, [], NOW);
+    const result = calculateEarnings([baseItem({ quantity: 1, subtotal: 999 })], cfg, [], NOW);
     expect(result.stamps).toBe(1);
+  });
+
+  it('returns stamps scaled by item quantity', () => {
+    const cfg = baseConfig({ stamps_per_order: 1 });
+    const result = calculateEarnings([baseItem({ quantity: 3, subtotal: 300 })], cfg, [], NOW);
+    expect(result.stamps).toBe(3);
+  });
+
+  it('sums quantity across multiple qualifying items', () => {
+    const cfg = baseConfig({ stamps_per_order: 1 });
+    const items = [
+      baseItem({ quantity: 2, subtotal: 200 }),
+      baseItem({ menu_item_id: 'item-2', category_id: 'cat-2', quantity: 3, subtotal: 300 }),
+    ];
+    const result = calculateEarnings(items, cfg, [], NOW);
+    expect(result.stamps).toBe(5); // 2 + 3
   });
 
   it('calculates points as floor(qualifying_total × points_per_peso)', () => {
