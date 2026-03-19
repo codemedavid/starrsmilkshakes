@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback } from 'react';
-import { lookupCard, redeemReward, linkOrderToCard } from '@/actions/loyalty';
+import { lookupCard, redeemGoal, linkOrderToCard } from '@/actions/loyalty';
 
 type ActionResult = { success: boolean; error?: string; data?: any };
 
@@ -29,7 +29,7 @@ export function useLoyaltyLookup() {
 
   const redeem = useCallback(
     async (redemptionId: string, branchId: string): Promise<ActionResult> => {
-      const result = await redeemReward(redemptionId, branchId);
+      const result = await redeemGoal(redemptionId, branchId);
       if (result.success && query) {
         await search(query);
       }
