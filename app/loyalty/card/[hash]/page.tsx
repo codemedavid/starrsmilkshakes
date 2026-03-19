@@ -2,9 +2,10 @@ import { Suspense } from 'react';
 import Link from 'next/link';
 import { supabaseServer } from '@/lib/supabase-server';
 import { isTokenExpired } from '@/lib/loyalty-hash';
-import { getCachedActiveRewards } from '@/lib/cached-queries';
+import { getCachedActiveGoals, getCachedActiveMilestones } from '@/lib/cached-queries';
 import StampGrid from '@/components/loyalty/StampGrid';
 import PointsBar from '@/components/loyalty/PointsBar';
+import MilestoneLadder from '@/components/loyalty/MilestoneLadder';
 import PendingRedemptionsSection from '@/components/loyalty/PendingRedemptionsSection';
 import BoostersSection from '@/components/loyalty/BoostersSection';
 import ActivitySection from '@/components/loyalty/ActivitySection';
@@ -68,22 +69,32 @@ export default async function CardPage({ params }: PageProps) {
     return <ErrorState message="No loyalty card found. Open Messenger to register." />;
   }
 
-  // ── 3. Load goal reward from cached rewards catalog ──────────────────────
-  const rewards = await getCachedActiveRewards();
-  const goalReward = card.goal_reward_id
-    ? rewards.find((r: any) => r.id === card.goal_reward_id) ?? null
+  // ── 3. Load goal from cached goals catalog ───────────────────────────────
+  const [goals, activeMilestones] = await Promise.all([
+    getCachedActiveGoals(),
+    getCachedActiveMilestones(),
+  ]);
+  const goal = card.goal_id
+    ? goals.find((g: any) => g.id === card.goal_id) ?? null
     : null;
 
-  // ── 4. Derived values ─────────────────────────────────────────────────────
+  // ── 4. Load milestone claims for this card+goal ───────────────────────────
+  const { data: milestoneClaims } = await supabaseServer
+    .from('loyalty_milestone_claims')
+    .select('*, loyalty_milestones(name, stamps_required)')
+    .eq('card_id', card.id)
+    .eq('goal_id', card.goal_id ?? '');
+
+  // ── 5. Derived values ─────────────────────────────────────────────────────
   const customerName: string = card.customers?.name ?? 'Friend';
   const firstName = customerName.split(' ')[0];
   const cardCode: string = card.card_code;
   const currentStamps: number = card.current_stamps ?? 0;
   const currentPoints: number = card.current_points ?? 0;
   const lifetimePoints: number = card.lifetime_points ?? 0;
-  const goalStamps: number | null = goalReward?.stamps_required ?? null;
+  const goalStamps: number | null = goal?.stamps_required ?? null;
 
-  // ── 5. Render ──────────────────────────────────────────────────────────────
+  // ── 6. Render ──────────────────────────────────────────────────────────────
 
   return (
     <div className="min-h-screen bg-[#FAF8F5] pb-12">
@@ -123,18 +134,12 @@ export default async function CardPage({ params }: PageProps) {
                   Your Goal
                 </p>
               </div>
-              <Link
-                href={`/loyalty/card/${hash}/goals`}
-                className="text-xs font-semibold text-[#3D8A80] hover:text-[#2D6B63] transition-colors px-2 py-1 rounded-md hover:bg-[#3D8A80]/5"
-              >
-                Change
-              </Link>
             </div>
 
-            {goalReward ? (
+            {card.goal_id && goal ? (
               <>
                 <p className="text-base font-bold text-stone-800 mb-4">
-                  {goalReward.name}
+                  {goal.name}
                 </p>
                 <StampGrid currentStamps={currentStamps} goalStamps={goalStamps} />
               </>
@@ -154,11 +159,22 @@ export default async function CardPage({ params }: PageProps) {
                   href={`/loyalty/card/${hash}/goals`}
                   className="inline-flex items-center gap-1.5 mt-4 text-sm font-semibold text-white bg-gradient-to-r from-[#3D8A80] to-[#5AAF9E] px-5 py-2.5 rounded-xl hover:opacity-90 active:opacity-80 transition-opacity shadow-sm"
                 >
-                  Pick a Reward Goal
+                  Pick Your Goal
                 </Link>
               </div>
             )}
           </div>
+
+          {/* ── Milestone ladder ───────────────────────────────────────── */}
+          {activeMilestones.length > 0 && (
+            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 shadow-sm">
+              <MilestoneLadder
+                milestones={activeMilestones}
+                claims={milestoneClaims ?? []}
+                currentStamps={currentStamps}
+              />
+            </div>
+          )}
 
           {/* ── Points bar ─────────────────────────────────────────────── */}
           <div className="bg-white border border-[#E8E3DA] rounded-2xl overflow-hidden shadow-sm">
@@ -174,18 +190,6 @@ export default async function CardPage({ params }: PageProps) {
           <Suspense fallback={<ActivitySkeleton />}>
             <ActivitySection cardId={card.id} />
           </Suspense>
-
-          {/* ── View all rewards CTA ───────────────────────────────────── */}
-          <Link
-            href={`/loyalty/card/${hash}/goals`}
-            className="flex items-center justify-center gap-2 w-full py-3.5 rounded-2xl
-              bg-gradient-to-r from-[#3D8A80] to-[#5AAF9E]
-              text-sm font-bold text-white
-              hover:opacity-90 active:opacity-80
-              transition-opacity shadow-sm shadow-[#3D8A80]/20"
-          >
-            Browse All Rewards
-          </Link>
 
           {/* ── Footer ─────────────────────────────────────────────────── */}
           <p className="text-[11px] text-stone-400 text-center pt-2 pb-4">

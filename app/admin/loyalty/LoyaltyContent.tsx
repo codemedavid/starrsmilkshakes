@@ -1,24 +1,27 @@
 'use client';
 
 import { useState } from 'react';
-import { CreditCard, Clock, Gift, Star, Settings, Zap, Ticket, Search } from 'lucide-react';
-import type { LoyaltyConfig, LoyaltyReward, LoyaltyBooster } from '@/types/loyalty';
+import { CreditCard, Clock, Gift, Star, Settings, Zap, Ticket, Search, Trophy } from 'lucide-react';
+import type { LoyaltyConfig, LoyaltyGoal, LoyaltyBooster, LoyaltyMilestone } from '@/types/loyalty';
 import LoyaltyConfigTab from '@/components/admin/LoyaltyConfigTab';
-import LoyaltyRewardsTab from '@/components/admin/LoyaltyRewardsTab';
+import LoyaltyGoalsTab from '@/components/admin/LoyaltyGoalsTab';
+import LoyaltyMilestonesTab from '@/components/admin/LoyaltyMilestonesTab';
 import LoyaltyBoostersTab from '@/components/admin/LoyaltyBoostersTab';
 import LoyaltyRedemptionsTab from '@/components/admin/LoyaltyRedemptionsTab';
 import LoyaltyLookupTab from '@/components/admin/LoyaltyLookupTab';
 
 interface Props {
   initialConfig: LoyaltyConfig;
-  initialRewards: LoyaltyReward[];
+  initialGoals: LoyaltyGoal[];
+  initialMilestones: LoyaltyMilestone[];
   initialBoosters: LoyaltyBooster[];
   initialStats: { active_cards: number; pending_claims: number; rewards_claimed: number };
 }
 
 const TAB_DEFS = [
   { key: 'Configuration', icon: Settings, label: 'Config' },
-  { key: 'Rewards', icon: Gift, label: 'Rewards' },
+  { key: 'Goals', icon: Gift, label: 'Goals' },
+  { key: 'Milestones', icon: Trophy, label: 'Milestones' },
   { key: 'Boosters', icon: Zap, label: 'Boosters' },
   { key: 'Redemptions', icon: Ticket, label: 'Redemptions' },
   { key: 'Lookup', icon: Search, label: 'Lookup' },
@@ -26,10 +29,10 @@ const TAB_DEFS = [
 
 type Tab = typeof TAB_DEFS[number]['key'];
 
-export default function LoyaltyContent({ initialConfig, initialRewards, initialBoosters, initialStats }: Props) {
+export default function LoyaltyContent({ initialConfig, initialGoals, initialMilestones, initialBoosters, initialStats }: Props) {
   const [activeTab, setActiveTab] = useState<Tab>('Configuration');
 
-  const activeRewardsCount = initialRewards.filter((r) => r.is_active).length;
+  const activeRewardsCount = initialGoals.filter((r) => r.is_active).length;
 
   return (
     <div className="p-4 sm:p-6 max-w-6xl">
@@ -72,7 +75,7 @@ export default function LoyaltyContent({ initialConfig, initialRewards, initialB
           accentBorder="border-purple-200"
         />
         <StatCard
-          label="Rewards Available"
+          label="Goals Available"
           value={activeRewardsCount}
           icon={<Star className="h-4 w-4" />}
           accentBg="bg-blue-50"
@@ -115,7 +118,8 @@ export default function LoyaltyContent({ initialConfig, initialRewards, initialB
 
       {/* Tab Content */}
       {activeTab === 'Configuration' && <LoyaltyConfigTab initialConfig={initialConfig} />}
-      {activeTab === 'Rewards' && <LoyaltyRewardsTab initialRewards={initialRewards} />}
+      {activeTab === 'Goals' && <LoyaltyGoalsTab initialGoals={initialGoals} />}
+      {activeTab === 'Milestones' && <LoyaltyMilestonesTab initialMilestones={initialMilestones} />}
       {activeTab === 'Boosters' && <LoyaltyBoostersTab initialBoosters={initialBoosters} />}
       {activeTab === 'Redemptions' && <LoyaltyRedemptionsTab />}
       {activeTab === 'Lookup' && <LoyaltyLookupTab />}

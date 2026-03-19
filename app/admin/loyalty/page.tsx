@@ -1,7 +1,8 @@
 import { requireAdmin } from '@/lib/admin-guard';
 import {
   getCachedLoyaltyConfig,
-  getCachedLoyaltyRewards,
+  getCachedLoyaltyGoals,
+  getCachedLoyaltyMilestones,
   getCachedLoyaltyBoosters,
   getCachedLoyaltyStats,
 } from '@/lib/cached-queries';
@@ -23,16 +24,18 @@ const DEFAULT_CONFIG: LoyaltyConfig = {
 
 export default async function LoyaltyPage() {
   await requireAdmin();
-  const [config, rewards, boosters, stats] = await Promise.all([
+  const [config, goals, milestones, boosters, stats] = await Promise.all([
     getCachedLoyaltyConfig(),
-    getCachedLoyaltyRewards(),
+    getCachedLoyaltyGoals(),
+    getCachedLoyaltyMilestones(),
     getCachedLoyaltyBoosters(),
     getCachedLoyaltyStats(),
   ]);
   return (
     <LoyaltyContent
       initialConfig={config ?? DEFAULT_CONFIG}
-      initialRewards={rewards}
+      initialGoals={goals}
+      initialMilestones={milestones}
       initialBoosters={boosters}
       initialStats={stats}
     />

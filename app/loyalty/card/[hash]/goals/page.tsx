@@ -1,9 +1,10 @@
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
 import { supabaseServer } from '@/lib/supabase-server';
 import { isTokenExpired } from '@/lib/loyalty-hash';
 import GoalPicker from './GoalPicker';
-import { getCachedActiveRewards } from '@/lib/cached-queries';
-import type { LoyaltyReward } from '@/types/loyalty';
+import { getCachedActiveGoals } from '@/lib/cached-queries';
+import type { LoyaltyGoal } from '@/types/loyalty';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -55,7 +56,7 @@ export default async function GoalsPage({ params }: PageProps) {
   // ── 2. Load card ──────────────────────────────────────────────────────────
 
   const { data: card } = await (supabaseServer.from('loyalty_cards') as any)
-    .select('id, current_stamps, current_points, goal_reward_id, customers!inner(name)')
+    .select('id, current_stamps, current_points, goal_id, customers!inner(name)')
     .eq('customers.messenger_psid', psid)
     .single();
 
@@ -63,8 +64,13 @@ export default async function GoalsPage({ params }: PageProps) {
     return <ErrorState message="No loyalty card found. Open Messenger to register." />;
   }
 
-  // ── 3. Load active rewards (cached) ──────────────────────────────────────
-  const rewards: LoyaltyReward[] = await getCachedActiveRewards();
+  // Guard: if a goal is already set, redirect back to card
+  if (card.goal_id) {
+    redirect(`/loyalty/card/${hash}`);
+  }
+
+  // ── 3. Load active goals (cached) ────────────────────────────────────────
+  const goals: LoyaltyGoal[] = await getCachedActiveGoals();
 
   // ── 4. Render ──────────────────────────────────────────────────────────────
 
@@ -101,27 +107,27 @@ export default async function GoalsPage({ params }: PageProps) {
         {/* ── Content ──────────────────────────────────────────────────────── */}
         <div className="px-4 space-y-4 -mt-4 relative z-10">
 
-          {/* Reward count */}
-          {rewards.length > 0 && (
+          {/* Goal count */}
+          {goals.length > 0 && (
             <p className="text-xs font-medium text-stone-400 text-center pt-2">
-              {rewards.length} reward{rewards.length !== 1 ? 's' : ''} available
+              {goals.length} goal{goals.length !== 1 ? 's' : ''} available
             </p>
           )}
 
-          {rewards.length === 0 ? (
+          {goals.length === 0 ? (
             <div className="bg-white border border-[#E8E3DA] rounded-2xl p-8 text-center shadow-sm">
               <div className="w-16 h-16 rounded-2xl bg-[#F0EBE0] flex items-center justify-center mx-auto mb-3">
                 <span className="text-2xl" aria-hidden="true">🎁</span>
               </div>
               <p className="text-sm font-medium text-stone-700 mb-1">
-                No rewards available yet
+                No goals available yet
               </p>
               <p className="text-xs text-stone-400 max-w-[220px] mx-auto">
-                New rewards are added regularly. Keep collecting starrs in the meantime!
+                New goals are added regularly. Keep collecting starrs in the meantime!
               </p>
             </div>
           ) : (
-            <GoalPicker card={card} rewards={rewards} hash={hash} />
+            <GoalPicker card={card} goals={goals} hash={hash} />
           )}
 
           {/* Back link */}
