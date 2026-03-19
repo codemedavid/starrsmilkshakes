@@ -6,7 +6,9 @@ import type {
   LoyaltyBooster,
   LoyaltyOrderItem,
   LoyaltyCard,
-  LoyaltyReward,
+  LoyaltyGoal,
+  LoyaltyMilestone,
+  LoyaltyMilestoneClaim,
   EarningsResult,
 } from '@/types/loyalty';
 
@@ -139,7 +141,7 @@ export function calculateEarnings(
  * Check whether a loyalty card has reached the goal for a given reward.
  * Returns true if EITHER the stamps OR the points requirement is satisfied.
  */
-export function checkGoalReached(card: LoyaltyCard, reward: LoyaltyReward | null): boolean {
+export function checkGoalReached(card: LoyaltyCard, reward: LoyaltyGoal | null): boolean {
   if (reward === null) return false;
 
   const stampsOk =
@@ -160,10 +162,28 @@ export function checkGoalReached(card: LoyaltyCard, reward: LoyaltyReward | null
  */
 export function calculateCarryover(
   card: LoyaltyCard,
-  reward: LoyaltyReward,
+  reward: LoyaltyGoal,
 ): { stamps: number; points: number } {
   return {
     stamps: card.current_stamps - (reward.stamps_required ?? 0),
     points: card.current_points - (reward.points_required ?? 0),
   };
+}
+
+/**
+ * Given the current stamp count, active milestones, and existing claims for
+ * this goal cycle, return the milestones that are newly reached.
+ *
+ * Only pass active milestones. Filtering inactive milestones is the caller's
+ * responsibility.
+ */
+export function checkMilestonesReached(
+  currentStamps: number,
+  milestones: LoyaltyMilestone[],
+  existingClaims: Pick<LoyaltyMilestoneClaim, 'milestone_id'>[],
+): LoyaltyMilestone[] {
+  const claimedIds = new Set(existingClaims.map((c) => c.milestone_id));
+  return milestones.filter(
+    (ms) => ms.stamps_required <= currentStamps && !claimedIds.has(ms.id),
+  );
 }

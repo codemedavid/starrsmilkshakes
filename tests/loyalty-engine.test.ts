@@ -6,13 +6,16 @@ import {
   calculateEarnings,
   checkGoalReached,
   calculateCarryover,
+  checkMilestonesReached,
 } from '@/lib/loyalty-engine';
 import type {
   LoyaltyConfig,
   LoyaltyBooster,
   LoyaltyOrderItem,
   LoyaltyCard,
-  LoyaltyReward,
+  LoyaltyGoal,
+  LoyaltyMilestone,
+  LoyaltyMilestoneClaim,
 } from '@/types/loyalty';
 
 // ─── Shared fixtures ──────────────────────────────────────────────────────────
@@ -69,7 +72,7 @@ const baseCard = (overrides: Partial<LoyaltyCard> = {}): LoyaltyCard => ({
   ...overrides,
 });
 
-const baseReward = (overrides: Partial<LoyaltyReward> = {}): LoyaltyReward => ({
+const baseReward = (overrides: Partial<LoyaltyGoal> = {}): LoyaltyGoal => ({
   id: 'reward-1',
   name: 'Free Shake',
   description: null,
@@ -513,5 +516,62 @@ describe('calculateCarryover', () => {
     const reward = baseReward({ stamps_required: 10, points_required: null });
     const result = calculateCarryover(card, reward);
     expect(result.stamps).toBe(-7);
+  });
+});
+
+// ─── checkMilestonesReached ───────────────────────────────────────────────────
+
+const baseMilestone = (overrides: Partial<LoyaltyMilestone> = {}): LoyaltyMilestone => ({
+  id: 'ms-1',
+  name: 'Free Sticker',
+  description: null,
+  image_url: null,
+  stamps_required: 5,
+  is_active: true,
+  sort_order: 0,
+  created_at: '2026-01-01T00:00:00Z',
+  updated_at: '2026-01-01T00:00:00Z',
+  ...overrides,
+});
+
+describe('checkMilestonesReached', () => {
+  it('returns milestones whose stamps_required <= current_stamps', () => {
+    const milestones = [
+      baseMilestone({ id: 'ms-1', stamps_required: 3 }),
+      baseMilestone({ id: 'ms-2', stamps_required: 5 }),
+      baseMilestone({ id: 'ms-3', stamps_required: 10 }),
+    ];
+    const result = checkMilestonesReached(5, milestones, []);
+    expect(result.map((m) => m.id)).toEqual(['ms-1', 'ms-2']);
+  });
+
+  it('excludes already claimed milestones', () => {
+    const milestones = [
+      baseMilestone({ id: 'ms-1', stamps_required: 3 }),
+      baseMilestone({ id: 'ms-2', stamps_required: 5 }),
+    ];
+    const existingClaims: Pick<LoyaltyMilestoneClaim, 'milestone_id'>[] = [
+      { milestone_id: 'ms-1' },
+    ];
+    const result = checkMilestonesReached(5, milestones, existingClaims);
+    expect(result.map((m) => m.id)).toEqual(['ms-2']);
+  });
+
+  it('returns empty when no milestones crossed', () => {
+    const milestones = [baseMilestone({ stamps_required: 10 })];
+    expect(checkMilestonesReached(3, milestones, [])).toEqual([]);
+  });
+
+  it('returns empty when all crossed milestones already claimed', () => {
+    const milestones = [baseMilestone({ id: 'ms-1', stamps_required: 3 })];
+    const claims: Pick<LoyaltyMilestoneClaim, 'milestone_id'>[] = [
+      { milestone_id: 'ms-1' },
+    ];
+    expect(checkMilestonesReached(5, milestones, claims)).toEqual([]);
+  });
+
+  it('only considers active milestones (inactive filtered before calling)', () => {
+    const milestones = [baseMilestone({ stamps_required: 3 })];
+    expect(checkMilestonesReached(5, milestones, [])).toHaveLength(1);
   });
 });
