@@ -33,15 +33,15 @@ function formatDate(iso: string): string {
 
 function ErrorState({ message }: { message: string }) {
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 bg-[#FAF8F5] dark:bg-[#0d1117]">
-      <div className="max-w-md w-full bg-white dark:bg-[#161b22] border border-[#E8E3DA] dark:border-[#2a3040] rounded-2xl p-8 text-center shadow-sm">
+    <div className="min-h-screen flex items-center justify-center px-4 bg-[#FAF8F5]">
+      <div className="max-w-md w-full bg-white border border-[#E8E3DA] rounded-2xl p-8 text-center shadow-sm">
         <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#3D8A80] to-[#7BBFB5] flex items-center justify-center mx-auto mb-4">
           <span className="text-white text-xl">⭐</span>
         </div>
-        <h1 className="text-lg font-semibold text-stone-800 dark:text-[#e6e6e6] mb-2">
+        <h1 className="text-lg font-semibold text-stone-800 mb-2">
           Starr&apos;s Famous Shakes
         </h1>
-        <p className="text-sm text-stone-500 dark:text-[#999] mt-4">{message}</p>
+        <p className="text-sm text-stone-500 mt-4">{message}</p>
       </div>
     </div>
   );
@@ -137,7 +137,7 @@ export default async function CardPage({ params }: PageProps) {
   // ── 5. Render ──────────────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen bg-[#FAF8F5] dark:bg-[#0d1117] pb-10">
+    <div className="min-h-screen bg-[#FAF8F5] pb-10">
       <div className="max-w-md mx-auto">
 
         {/* ── Teal gradient header ─────────────────────────────────────────── */}
@@ -152,14 +152,14 @@ export default async function CardPage({ params }: PageProps) {
         <div className="px-4 space-y-4 -mt-2">
 
           {/* Progress card */}
-          <div className="bg-white dark:bg-[#161b22] border border-[#E8E3DA] dark:border-[#2a3040] rounded-2xl p-5 shadow-sm">
+          <div className="bg-white border border-[#E8E3DA] rounded-2xl p-5 shadow-sm">
             <div className="flex items-center justify-between mb-4">
-              <p className="text-xs font-semibold text-stone-500 dark:text-[#999] uppercase tracking-wide">
+              <p className="text-xs font-semibold text-stone-500 uppercase tracking-wide">
                 Your Goal
               </p>
               <Link
                 href={`/loyalty/card/${hash}/goals`}
-                className="text-xs font-medium text-[#3D8A80] dark:text-[#7BBFB5] hover:opacity-80 transition-opacity"
+                className="text-xs font-medium text-[#3D8A80] hover:opacity-80 transition-opacity"
               >
                 Change &rsaquo;
               </Link>
@@ -171,7 +171,7 @@ export default async function CardPage({ params }: PageProps) {
                   {goalReward.icon && (
                     <span className="text-2xl leading-none">{goalReward.icon}</span>
                   )}
-                  <p className="text-base font-semibold text-stone-800 dark:text-[#e6e6e6]">
+                  <p className="text-base font-semibold text-stone-800">
                     {goalReward.name}
                   </p>
                 </div>
@@ -179,13 +179,13 @@ export default async function CardPage({ params }: PageProps) {
               </>
             ) : (
               <div className="text-center py-4">
-                <p className="text-sm text-stone-500 dark:text-[#999] mb-3">
+                <p className="text-sm text-stone-500 mb-3">
                   No goal selected yet.
                 </p>
                 <StampGrid currentStamps={currentStamps} goalStamps={null} />
                 <Link
                   href={`/loyalty/card/${hash}/goals`}
-                  className="inline-block mt-3 text-sm font-medium text-[#3D8A80] dark:text-[#7BBFB5] hover:opacity-80 transition-opacity"
+                  className="inline-block mt-3 text-sm font-medium text-[#3D8A80] hover:opacity-80 transition-opacity"
                 >
                   Pick a reward goal →
                 </Link>
@@ -194,14 +194,14 @@ export default async function CardPage({ params }: PageProps) {
           </div>
 
           {/* Points bar */}
-          <div className="bg-white dark:bg-[#161b22] border border-[#E8E3DA] dark:border-[#2a3040] rounded-2xl overflow-hidden shadow-sm">
+          <div className="bg-white border border-[#E8E3DA] rounded-2xl overflow-hidden shadow-sm">
             <PointsBar currentPoints={currentPoints} lifetimePoints={lifetimePoints} />
           </div>
 
           {/* Active boosters */}
           {boosters.length > 0 && (
-            <div className="bg-white dark:bg-[#161b22] border border-[#E8E3DA] dark:border-[#2a3040] rounded-2xl p-5 shadow-sm">
-              <p className="text-xs font-semibold text-stone-500 dark:text-[#999] uppercase tracking-wide mb-3">
+            <div className="bg-white border border-[#E8E3DA] rounded-2xl p-5 shadow-sm">
+              <p className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-3">
                 Active Boosters
               </p>
               <BoosterBanner boosters={boosters} />
@@ -210,25 +210,25 @@ export default async function CardPage({ params }: PageProps) {
 
           {/* Pending redemptions */}
           {pendingRedemptions.length > 0 && (
-            <div className="bg-white dark:bg-[#161b22] border border-[#E8E3DA] dark:border-[#2a3040] rounded-2xl p-5 shadow-sm">
-              <p className="text-xs font-semibold text-stone-500 dark:text-[#999] uppercase tracking-wide mb-3">
+            <div className="bg-white border border-[#E8E3DA] rounded-2xl p-5 shadow-sm">
+              <p className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-3">
                 Ready to Claim
               </p>
               <ul className="space-y-3">
                 {pendingRedemptions.map((r) => (
                   <li
                     key={r.id}
-                    className="flex items-center justify-between gap-3 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-xl px-4 py-3"
+                    className="flex items-center justify-between gap-3 bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3"
                   >
                     <div className="flex items-center gap-2 min-w-0">
                       <span className="text-xl leading-none shrink-0">🎁</span>
                       <div className="min-w-0">
-                        <p className="text-sm font-semibold text-emerald-800 dark:text-emerald-300 truncate">
+                        <p className="text-sm font-semibold text-emerald-800 truncate">
                           {r.loyalty_rewards?.name ?? 'Reward'}
                         </p>
-                        <p className="text-xs text-emerald-600 dark:text-emerald-500">
+                        <p className="text-xs text-emerald-600">
                           Claim by {formatDate(r.expires_at)}{' '}
-                          <span className="text-emerald-500 dark:text-emerald-600">
+                          <span className="text-emerald-500">
                             ({formatExpiryCountdown(r.expires_at)})
                           </span>
                         </p>
@@ -241,7 +241,7 @@ export default async function CardPage({ params }: PageProps) {
           )}
 
           {/* Activity list */}
-          <div className="bg-white dark:bg-[#161b22] border border-[#E8E3DA] dark:border-[#2a3040] rounded-2xl p-5 shadow-sm">
+          <div className="bg-white border border-[#E8E3DA] rounded-2xl p-5 shadow-sm">
             <ActivityList transactions={transactions} />
           </div>
 
@@ -249,10 +249,10 @@ export default async function CardPage({ params }: PageProps) {
           <Link
             href={`/loyalty/card/${hash}/goals`}
             className="flex items-center justify-center gap-2 w-full py-3 rounded-2xl
-              bg-white dark:bg-[#161b22]
-              border border-[#E8E3DA] dark:border-[#2a3040]
-              text-sm font-semibold text-stone-700 dark:text-[#ccc]
-              hover:bg-[#F0EBE0] dark:hover:bg-[#1a1f2e]
+              bg-white
+              border border-[#E8E3DA]
+              text-sm font-semibold text-stone-700
+              hover:bg-[#F0EBE0]
               transition-colors shadow-sm"
           >
             View All Rewards 🏆

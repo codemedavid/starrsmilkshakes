@@ -37,10 +37,10 @@ export default function RegisterForm({ hash }: RegisterFormProps) {
 
       const card = result.data?.card;
       const shouldPickGoal = result.data?.shouldPickGoal ?? false;
+      const viewToken = result.data?.viewToken;
 
-      if (shouldPickGoal) {
-        // Redirect to goal picker — use window.location for full navigation
-        window.location.href = `/loyalty/card/${hash}/goals`;
+      if (shouldPickGoal && viewToken) {
+        window.location.href = `/loyalty/card/${viewToken}/goals`;
         return;
       }
 
@@ -52,8 +52,8 @@ export default function RegisterForm({ hash }: RegisterFormProps) {
 
   if (success) {
     return (
-      <div className="min-h-screen flex items-center justify-center px-4 bg-[#FAF8F5] dark:bg-[#0d1117]">
-        <div className="max-w-md w-full bg-white dark:bg-[#161b22] border border-[#E8E3DA] dark:border-[#2a3040] rounded-2xl overflow-hidden shadow-sm">
+      <div className="min-h-screen flex items-center justify-center px-4">
+        <div className="max-w-md w-full bg-white border border-[#E8E3DA] rounded-2xl overflow-hidden shadow-sm">
           {/* Gradient header */}
           <div className="bg-gradient-to-br from-[#3D8A80] to-[#7BBFB5] px-6 py-8 text-center">
             <div className="text-4xl mb-3">⭐</div>
@@ -65,24 +65,24 @@ export default function RegisterForm({ hash }: RegisterFormProps) {
 
           {/* Body */}
           <div className="px-6 py-8 text-center">
-            <p className="text-stone-800 dark:text-[#e6e6e6] font-medium text-lg mb-2">
+            <p className="text-stone-800 font-medium text-lg mb-2">
               You&apos;re in! Welcome to the club.
             </p>
-            <p className="text-stone-500 dark:text-[#999] text-sm mb-6">
+            <p className="text-stone-500 text-sm mb-6">
               Your loyalty card has been created.
             </p>
 
             {/* Card code */}
-            <div className="bg-[#F8F6F3] dark:bg-[#1a1f2e] border border-[#E8E3DA] dark:border-[#2a3040] rounded-xl px-6 py-4 inline-block">
-              <p className="text-xs text-stone-500 dark:text-[#999] mb-1 uppercase tracking-widest">
+            <div className="bg-[#F8F6F3] border border-[#E8E3DA] rounded-xl px-6 py-4 inline-block">
+              <p className="text-xs text-stone-500 mb-1 uppercase tracking-widest">
                 Card Code
               </p>
-              <p className="text-2xl font-semibold tracking-widest text-[#3D8A80] dark:text-[#7BBFB5]">
+              <p className="text-2xl font-semibold tracking-widest text-[#3D8A80]">
                 {success.cardCode}
               </p>
             </div>
 
-            <p className="text-stone-500 dark:text-[#999] text-sm mt-6">
+            <p className="text-stone-500 text-sm mt-6">
               Open Messenger to view your card and start earning starrs.
             </p>
           </div>
@@ -94,8 +94,8 @@ export default function RegisterForm({ hash }: RegisterFormProps) {
   // ── Registration form ───────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 bg-[#FAF8F5] dark:bg-[#0d1117]">
-      <div className="max-w-md w-full bg-white dark:bg-[#161b22] border border-[#E8E3DA] dark:border-[#2a3040] rounded-2xl overflow-hidden shadow-sm">
+    <div className="min-h-screen flex items-center justify-center px-4">
+      <div className="max-w-md w-full bg-white border border-[#E8E3DA] rounded-2xl overflow-hidden shadow-sm">
         {/* Gradient header */}
         <div className="bg-gradient-to-br from-[#3D8A80] to-[#7BBFB5] px-6 py-8 text-center">
           <div className="text-4xl mb-3">⭐</div>
@@ -107,7 +107,7 @@ export default function RegisterForm({ hash }: RegisterFormProps) {
 
         {/* Form body */}
         <div className="px-6 py-8">
-          <p className="text-stone-500 dark:text-[#999] text-sm text-center mb-6">
+          <p className="text-stone-500 text-sm text-center mb-6">
             Earn starrs with every order and unlock rewards.
           </p>
 
@@ -116,7 +116,7 @@ export default function RegisterForm({ hash }: RegisterFormProps) {
             <div>
               <label
                 htmlFor="email"
-                className="block text-sm font-medium text-stone-800 dark:text-[#e6e6e6] mb-1.5"
+                className="block text-sm font-medium text-stone-800 mb-1.5"
               >
                 Email <span className="text-[#3D8A80]">*</span>
               </label>
@@ -129,10 +129,8 @@ export default function RegisterForm({ hash }: RegisterFormProps) {
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@example.com"
                 className="w-full rounded-lg px-4 py-2.5 text-sm
-                  bg-[#F8F6F3] dark:bg-[#1a1f2e]
-                  border border-[#E8E3DA] dark:border-[#2a3040]
-                  text-stone-800 dark:text-[#e6e6e6]
-                  placeholder:text-stone-400 dark:placeholder:text-[#555]
+                  bg-[#F8F6F3] border border-[#E8E3DA]
+                  text-stone-800 placeholder:text-stone-400
                   focus:outline-none focus:ring-2 focus:ring-[#3D8A80]/40 focus:border-[#3D8A80]
                   transition-colors"
               />
@@ -142,10 +140,10 @@ export default function RegisterForm({ hash }: RegisterFormProps) {
             <div>
               <label
                 htmlFor="phone"
-                className="block text-sm font-medium text-stone-800 dark:text-[#e6e6e6] mb-1.5"
+                className="block text-sm font-medium text-stone-800 mb-1.5"
               >
                 Phone{' '}
-                <span className="text-stone-400 dark:text-[#555] font-normal">(optional)</span>
+                <span className="text-stone-400 font-normal">(optional)</span>
               </label>
               <input
                 id="phone"
@@ -155,10 +153,8 @@ export default function RegisterForm({ hash }: RegisterFormProps) {
                 onChange={(e) => setPhone(e.target.value)}
                 placeholder="09XX XXX XXXX"
                 className="w-full rounded-lg px-4 py-2.5 text-sm
-                  bg-[#F8F6F3] dark:bg-[#1a1f2e]
-                  border border-[#E8E3DA] dark:border-[#2a3040]
-                  text-stone-800 dark:text-[#e6e6e6]
-                  placeholder:text-stone-400 dark:placeholder:text-[#555]
+                  bg-[#F8F6F3] border border-[#E8E3DA]
+                  text-stone-800 placeholder:text-stone-400
                   focus:outline-none focus:ring-2 focus:ring-[#3D8A80]/40 focus:border-[#3D8A80]
                   transition-colors"
               />
@@ -166,7 +162,7 @@ export default function RegisterForm({ hash }: RegisterFormProps) {
 
             {/* Error message */}
             {error && (
-              <p className="text-sm text-red-500 dark:text-red-400 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg px-4 py-2.5">
+              <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-4 py-2.5">
                 {error}
               </p>
             )}
@@ -182,7 +178,7 @@ export default function RegisterForm({ hash }: RegisterFormProps) {
                 focus:outline-none focus:ring-2 focus:ring-[#3D8A80]/50
                 transition-opacity"
             >
-              {isPending ? 'Creating your card…' : 'Get My Starr Card ⭐'}
+              {isPending ? 'Creating your card...' : 'Get My Starr Card ⭐'}
             </button>
           </form>
         </div>

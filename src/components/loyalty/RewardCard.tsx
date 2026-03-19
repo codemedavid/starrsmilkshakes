@@ -38,10 +38,10 @@ export default function RewardCard({
       onClick={() => onSelect(reward.id)}
       disabled={selecting}
       className={[
-        'w-full text-left bg-white dark:bg-[#161b22] rounded-2xl p-4 cursor-pointer transition-all hover:shadow-md',
+        'w-full text-left bg-white rounded-2xl p-4 cursor-pointer transition-all hover:shadow-md',
         isCurrentGoal
           ? 'border-2 border-[#3D8A80]'
-          : 'border border-[#E8E3DA] dark:border-[#2a3040]',
+          : 'border border-[#E8E3DA]',
         selecting ? 'opacity-60' : '',
       ]
         .filter(Boolean)
@@ -50,11 +50,11 @@ export default function RewardCard({
       <div className="flex items-start justify-between gap-3">
         {/* Left: name and description */}
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold text-stone-800 dark:text-[#e6e6e6] leading-snug">
+          <p className="text-sm font-semibold text-stone-800 leading-snug">
             {reward.name}
           </p>
           {reward.description && (
-            <p className="text-xs text-stone-500 dark:text-[#999] mt-0.5 leading-snug">
+            <p className="text-xs text-stone-500 mt-0.5 leading-snug">
               {reward.description}
             </p>
           )}
@@ -63,11 +63,11 @@ export default function RewardCard({
           {showStampsBar && (
             <div className="mt-2">
               <div className="flex items-center justify-between mb-0.5">
-                <span className="text-xs text-stone-400 dark:text-[#777]">
+                <span className="text-xs text-stone-400">
                   {currentStamps} / {stampsRequired} ⭐
                 </span>
               </div>
-              <div className="h-1.5 rounded-full bg-stone-100 dark:bg-[#2a3040] overflow-hidden">
+              <div className="h-1.5 rounded-full bg-stone-100 overflow-hidden">
                 <div
                   className="h-full rounded-full bg-[#3D8A80] transition-all"
                   style={{ width: `${stampsProgress * 100}%` }}
@@ -79,11 +79,11 @@ export default function RewardCard({
           {showPointsBar && (
             <div className="mt-2">
               <div className="flex items-center justify-between mb-0.5">
-                <span className="text-xs text-stone-400 dark:text-[#777]">
+                <span className="text-xs text-stone-400">
                   {currentPoints} / {pointsRequired} pts
                 </span>
               </div>
-              <div className="h-1.5 rounded-full bg-stone-100 dark:bg-[#2a3040] overflow-hidden">
+              <div className="h-1.5 rounded-full bg-stone-100 overflow-hidden">
                 <div
                   className="h-full rounded-full bg-amber-400 transition-all"
                   style={{ width: `${pointsProgress * 100}%` }}
@@ -108,7 +108,7 @@ export default function RewardCard({
                 </span>
               )}
               {pointsRequired > 0 && (
-                <span className="text-amber-600 dark:text-amber-400 text-sm whitespace-nowrap">
+                <span className="text-amber-600 text-sm whitespace-nowrap">
                   {pointsRequired} pts
                 </span>
               )}

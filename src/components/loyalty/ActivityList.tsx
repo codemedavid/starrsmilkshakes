@@ -34,12 +34,12 @@ function DeltaBadge({ value, unit, color }: { value: number; unit: string; color
 export default function ActivityList({ transactions }: ActivityListProps) {
   return (
     <div>
-      <h2 className="text-sm font-semibold text-stone-700 dark:text-[#ccc] uppercase tracking-wide mb-3">
+      <h2 className="text-sm font-semibold text-stone-700 uppercase tracking-wide mb-3">
         Recent Activity
       </h2>
 
       {transactions.length === 0 ? (
-        <p className="text-sm text-stone-400 dark:text-[#555] text-center py-6">
+        <p className="text-sm text-stone-400 text-center py-6">
           No activity yet
         </p>
       ) : (
@@ -49,14 +49,14 @@ export default function ActivityList({ transactions }: ActivityListProps) {
             return (
               <li
                 key={tx.id}
-                className="flex items-center justify-between py-3 border-b border-[#F0EBE0] dark:border-[#1a1f2e] last:border-0"
+                className="flex items-center justify-between py-3 border-b border-[#F0EBE0] last:border-0"
               >
                 {/* Left: description + date */}
                 <div className="min-w-0 pr-3">
-                  <p className="text-sm text-stone-800 dark:text-[#e6e6e6] truncate">
+                  <p className="text-sm text-stone-800 truncate">
                     {tx.description}
                   </p>
-                  <p className="text-xs text-stone-400 dark:text-[#555] mt-0.5">
+                  <p className="text-xs text-stone-400 mt-0.5">
                     {formatDate(tx.created_at)}
                   </p>
                 </div>
@@ -69,8 +69,8 @@ export default function ActivityList({ transactions }: ActivityListProps) {
                       unit="⭐"
                       color={
                         isRedemption
-                          ? 'text-purple-600 dark:text-purple-400'
-                          : 'text-emerald-600 dark:text-emerald-400'
+                          ? 'text-purple-600'
+                          : 'text-emerald-600'
                       }
                     />
                   )}
@@ -80,8 +80,8 @@ export default function ActivityList({ transactions }: ActivityListProps) {
                       unit="pts"
                       color={
                         isRedemption
-                          ? 'text-purple-600 dark:text-purple-400'
-                          : 'text-amber-600 dark:text-amber-400'
+                          ? 'text-purple-600'
+                          : 'text-amber-600'
                       }
                     />
                   )}

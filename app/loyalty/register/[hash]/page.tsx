@@ -42,16 +42,16 @@ export default async function RegisterPage({ params }: PageProps) {
 
 function ErrorState({ message }: { message: string }) {
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 bg-[#FAF8F5] dark:bg-[#0d1117]">
-      <div className="max-w-md w-full bg-white dark:bg-[#161b22] border border-[#E8E3DA] dark:border-[#2a3040] rounded-2xl p-8 text-center shadow-sm">
+    <div className="min-h-screen flex items-center justify-center px-4">
+      <div className="max-w-md w-full bg-white border border-[#E8E3DA] rounded-2xl p-8 text-center shadow-sm">
         {/* Branded icon */}
         <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#3D8A80] to-[#7BBFB5] flex items-center justify-center mx-auto mb-4">
           <span className="text-white text-xl">⭐</span>
         </div>
-        <h1 className="text-lg font-semibold text-stone-800 dark:text-[#e6e6e6] mb-2">
+        <h1 className="text-lg font-semibold text-stone-800 mb-2">
           Starr&apos;s Famous Shakes
         </h1>
-        <p className="text-sm text-stone-500 dark:text-[#999] mt-4">{message}</p>
+        <p className="text-sm text-stone-500 mt-4">{message}</p>
       </div>
     </div>
   );

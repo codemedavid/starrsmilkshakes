@@ -9,7 +9,7 @@ export default function StampGrid({ currentStamps, goalStamps }: StampGridProps)
   // No goal set — simple text fallback
   if (goalStamps === null) {
     return (
-      <p className="text-2xl font-semibold text-[#3D8A80] dark:text-[#7BBFB5]">
+      <p className="text-2xl font-semibold text-[#3D8A80]">
         {currentStamps} starrs
       </p>
     );
@@ -42,12 +42,12 @@ export default function StampGrid({ currentStamps, goalStamps }: StampGridProps)
           return (
             <div
               key={slotNumber}
-              className="aspect-square flex items-center justify-center rounded-xl bg-[#F0EBE0] dark:bg-[#1a1f2e] border-2 border-dashed border-[#D5CFC4] dark:border-[#2a3040]"
+              className="aspect-square flex items-center justify-center rounded-xl bg-[#F0EBE0] border-2 border-dashed border-[#D5CFC4]"
             >
               {isLast ? (
                 <span className="text-lg leading-none">🎁</span>
               ) : (
-                <span className="text-xs font-medium text-stone-400 dark:text-[#555]">
+                <span className="text-xs font-medium text-stone-400">
                   {slotNumber}
                 </span>
               )}
@@ -58,15 +58,15 @@ export default function StampGrid({ currentStamps, goalStamps }: StampGridProps)
 
       {/* Progress text */}
       <div className="flex items-center justify-between mt-3">
-        <span className="text-sm font-medium text-stone-700 dark:text-[#ccc]">
+        <span className="text-sm font-medium text-stone-700">
           {filled}/{total} starrs
         </span>
         {remaining > 0 ? (
-          <span className="text-sm text-stone-500 dark:text-[#999]">
+          <span className="text-sm text-stone-500">
             {remaining} more to go!
           </span>
         ) : (
-          <span className="text-sm font-semibold text-[#3D8A80] dark:text-[#7BBFB5]">
+          <span className="text-sm font-semibold text-[#3D8A80]">
             Goal reached! 🎉
           </span>
         )}

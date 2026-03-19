@@ -5,7 +5,7 @@ import { requireAdmin, requireSuperAdmin, checkActionRateLimit } from '@/lib/adm
 import { supabaseServer } from '@/lib/supabase-server';
 import { uuidSchema } from '@/lib/validation';
 import { calculateEarnings, checkGoalReached } from '@/lib/loyalty-engine';
-import { generateCardCode } from '@/lib/loyalty-hash';
+import { generateCardCode, generateLoyaltyToken, getLoyaltySessionExpiry } from '@/lib/loyalty-hash';
 import { z } from 'zod';
 
 type ActionResult = { success: boolean; error?: string; data?: any };
@@ -117,22 +117,36 @@ export async function registerLoyaltyCard(
     // Check if we should pick a goal
     const { data: activeRewards } = await (supabaseServer
       .from('loyalty_rewards') as any)
-      .select('id')
+      .select('id, stamps_required')
       .eq('is_active', true);
 
-    const shouldPickGoal = !existingCard.goal_reward_id && (activeRewards?.length ?? 0) > 1;
+    let shouldPickGoal = false;
 
-    // Auto-set goal if only 1 active reward
-    if (!existingCard.goal_reward_id && activeRewards?.length === 1) {
+    // Auto-set goal to the cheapest reward (lowest stamps_required)
+    if (!existingCard.goal_reward_id && activeRewards?.length > 0) {
+      // Sort by stamps_required ascending, pick the cheapest
+      const sorted = [...activeRewards].sort((a: any, b: any) =>
+        (a.stamps_required ?? Infinity) - (b.stamps_required ?? Infinity)
+      );
       await (supabaseServer
         .from('loyalty_cards') as any)
-        .update({ goal_reward_id: activeRewards[0].id })
+        .update({ goal_reward_id: sorted[0].id })
         .eq('id', existingCard.id);
+      shouldPickGoal = false;
     }
+
+    // Create a card_view session so the customer can view their card
+    const viewToken = generateLoyaltyToken();
+    await (supabaseServer.from('loyalty_sessions') as any).insert({
+      token: viewToken,
+      psid: session.psid,
+      purpose: 'card_view',
+      expires_at: getLoyaltySessionExpiry(),
+    });
 
     revalidateTag('loyalty-cards');
     revalidateTag('customers');
-    return { success: true, data: { card: existingCard, shouldPickGoal } };
+    return { success: true, data: { card: existingCard, shouldPickGoal, viewToken } };
   }
 
   // Generate card code with collision retry (max 5 attempts, extend to 5 chars)
@@ -185,23 +199,36 @@ export async function registerLoyaltyCard(
   // Check active rewards for auto-goal
   const { data: activeRewards } = await (supabaseServer
     .from('loyalty_rewards') as any)
-    .select('id')
+    .select('id, stamps_required')
     .eq('is_active', true);
 
-  let shouldPickGoal = (activeRewards?.length ?? 0) > 1;
+  let shouldPickGoal = false;
 
-  // Auto-set goal if only 1 active reward
-  if (activeRewards?.length === 1) {
+  // Auto-set goal to the cheapest reward (lowest stamps_required)
+  if (activeRewards?.length > 0) {
+    // Sort by stamps_required ascending, pick the cheapest
+    const sorted = [...activeRewards].sort((a: any, b: any) =>
+      (a.stamps_required ?? Infinity) - (b.stamps_required ?? Infinity)
+    );
     await (supabaseServer
       .from('loyalty_cards') as any)
-      .update({ goal_reward_id: activeRewards[0].id })
+      .update({ goal_reward_id: sorted[0].id })
       .eq('id', card.id);
     shouldPickGoal = false;
   }
 
+  // Create a card_view session so the customer can view their card
+  const viewToken = generateLoyaltyToken();
+  await (supabaseServer.from('loyalty_sessions') as any).insert({
+    token: viewToken,
+    psid: session.psid,
+    purpose: 'card_view',
+    expires_at: getLoyaltySessionExpiry(),
+  });
+
   revalidateTag('loyalty-cards');
   revalidateTag('customers');
-  return { success: true, data: { card, shouldPickGoal } };
+  return { success: true, data: { card, shouldPickGoal, viewToken } };
 }
 
 // ─── creditLoyalty ───────────────────────────────────────────────────────────

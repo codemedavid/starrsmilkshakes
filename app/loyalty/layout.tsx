@@ -7,7 +7,7 @@ export const metadata: Metadata = {
 
 export default function LoyaltyLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen bg-[#FAF8F5] dark:bg-[#0d1117] transition-colors">
+    <div className="min-h-screen bg-[#FAF8F5]" data-theme="light" style={{ colorScheme: 'light' }}>
       {children}
     </div>
   );

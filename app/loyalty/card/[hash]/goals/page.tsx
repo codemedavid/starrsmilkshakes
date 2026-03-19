@@ -14,15 +14,15 @@ interface PageProps {
 
 function ErrorState({ message }: { message: string }) {
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 bg-[#FAF8F5] dark:bg-[#0d1117]">
-      <div className="max-w-md w-full bg-white dark:bg-[#161b22] border border-[#E8E3DA] dark:border-[#2a3040] rounded-2xl p-8 text-center shadow-sm">
+    <div className="min-h-screen flex items-center justify-center px-4 bg-[#FAF8F5]">
+      <div className="max-w-md w-full bg-white border border-[#E8E3DA] rounded-2xl p-8 text-center shadow-sm">
         <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#3D8A80] to-[#7BBFB5] flex items-center justify-center mx-auto mb-4">
           <span className="text-white text-xl">⭐</span>
         </div>
-        <h1 className="text-lg font-semibold text-stone-800 dark:text-[#e6e6e6] mb-2">
+        <h1 className="text-lg font-semibold text-stone-800 mb-2">
           Starr&apos;s Famous Shakes
         </h1>
-        <p className="text-sm text-stone-500 dark:text-[#999] mt-4">{message}</p>
+        <p className="text-sm text-stone-500 mt-4">{message}</p>
       </div>
     </div>
   );
@@ -76,7 +76,7 @@ export default async function GoalsPage({ params }: PageProps) {
   // ── 4. Render ──────────────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen bg-[#FAF8F5] dark:bg-[#0d1117] pb-10">
+    <div className="min-h-screen bg-[#FAF8F5] pb-10">
       <div className="max-w-md mx-auto">
 
         {/* ── Teal gradient header ─────────────────────────────────────────── */}
@@ -91,8 +91,8 @@ export default async function GoalsPage({ params }: PageProps) {
         <div className="px-4 space-y-4 mt-4">
 
           {rewards.length === 0 ? (
-            <div className="bg-white dark:bg-[#161b22] border border-[#E8E3DA] dark:border-[#2a3040] rounded-2xl p-6 text-center shadow-sm">
-              <p className="text-sm text-stone-500 dark:text-[#999]">
+            <div className="bg-white border border-[#E8E3DA] rounded-2xl p-6 text-center shadow-sm">
+              <p className="text-sm text-stone-500">
                 No rewards are available right now. Check back soon!
               </p>
             </div>
@@ -104,10 +104,10 @@ export default async function GoalsPage({ params }: PageProps) {
           <Link
             href={`/loyalty/card/${hash}`}
             className="flex items-center justify-center gap-2 w-full py-3 rounded-2xl
-              bg-white dark:bg-[#161b22]
-              border border-[#E8E3DA] dark:border-[#2a3040]
-              text-sm font-semibold text-stone-700 dark:text-[#ccc]
-              hover:bg-[#F0EBE0] dark:hover:bg-[#1a1f2e]
+              bg-white
+              border border-[#E8E3DA]
+              text-sm font-semibold text-stone-700
+              hover:bg-[#F0EBE0]
               transition-colors shadow-sm"
           >
             ← Back to My Card
