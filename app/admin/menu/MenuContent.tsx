@@ -11,10 +11,12 @@ import {
   Star,
   Eye,
   EyeOff,
+  Upload,
 } from 'lucide-react';
 import type { MenuItem, Category } from '@/types';
 import { deleteMenuItem, bulkUpdateMessengerVisibility } from '@/actions/menu';
 import MenuItemForm from '@/components/admin/MenuItemForm';
+import BulkCostImport from '@/components/admin/BulkCostImport';
 
 interface MenuContentProps {
   menuItems: MenuItem[];
@@ -28,6 +30,7 @@ export default function MenuContent({ menuItems, categories }: MenuContentProps)
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [bulkPending, startBulkTransition] = useTransition();
+  const [showBulkImport, setShowBulkImport] = useState(false);
 
   // ── Group items by category ─────────────────────────────────────────────
 
@@ -128,6 +131,19 @@ export default function MenuContent({ menuItems, categories }: MenuContentProps)
                 Hide Messenger
               </button>
             </div>
+
+            <button
+              onClick={() => setShowBulkImport(true)}
+              className="
+                inline-flex items-center gap-2 px-4 py-2.5
+                text-sm font-nunito font-semibold text-stone-600
+                border border-[#E8E3DA] rounded-[10px]
+                hover:bg-[#F2EEE8] transition-all duration-200
+              "
+            >
+              <Upload className="h-4 w-4" />
+              Import Costs
+            </button>
 
             <button
               onClick={() => {
@@ -357,6 +373,9 @@ export default function MenuContent({ menuItems, categories }: MenuContentProps)
           </div>
         )}
       </div>
+
+      {/* Bulk Cost Import modal */}
+      {showBulkImport && <BulkCostImport onClose={() => setShowBulkImport(false)} />}
 
       {/* Menu Item Form modal */}
       {showForm && (
