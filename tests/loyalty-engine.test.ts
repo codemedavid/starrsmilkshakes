@@ -64,7 +64,7 @@ const baseCard = (overrides: Partial<LoyaltyCard> = {}): LoyaltyCard => ({
   card_code: 'ABCD1234',
   current_stamps: 0,
   current_points: 0,
-  goal_reward_id: null,
+  goal_id: null,
   lifetime_stamps: 0,
   lifetime_points: 0,
   created_at: '2026-01-01T00:00:00Z',

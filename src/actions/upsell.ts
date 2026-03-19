@@ -7,6 +7,7 @@ import {
   matchPairOffers,
   matchInterstitialOffers,
 } from '@/lib/upsell-engine';
+import { normalizeMenuItem } from '@/lib/upsell-helpers';
 import type { UpsellCartItem, UpsellCart } from '@/types/upsell';
 
 type ActionResult = { success: boolean; error?: string; data?: any };
@@ -20,10 +21,10 @@ export async function getUpgradeOffers(cartItems: UpsellCartItem[]): Promise<Act
 
     if (error) return { success: false, error: 'Failed to fetch upgrade rules' };
 
-    // Map joined data to offer_item/offer_bundle
+    // Normalize joined data: Supabase returns snake_case, engine/components expect camelCase
     const mappedRules = (rules || []).map((r: any) => ({
       ...r,
-      offer_item: r.offer_item ?? null,
+      offer_item: r.offer_item ? normalizeMenuItem(r.offer_item) : null,
       offer_bundle: r.offer_bundle ?? null,
     }));
 
@@ -63,10 +64,10 @@ export async function getPairSuggestions(cartItems: UpsellCartItem[]): Promise<A
 
     if (error) return { success: false, error: 'Failed to fetch pair rules' };
 
-    // Map joined data
+    // Normalize joined data
     const mapped = (rules || []).map((r: any) => ({
       ...r,
-      paired_item: r.paired_item ?? null,
+      paired_item: r.paired_item ? normalizeMenuItem(r.paired_item) : null,
       paired_bundle: r.paired_bundle ?? null,
     }));
 
@@ -91,7 +92,7 @@ export async function getInterstitialOffers(
 
     const mappedRules = (rules || []).map((r: any) => ({
       ...r,
-      offer_item: r.offer_item ?? null,
+      offer_item: r.offer_item ? normalizeMenuItem(r.offer_item) : null,
       offer_bundle: r.offer_bundle ?? null,
     }));
 
@@ -110,9 +111,9 @@ export async function getInterstitialOffers(
           .select('*').limit(1).single();
         loyaltyConfig = config;
 
-        if (card.goal_reward_id) {
-          const { data: reward } = await (supabaseServer.from('loyalty_rewards') as any)
-            .select('*').eq('id', card.goal_reward_id).single();
+        if (card.goal_id) {
+          const { data: reward } = await (supabaseServer.from('loyalty_goals') as any)
+            .select('*').eq('id', card.goal_id).single();
           goalReward = reward;
         }
       }

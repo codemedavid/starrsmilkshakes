@@ -18,7 +18,7 @@ import type {
   LoyaltyBooster,
   LoyaltyOrderItem,
   LoyaltyCard,
-  LoyaltyReward,
+  LoyaltyGoal,
 } from '@/types/loyalty';
 
 // ---------------------------------------------------------------------------
@@ -76,7 +76,7 @@ function makeCard(overrides: Partial<LoyaltyCard> = {}): LoyaltyCard {
     card_code: 'STARR-ABCD',
     current_stamps: 0,
     current_points: 0,
-    goal_reward_id: null,
+    goal_id: null,
     lifetime_stamps: 0,
     lifetime_points: 0,
     created_at: '2026-01-01T00:00:00Z',
@@ -85,7 +85,7 @@ function makeCard(overrides: Partial<LoyaltyCard> = {}): LoyaltyCard {
   };
 }
 
-function makeReward(overrides: Partial<LoyaltyReward> = {}): LoyaltyReward {
+function makeGoal(overrides: Partial<LoyaltyGoal> = {}): LoyaltyGoal {
   return {
     id: 'reward-1',
     name: 'Free Premium Shake',
@@ -374,50 +374,50 @@ describe('checkGoalReached', () => {
 
   it('stamps requirement met → true', () => {
     const card = makeCard({ current_stamps: 10, current_points: 0 });
-    const reward = makeReward({ stamps_required: 10, points_required: null });
-    expect(checkGoalReached(card, reward)).toBe(true);
+    const goal = makeGoal({ stamps_required: 10, points_required: null });
+    expect(checkGoalReached(card, goal)).toBe(true);
   });
 
   it('points requirement met → true', () => {
     const card = makeCard({ current_stamps: 0, current_points: 500 });
-    const reward = makeReward({ stamps_required: null, points_required: 500 });
-    expect(checkGoalReached(card, reward)).toBe(true);
+    const goal = makeGoal({ stamps_required: null, points_required: 500 });
+    expect(checkGoalReached(card, goal)).toBe(true);
   });
 
   it('neither met → false', () => {
     const card = makeCard({ current_stamps: 3, current_points: 50 });
-    const reward = makeReward({ stamps_required: 10, points_required: 500 });
-    expect(checkGoalReached(card, reward)).toBe(false);
+    const goal = makeGoal({ stamps_required: 10, points_required: 500 });
+    expect(checkGoalReached(card, goal)).toBe(false);
   });
 
   it('only stamps required and met → true', () => {
     const card = makeCard({ current_stamps: 15, current_points: 0 });
-    const reward = makeReward({ stamps_required: 10, points_required: null });
-    expect(checkGoalReached(card, reward)).toBe(true);
+    const goal = makeGoal({ stamps_required: 10, points_required: null });
+    expect(checkGoalReached(card, goal)).toBe(true);
   });
 
   it('only points required and met → true', () => {
     const card = makeCard({ current_stamps: 0, current_points: 1000 });
-    const reward = makeReward({ stamps_required: null, points_required: 500 });
-    expect(checkGoalReached(card, reward)).toBe(true);
+    const goal = makeGoal({ stamps_required: null, points_required: 500 });
+    expect(checkGoalReached(card, goal)).toBe(true);
   });
 
   it('OR logic: stamps met but points not → still true', () => {
     const card = makeCard({ current_stamps: 10, current_points: 100 });
-    const reward = makeReward({ stamps_required: 10, points_required: 500 });
-    expect(checkGoalReached(card, reward)).toBe(true);
+    const goal = makeGoal({ stamps_required: 10, points_required: 500 });
+    expect(checkGoalReached(card, goal)).toBe(true);
   });
 
   it('OR logic: points met but stamps not → still true', () => {
     const card = makeCard({ current_stamps: 2, current_points: 500 });
-    const reward = makeReward({ stamps_required: 10, points_required: 500 });
-    expect(checkGoalReached(card, reward)).toBe(true);
+    const goal = makeGoal({ stamps_required: 10, points_required: 500 });
+    expect(checkGoalReached(card, goal)).toBe(true);
   });
 
   it('both null requirements → false (neither condition is satisfied)', () => {
     const card = makeCard({ current_stamps: 100, current_points: 100 });
-    const reward = makeReward({ stamps_required: null, points_required: null });
-    expect(checkGoalReached(card, reward)).toBe(false);
+    const goal = makeGoal({ stamps_required: null, points_required: null });
+    expect(checkGoalReached(card, goal)).toBe(false);
   });
 });
 
@@ -428,32 +428,32 @@ describe('checkGoalReached', () => {
 describe('calculateCarryover', () => {
   it('basic carryover calculation', () => {
     const card = makeCard({ current_stamps: 12, current_points: 600 });
-    const reward = makeReward({ stamps_required: 10, points_required: 500 });
-    const result = calculateCarryover(card, reward);
+    const goal = makeGoal({ stamps_required: 10, points_required: 500 });
+    const result = calculateCarryover(card, goal);
     expect(result.stamps).toBe(2);  // 12 - 10
     expect(result.points).toBe(100); // 600 - 500
   });
 
   it('null requirements treated as 0', () => {
     const card = makeCard({ current_stamps: 5, current_points: 200 });
-    const reward = makeReward({ stamps_required: null, points_required: null });
-    const result = calculateCarryover(card, reward);
+    const goal = makeGoal({ stamps_required: null, points_required: null });
+    const result = calculateCarryover(card, goal);
     expect(result.stamps).toBe(5);  // 5 - 0
     expect(result.points).toBe(200); // 200 - 0
   });
 
   it('exact goal reached → 0 carryover', () => {
     const card = makeCard({ current_stamps: 10, current_points: 500 });
-    const reward = makeReward({ stamps_required: 10, points_required: 500 });
-    const result = calculateCarryover(card, reward);
+    const goal = makeGoal({ stamps_required: 10, points_required: 500 });
+    const result = calculateCarryover(card, goal);
     expect(result.stamps).toBe(0);
     expect(result.points).toBe(0);
   });
 
   it('below goal → negative carryover', () => {
     const card = makeCard({ current_stamps: 3, current_points: 50 });
-    const reward = makeReward({ stamps_required: 10, points_required: 500 });
-    const result = calculateCarryover(card, reward);
+    const goal = makeGoal({ stamps_required: 10, points_required: 500 });
+    const result = calculateCarryover(card, goal);
     expect(result.stamps).toBe(-7);
     expect(result.points).toBe(-450);
   });

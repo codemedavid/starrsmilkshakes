@@ -9,7 +9,7 @@ import { describe, it, expect } from 'vitest';
 import {
   buildStampEarnedMessage,
   buildGoalAchievedMessage,
-  buildRewardClaimedMessage,
+  buildGoalClaimedMessage,
 } from '@/lib/loyalty-notifications';
 
 // ---------------------------------------------------------------------------
@@ -88,47 +88,47 @@ describe('buildGoalAchievedMessage', () => {
 });
 
 // ---------------------------------------------------------------------------
-// buildRewardClaimedMessage
+// buildGoalClaimedMessage
 // ---------------------------------------------------------------------------
 
-describe('buildRewardClaimedMessage', () => {
+describe('buildGoalClaimedMessage', () => {
   it('both stamps and points > 0 → shows both', () => {
-    const msg = buildRewardClaimedMessage(2, 100);
+    const msg = buildGoalClaimedMessage(2, 100);
     expect(msg).toContain('2 starrs');
     expect(msg).toContain('100 pts');
     expect(msg).toContain(' and ');
   });
 
   it('only stamps > 0 → shows only stamps', () => {
-    const msg = buildRewardClaimedMessage(3, 0);
+    const msg = buildGoalClaimedMessage(3, 0);
     expect(msg).toContain('3 starrs');
     expect(msg).not.toContain('pts');
     expect(msg).not.toContain(' and ');
   });
 
   it('only points > 0 → shows only points', () => {
-    const msg = buildRewardClaimedMessage(0, 50);
+    const msg = buildGoalClaimedMessage(0, 50);
     expect(msg).toContain('50 pts');
     expect(msg).not.toContain('starr');
     expect(msg).not.toContain(' and ');
   });
 
   it('both 0 → no "You have" portion', () => {
-    const msg = buildRewardClaimedMessage(0, 0);
-    expect(msg).toBe('\u2705 Reward claimed!');
+    const msg = buildGoalClaimedMessage(0, 0);
+    expect(msg).toBe('\u2705 Goal claimed!');
     expect(msg).not.toContain('You have');
   });
 
   it('1 stamp uses singular "starr"', () => {
-    const msg = buildRewardClaimedMessage(1, 0);
+    const msg = buildGoalClaimedMessage(1, 0);
     expect(msg).toContain('1 starr');
     expect(msg).not.toContain('starrs');
   });
 
   it('full message with both carryovers', () => {
-    const msg = buildRewardClaimedMessage(2, 100);
+    const msg = buildGoalClaimedMessage(2, 100);
     expect(msg).toBe(
-      '\u2705 Reward claimed! You have 2 starrs and 100 pts toward your next goal.',
+      '\u2705 Goal claimed! You have 2 starrs and 100 pts toward your next goal.',
     );
   });
 });

@@ -11,7 +11,7 @@ import type {
   UpsellCartItem,
   UpsellCart,
 } from '@/types/upsell';
-import type { LoyaltyCard, LoyaltyConfig, LoyaltyReward } from '@/types/loyalty';
+import type { LoyaltyCard, LoyaltyConfig, LoyaltyGoal } from '@/types/loyalty';
 
 /** Filter rules that are active and within date range. */
 export function filterActiveRules<
@@ -37,7 +37,7 @@ export function prioritizeOffers<T extends { priority: number }>(
 export function shouldShowLoyaltyNudge(
   card: LoyaltyCard | null,
   config: LoyaltyConfig | null,
-  goalReward: LoyaltyReward | null,
+  goalReward: LoyaltyGoal | null,
 ): { show: boolean; message: string; stampsAway: number | null; pointsAway: number | null } {
   if (!card || !config || !goalReward) {
     return { show: false, message: '', stampsAway: null, pointsAway: null };
@@ -182,7 +182,7 @@ export function matchInterstitialOffers(
   rules: UpsellRule[],
   loyaltyCard: LoyaltyCard | null,
   loyaltyConfig: LoyaltyConfig | null,
-  goalReward: LoyaltyReward | null,
+  goalReward: LoyaltyGoal | null,
   now: Date,
 ): InterstitialOffer | null {
   const active = filterActiveRules(rules.filter(r => r.phase === 'interstitial'), now);

@@ -19,7 +19,7 @@ import type {
   UpsellCartItem,
   UpsellCart,
 } from '@/types/upsell';
-import type { LoyaltyCard, LoyaltyConfig, LoyaltyReward } from '@/types/loyalty';
+import type { LoyaltyCard, LoyaltyConfig, LoyaltyGoal } from '@/types/loyalty';
 import type { MenuItem } from '@/types';
 import type { Bundle } from '@/types/bundle';
 
@@ -108,7 +108,7 @@ function makeLoyaltyCard(overrides: Partial<LoyaltyCard> = {}): LoyaltyCard {
     card_code: 'ABC123',
     current_stamps: 7,
     current_points: 0,
-    goal_reward_id: 'reward-1',
+    goal_id: 'goal-1',
     lifetime_stamps: 30,
     lifetime_points: 0,
     created_at: '2026-01-01T00:00:00Z',
@@ -133,7 +133,7 @@ function makeLoyaltyConfig(overrides: Partial<LoyaltyConfig> = {}): LoyaltyConfi
   };
 }
 
-function makeLoyaltyReward(overrides: Partial<LoyaltyReward> = {}): LoyaltyReward {
+function makeLoyaltyGoal(overrides: Partial<LoyaltyGoal> = {}): LoyaltyGoal {
   return {
     id: 'reward-1',
     name: 'Free Shake',
@@ -271,12 +271,12 @@ describe('prioritizeOffers', () => {
 
 describe('shouldShowLoyaltyNudge', () => {
   it('returns show: false when card is null', () => {
-    const result = shouldShowLoyaltyNudge(null, makeLoyaltyConfig(), makeLoyaltyReward());
+    const result = shouldShowLoyaltyNudge(null, makeLoyaltyConfig(), makeLoyaltyGoal());
     expect(result.show).toBe(false);
   });
 
   it('returns show: false when config is null', () => {
-    const result = shouldShowLoyaltyNudge(makeLoyaltyCard(), null, makeLoyaltyReward());
+    const result = shouldShowLoyaltyNudge(makeLoyaltyCard(), null, makeLoyaltyGoal());
     expect(result.show).toBe(false);
   });
 
@@ -287,8 +287,8 @@ describe('shouldShowLoyaltyNudge', () => {
 
   it('shows nudge when 1 stamp away from goal', () => {
     const card = makeLoyaltyCard({ current_stamps: 9 });
-    const reward = makeLoyaltyReward({ stamps_required: 10 });
-    const result = shouldShowLoyaltyNudge(card, makeLoyaltyConfig(), reward);
+    const goal = makeLoyaltyGoal({ stamps_required: 10 });
+    const result = shouldShowLoyaltyNudge(card, makeLoyaltyConfig(), goal);
     expect(result.show).toBe(true);
     expect(result.stampsAway).toBe(1);
     expect(result.message).toContain('1 stamp away');
@@ -297,8 +297,8 @@ describe('shouldShowLoyaltyNudge', () => {
 
   it('shows nudge when 3 stamps away from goal', () => {
     const card = makeLoyaltyCard({ current_stamps: 7 });
-    const reward = makeLoyaltyReward({ stamps_required: 10 });
-    const result = shouldShowLoyaltyNudge(card, makeLoyaltyConfig(), reward);
+    const goal = makeLoyaltyGoal({ stamps_required: 10 });
+    const result = shouldShowLoyaltyNudge(card, makeLoyaltyConfig(), goal);
     expect(result.show).toBe(true);
     expect(result.stampsAway).toBe(3);
     expect(result.message).toContain('3 stamps away');
@@ -306,24 +306,24 @@ describe('shouldShowLoyaltyNudge', () => {
 
   it('does NOT show nudge when 4 stamps away (outside threshold)', () => {
     const card = makeLoyaltyCard({ current_stamps: 6 });
-    const reward = makeLoyaltyReward({ stamps_required: 10 });
-    const result = shouldShowLoyaltyNudge(card, makeLoyaltyConfig(), reward);
+    const goal = makeLoyaltyGoal({ stamps_required: 10 });
+    const result = shouldShowLoyaltyNudge(card, makeLoyaltyConfig(), goal);
     expect(result.show).toBe(false);
     expect(result.stampsAway).toBe(4);
   });
 
   it('does NOT show nudge when customer already reached goal (0 stamps away)', () => {
     const card = makeLoyaltyCard({ current_stamps: 10 });
-    const reward = makeLoyaltyReward({ stamps_required: 10 });
-    const result = shouldShowLoyaltyNudge(card, makeLoyaltyConfig(), reward);
+    const goal = makeLoyaltyGoal({ stamps_required: 10 });
+    const result = shouldShowLoyaltyNudge(card, makeLoyaltyConfig(), goal);
     expect(result.show).toBe(false);
     expect(result.stampsAway).toBe(0);
   });
 
   it('shows nudge when 30 points away from goal', () => {
     const card = makeLoyaltyCard({ current_stamps: 0, current_points: 70 });
-    const reward = makeLoyaltyReward({ stamps_required: null, points_required: 100 });
-    const result = shouldShowLoyaltyNudge(card, makeLoyaltyConfig(), reward);
+    const goal = makeLoyaltyGoal({ stamps_required: null, points_required: 100 });
+    const result = shouldShowLoyaltyNudge(card, makeLoyaltyConfig(), goal);
     expect(result.show).toBe(true);
     expect(result.pointsAway).toBe(30);
     expect(result.message).toContain('30 points away');
@@ -331,23 +331,23 @@ describe('shouldShowLoyaltyNudge', () => {
 
   it('does NOT show nudge when 51 points away (outside threshold)', () => {
     const card = makeLoyaltyCard({ current_stamps: 0, current_points: 49 });
-    const reward = makeLoyaltyReward({ stamps_required: null, points_required: 100 });
-    const result = shouldShowLoyaltyNudge(card, makeLoyaltyConfig(), reward);
+    const goal = makeLoyaltyGoal({ stamps_required: null, points_required: 100 });
+    const result = shouldShowLoyaltyNudge(card, makeLoyaltyConfig(), goal);
     expect(result.show).toBe(false);
     expect(result.pointsAway).toBe(51);
   });
 
   it('uses plural "stamps" for counts > 1', () => {
     const card = makeLoyaltyCard({ current_stamps: 8 });
-    const reward = makeLoyaltyReward({ stamps_required: 10 });
-    const result = shouldShowLoyaltyNudge(card, makeLoyaltyConfig(), reward);
+    const goal = makeLoyaltyGoal({ stamps_required: 10 });
+    const result = shouldShowLoyaltyNudge(card, makeLoyaltyConfig(), goal);
     expect(result.message).toContain('stamps');
   });
 
   it('uses singular "stamp" for exactly 1', () => {
     const card = makeLoyaltyCard({ current_stamps: 9 });
-    const reward = makeLoyaltyReward({ stamps_required: 10 });
-    const result = shouldShowLoyaltyNudge(card, makeLoyaltyConfig(), reward);
+    const goal = makeLoyaltyGoal({ stamps_required: 10 });
+    const result = shouldShowLoyaltyNudge(card, makeLoyaltyConfig(), goal);
     expect(result.message).toContain('1 stamp away');
     expect(result.message).not.toContain('stamps away');
   });
@@ -875,9 +875,9 @@ describe('matchInterstitialOffers', () => {
       trigger_item_ids: ['item-1'],
     });
     const card = makeLoyaltyCard({ current_stamps: 8 });
-    const reward = makeLoyaltyReward({ stamps_required: 10 });
+    const goal = makeLoyaltyGoal({ stamps_required: 10 });
     const cart = makeCart({ items: [makeCartItem({ menu_item_id: 'item-1' })] });
-    const result = matchInterstitialOffers(cart, [rule], card, makeLoyaltyConfig(), reward, NOW);
+    const result = matchInterstitialOffers(cart, [rule], card, makeLoyaltyConfig(), goal, NOW);
     expect(result).not.toBeNull();
     expect(result!.type).toBe('loyalty_nudge');
     expect(result!.loyalty_message).toContain('2 stamps away');
@@ -891,9 +891,9 @@ describe('matchInterstitialOffers', () => {
       trigger_item_ids: ['item-1'],
     });
     const card = makeLoyaltyCard({ current_stamps: 2 });
-    const reward = makeLoyaltyReward({ stamps_required: 10 });
+    const goal = makeLoyaltyGoal({ stamps_required: 10 });
     const cart = makeCart({ items: [makeCartItem({ menu_item_id: 'item-1' })] });
-    const result = matchInterstitialOffers(cart, [rule], card, makeLoyaltyConfig(), reward, NOW);
+    const result = matchInterstitialOffers(cart, [rule], card, makeLoyaltyConfig(), goal, NOW);
     expect(result).toBeNull();
   });
 

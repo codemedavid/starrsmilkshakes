@@ -171,7 +171,7 @@ describe('creditLoyalty', () => {
       current_points: 200,
       lifetime_stamps: 5,
       lifetime_points: 200,
-      goal_reward_id: null,
+      goal_id: null,
     });
     // Duplicate: an earn transaction already exists for this order
     tableMocks['loyalty_transactions'] = found({ id: 'tx-existing' });
@@ -201,7 +201,7 @@ describe('creditLoyalty', () => {
       current_points: 0,
       lifetime_stamps: 0,
       lifetime_points: 0,
-      goal_reward_id: null,
+      goal_id: null,
     });
     // No duplicate transaction
     tableMocks['loyalty_transactions'] = notFound();
@@ -234,7 +234,7 @@ describe('creditLoyalty', () => {
       current_points: 50,
       lifetime_stamps: 2,
       lifetime_points: 50,
-      goal_reward_id: null,
+      goal_id: null,
     };
     tableMocks['loyalty_cards'] = found(cardData);
 
@@ -291,7 +291,7 @@ describe('creditLoyalty', () => {
       current_points: 0,
       lifetime_stamps: 10,
       lifetime_points: 0,
-      goal_reward_id: 'reward-1',
+      goal_id: 'goal-1',
     });
 
     tableMocks['loyalty_transactions'] = notFound();
@@ -311,8 +311,8 @@ describe('creditLoyalty', () => {
     tableMocks['loyalty_boosters'] = found([]);
 
     // Goal reward lookup
-    tableMocks['loyalty_rewards'] = found({
-      id: 'reward-1',
+    tableMocks['loyalty_goals'] = found({
+      id: 'goal-1',
       name: 'Free Shake',
       stamps_required: 10,
       points_required: null,
@@ -348,7 +348,7 @@ describe('creditLoyalty', () => {
       current_points: 0,
       lifetime_stamps: 4,
       lifetime_points: 0,
-      goal_reward_id: 'reward-1',
+      goal_id: 'goal-1',
     });
 
     tableMocks['loyalty_transactions'] = notFound();
@@ -367,8 +367,8 @@ describe('creditLoyalty', () => {
 
     tableMocks['loyalty_boosters'] = found([]);
 
-    tableMocks['loyalty_rewards'] = found({
-      id: 'reward-1',
+    tableMocks['loyalty_goals'] = found({
+      id: 'goal-1',
       name: 'Free Shake',
       stamps_required: 10,
       points_required: null,

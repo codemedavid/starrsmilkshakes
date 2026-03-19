@@ -14,7 +14,7 @@ import { describe, it, expect } from 'vitest';
 import {
   loyaltyConfigSchema,
   loyaltyBoosterSchema,
-  loyaltyRewardSchema,
+  loyaltyGoalSchema,
 } from '@/lib/validation';
 
 // ---------------------------------------------------------------------------
@@ -316,96 +316,96 @@ describe('loyaltyBoosterSchema', () => {
 });
 
 // ---------------------------------------------------------------------------
-// loyaltyRewardSchema
+// loyaltyGoalSchema
 // ---------------------------------------------------------------------------
 
-describe('loyaltyRewardSchema', () => {
+describe('loyaltyGoalSchema', () => {
   it('valid input passes', () => {
-    const result = loyaltyRewardSchema.safeParse(validReward());
+    const result = loyaltyGoalSchema.safeParse(validReward());
     expect(result.success).toBe(true);
   });
 
   it('name is required', () => {
     const { name, ...rest } = validReward();
-    const result = loyaltyRewardSchema.safeParse(rest);
+    const result = loyaltyGoalSchema.safeParse(rest);
     expect(result.success).toBe(false);
   });
 
   it('empty name rejected', () => {
     const input = { ...validReward(), name: '' };
-    const result = loyaltyRewardSchema.safeParse(input);
+    const result = loyaltyGoalSchema.safeParse(input);
     expect(result.success).toBe(false);
   });
 
   it('stamps_required is optional/nullable', () => {
     const input1 = { ...validReward(), stamps_required: null };
-    expect(loyaltyRewardSchema.safeParse(input1).success).toBe(true);
+    expect(loyaltyGoalSchema.safeParse(input1).success).toBe(true);
 
     const { stamps_required, ...input2 } = validReward();
-    expect(loyaltyRewardSchema.safeParse(input2).success).toBe(true);
+    expect(loyaltyGoalSchema.safeParse(input2).success).toBe(true);
   });
 
   it('points_required is optional/nullable', () => {
     const input1 = { ...validReward(), points_required: null };
-    expect(loyaltyRewardSchema.safeParse(input1).success).toBe(true);
+    expect(loyaltyGoalSchema.safeParse(input1).success).toBe(true);
 
     const { points_required, ...input2 } = validReward();
-    expect(loyaltyRewardSchema.safeParse(input2).success).toBe(true);
+    expect(loyaltyGoalSchema.safeParse(input2).success).toBe(true);
   });
 
   it('stamps_required = 0 rejected (min is 1 when present)', () => {
     const input = { ...validReward(), stamps_required: 0 };
-    const result = loyaltyRewardSchema.safeParse(input);
+    const result = loyaltyGoalSchema.safeParse(input);
     expect(result.success).toBe(false);
   });
 
   it('points_required = 0 rejected (min is 1 when present)', () => {
     const input = { ...validReward(), points_required: 0 };
-    const result = loyaltyRewardSchema.safeParse(input);
+    const result = loyaltyGoalSchema.safeParse(input);
     expect(result.success).toBe(false);
   });
 
   it('stamps_required = 1 passes', () => {
     const input = { ...validReward(), stamps_required: 1 };
-    const result = loyaltyRewardSchema.safeParse(input);
+    const result = loyaltyGoalSchema.safeParse(input);
     expect(result.success).toBe(true);
   });
 
   it('negative stamps_required rejected', () => {
     const input = { ...validReward(), stamps_required: -5 };
-    const result = loyaltyRewardSchema.safeParse(input);
+    const result = loyaltyGoalSchema.safeParse(input);
     expect(result.success).toBe(false);
   });
 
   it('description is nullable/optional', () => {
     const input1 = { ...validReward(), description: null };
-    expect(loyaltyRewardSchema.safeParse(input1).success).toBe(true);
+    expect(loyaltyGoalSchema.safeParse(input1).success).toBe(true);
 
     const { description, ...input2 } = validReward();
-    expect(loyaltyRewardSchema.safeParse(input2).success).toBe(true);
+    expect(loyaltyGoalSchema.safeParse(input2).success).toBe(true);
   });
 
   it('image_url must be a valid URL when present', () => {
     const input = { ...validReward(), image_url: 'not-a-url' };
-    const result = loyaltyRewardSchema.safeParse(input);
+    const result = loyaltyGoalSchema.safeParse(input);
     expect(result.success).toBe(false);
   });
 
   it('image_url null passes', () => {
     const input = { ...validReward(), image_url: null };
-    const result = loyaltyRewardSchema.safeParse(input);
+    const result = loyaltyGoalSchema.safeParse(input);
     expect(result.success).toBe(true);
   });
 
   it('name longer than 100 chars rejected', () => {
     const input = { ...validReward(), name: 'A'.repeat(101) };
-    const result = loyaltyRewardSchema.safeParse(input);
+    const result = loyaltyGoalSchema.safeParse(input);
     expect(result.success).toBe(false);
   });
 
   it('name exactly 100 chars passes', () => {
     const input = { ...validReward(), name: 'A'.repeat(100) };
-    const result = loyaltyRewardSchema.safeParse(input);
+    const result = loyaltyGoalSchema.safeParse(input);
     expect(result.success).toBe(true);
   });
 
@@ -413,7 +413,7 @@ describe('loyaltyRewardSchema', () => {
 
   it('name strips HTML tags', () => {
     const input = { ...validReward(), name: 'Free <b>Shake</b>' };
-    const result = loyaltyRewardSchema.safeParse(input);
+    const result = loyaltyGoalSchema.safeParse(input);
     expect(result.success).toBe(true);
     if (result.success) {
       expect(result.data.name).not.toContain('<b>');
@@ -425,7 +425,7 @@ describe('loyaltyRewardSchema', () => {
 
   it('minimal reward (name only) passes', () => {
     const input = { name: 'Free Shake' };
-    const result = loyaltyRewardSchema.safeParse(input);
+    const result = loyaltyGoalSchema.safeParse(input);
     expect(result.success).toBe(true);
   });
 });
