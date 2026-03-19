@@ -269,3 +269,59 @@ export type CreateBundleInput = z.infer<typeof createBundleSchema>;
 export const updateBundleSchema = createBundleSchema;
 
 export type UpdateBundleInput = z.infer<typeof updateBundleSchema>;
+
+// ─── Upsell ─────────────────────────────────────────────────────────────────
+
+export const upsellRuleSchema = z.object({
+  name: sanitized.pipe(z.string().min(1, 'Rule name is required').max(200)),
+  phase: z.enum(['upgrade', 'best_pair', 'interstitial']),
+  trigger_type: z.enum(['item', 'category', 'cart_total', 'cart_empty_category']),
+  trigger_item_ids: z.array(z.string().uuid()).optional().default([]),
+  trigger_category_ids: z.array(z.string().min(1)).optional().default([]),
+  trigger_min_total: z.number().min(0).nullable().optional(),
+  offer_type: z.enum(['item', 'bundle', 'discount', 'loyalty_nudge']),
+  offer_item_id: z.string().uuid().nullable().optional(),
+  offer_bundle_id: z.string().uuid().nullable().optional(),
+  offer_discount_percent: z.number().min(1).max(100).nullable().optional(),
+  offer_message: z.string().max(500).nullable().optional(),
+  priority: z.number().int().min(0).optional().default(0),
+  is_active: z.boolean().optional().default(true),
+  starts_at: z.string().nullable().optional(),
+  ends_at: z.string().nullable().optional(),
+});
+
+export type UpsellRuleInput = z.infer<typeof upsellRuleSchema>;
+
+export const addonSuggestionInputSchema = z.object({
+  add_on_id: z.string().uuid(),
+  suggestion_text: z.string().max(200).nullable().optional(),
+  sort_order: z.number().int().min(0).optional().default(0),
+  is_active: z.boolean().optional().default(true),
+  starts_at: z.string().nullable().optional(),
+  ends_at: z.string().nullable().optional(),
+});
+
+export const setAddonSuggestionsSchema = z.object({
+  menu_item_id: z.string().uuid(),
+  suggestions: z.array(addonSuggestionInputSchema),
+});
+
+export type SetAddonSuggestionsInput = z.infer<typeof setAddonSuggestionsSchema>;
+
+export const pairRuleSchema = z.object({
+  source_item_id: z.string().uuid().nullable().optional(),
+  source_category_id: z.string().min(1).nullable().optional(),
+  paired_item_id: z.string().uuid().nullable().optional(),
+  paired_bundle_id: z.string().uuid().nullable().optional(),
+  message: z.string().max(500).nullable().optional(),
+  priority: z.number().int().min(0).optional().default(0),
+  is_active: z.boolean().optional().default(true),
+}).refine(
+  (data) => (data.source_item_id != null) !== (data.source_category_id != null),
+  { message: 'Exactly one of source_item_id or source_category_id must be set' }
+).refine(
+  (data) => (data.paired_item_id != null) !== (data.paired_bundle_id != null),
+  { message: 'Exactly one of paired_item_id or paired_bundle_id must be set' }
+);
+
+export type PairRuleInput = z.infer<typeof pairRuleSchema>;
