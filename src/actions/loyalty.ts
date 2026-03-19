@@ -4,12 +4,58 @@ import { revalidateTag } from 'next/cache';
 import { requireAdmin, requireSuperAdmin, checkActionRateLimit } from '@/lib/admin-guard';
 import { supabaseServer } from '@/lib/supabase-server';
 import { uuidSchema } from '@/lib/validation';
-import { calculateEarnings, checkGoalReached } from '@/lib/loyalty-engine';
+import { calculateEarnings, checkGoalReached, checkMilestonesReached } from '@/lib/loyalty-engine';
 import { generateCardCode, generateLoyaltyToken, getLoyaltySessionExpiry } from '@/lib/loyalty-hash';
-import { buildStampEarnedMessage, buildGoalAchievedMessage, sendLoyaltyNotification } from '@/lib/loyalty-notifications';
+import { buildStampEarnedMessage, buildGoalAchievedMessage, buildMilestoneEarnedMessage, sendLoyaltyNotification } from '@/lib/loyalty-notifications';
 import { z } from 'zod';
 
 type ActionResult = { success: boolean; error?: string; data?: any };
+
+// ─── checkAndClaimMilestones (internal helper) ──────────────────────────────
+
+async function checkAndClaimMilestones(
+  supabase: any, // SupabaseClient
+  card: { id: string; goal_id: string; current_stamps: number },
+  messengerPsid: string | null,
+  pageAccessToken: string | null,
+) {
+  const { data: activeMilestones } = await supabase
+    .from('loyalty_milestones')
+    .select('*')
+    .eq('is_active', true)
+    .lte('stamps_required', card.current_stamps)
+    .order('stamps_required', { ascending: true });
+
+  const { data: existingClaims } = await supabase
+    .from('loyalty_milestone_claims')
+    .select('milestone_id')
+    .eq('card_id', card.id)
+    .eq('goal_id', card.goal_id);
+
+  const newMilestones = checkMilestonesReached(
+    card.current_stamps,
+    activeMilestones || [],
+    existingClaims || [],
+  );
+
+  for (const ms of newMilestones) {
+    const { data: inserted } = await supabase
+      .from('loyalty_milestone_claims')
+      .upsert(
+        { card_id: card.id, milestone_id: ms.id, goal_id: card.goal_id },
+        { onConflict: 'card_id,milestone_id,goal_id', ignoreDuplicates: true },
+      )
+      .select('id')
+      .single();
+
+    if (inserted?.id && messengerPsid && pageAccessToken) {
+      const msg = buildMilestoneEarnedMessage(ms.name);
+      await sendLoyaltyNotification(messengerPsid, msg, pageAccessToken);
+    }
+  }
+
+  if (newMilestones.length > 0) revalidateTag('loyalty-milestone-claims');
+}
 
 // ─── registerLoyaltyCard ─────────────────────────────────────────────────────
 
@@ -115,26 +161,7 @@ export async function registerLoyaltyCard(
       .update({ used_at: new Date().toISOString() })
       .eq('id', session.id);
 
-    // Check if we should pick a goal
-    const { data: activeRewards } = await (supabaseServer
-      .from('loyalty_rewards') as any)
-      .select('id, stamps_required')
-      .eq('is_active', true);
-
-    let shouldPickGoal = false;
-
-    // Auto-set goal to the cheapest reward (lowest stamps_required)
-    if (!existingCard.goal_reward_id && activeRewards?.length > 0) {
-      // Sort by stamps_required ascending, pick the cheapest
-      const sorted = [...activeRewards].sort((a: any, b: any) =>
-        (a.stamps_required ?? Infinity) - (b.stamps_required ?? Infinity)
-      );
-      await (supabaseServer
-        .from('loyalty_cards') as any)
-        .update({ goal_reward_id: sorted[0].id })
-        .eq('id', existingCard.id);
-      shouldPickGoal = false;
-    }
+    // New customers start with goal_id = null — no auto-goal-assignment
 
     // Create a card_view session so the customer can view their card
     const viewToken = generateLoyaltyToken();
@@ -147,7 +174,7 @@ export async function registerLoyaltyCard(
 
     revalidateTag('loyalty-cards');
     revalidateTag('customers');
-    return { success: true, data: { card: existingCard, shouldPickGoal, viewToken } };
+    return { success: true, data: { card: existingCard, shouldPickGoal: !existingCard.goal_id, viewToken } };
   }
 
   // Generate card code with collision retry (max 5 attempts, extend to 5 chars)
@@ -172,7 +199,7 @@ export async function registerLoyaltyCard(
     return { success: false, error: 'Failed to generate unique card code. Please try again.' };
   }
 
-  // Create loyalty card
+  // Create loyalty card — no auto-goal, customers start with goal_id = null
   const { data: card, error: cardErr } = await (supabaseServer
     .from('loyalty_cards') as any)
     .insert({
@@ -197,26 +224,7 @@ export async function registerLoyaltyCard(
     .update({ used_at: new Date().toISOString() })
     .eq('id', session.id);
 
-  // Check active rewards for auto-goal
-  const { data: activeRewards } = await (supabaseServer
-    .from('loyalty_rewards') as any)
-    .select('id, stamps_required')
-    .eq('is_active', true);
-
-  let shouldPickGoal = false;
-
-  // Auto-set goal to the cheapest reward (lowest stamps_required)
-  if (activeRewards?.length > 0) {
-    // Sort by stamps_required ascending, pick the cheapest
-    const sorted = [...activeRewards].sort((a: any, b: any) =>
-      (a.stamps_required ?? Infinity) - (b.stamps_required ?? Infinity)
-    );
-    await (supabaseServer
-      .from('loyalty_cards') as any)
-      .update({ goal_reward_id: sorted[0].id })
-      .eq('id', card.id);
-    shouldPickGoal = false;
-  }
+  // New customers start with goal_id = null — no auto-goal-assignment
 
   // Create a card_view session so the customer can view their card
   const viewToken = generateLoyaltyToken();
@@ -229,7 +237,7 @@ export async function registerLoyaltyCard(
 
   revalidateTag('loyalty-cards');
   revalidateTag('customers');
-  return { success: true, data: { card, shouldPickGoal, viewToken } };
+  return { success: true, data: { card, shouldPickGoal: true, viewToken } };
 }
 
 // ─── creditLoyalty ───────────────────────────────────────────────────────────
@@ -386,11 +394,11 @@ export async function creditLoyalty(orderId: string): Promise<ActionResult> {
   let goalReached = false;
   let goalReward: any = null;
 
-  if (updatedCard?.goal_reward_id) {
+  if (updatedCard?.goal_id) {
     const { data: fetchedGoalReward } = await (supabaseServer
-      .from('loyalty_rewards') as any)
+      .from('loyalty_goals') as any)
       .select('*')
-      .eq('id', updatedCard.goal_reward_id)
+      .eq('id', updatedCard.goal_id)
       .single();
 
     goalReward = fetchedGoalReward;
@@ -414,40 +422,53 @@ export async function creditLoyalty(orderId: string): Promise<ActionResult> {
     }
   }
 
-  // Send notifications (non-blocking, fail-silent)
+  // Resolve messenger PSID and page access token for notifications
+  let messengerPsid = order.messenger_psid;
+  let pageAccessToken: string | null = null;
+
   try {
-    let psid = order.messenger_psid;
-    if (!psid) {
+    if (!messengerPsid) {
       const { data: cust } = await (supabaseServer.from('customers') as any)
         .select('messenger_psid')
         .eq('id', card.customer_id)
         .single();
-      psid = cust?.messenger_psid;
+      messengerPsid = cust?.messenger_psid;
     }
 
-    if (psid) {
+    if (messengerPsid) {
       const { data: fbConfig } = await (supabaseServer.from('facebook_config') as any)
         .select('page_access_token')
         .single();
+      pageAccessToken = fbConfig?.page_access_token || null;
+    }
+  } catch {
+    // Resolve silently — notifications are best-effort
+  }
 
-      if (fbConfig?.page_access_token) {
-        // Stamp earned notification
-        if (updatedCard?.goal_reward_id && goalReward) {
-          const msg = buildStampEarnedMessage(
-            earnings.stamps,
-            updatedCard.current_stamps,
-            goalReward.stamps_required ?? 0,
-            goalReward.name,
-            earnings.booster_id
-          );
-          await sendLoyaltyNotification(psid, msg, fbConfig.page_access_token);
-        }
+  // Auto-check milestones after stamp credit (with messenger credentials for notifications)
+  if (updatedCard?.goal_id) {
+    await checkAndClaimMilestones(supabaseServer, updatedCard, messengerPsid, pageAccessToken);
+  }
 
-        // Goal achieved notification
-        if (goalReached && goalReward) {
-          const goalMsg = buildGoalAchievedMessage(goalReward.name, config.claim_window_days || 7);
-          await sendLoyaltyNotification(psid, goalMsg, fbConfig.page_access_token);
-        }
+  // Send notifications (non-blocking, fail-silent)
+  try {
+    if (messengerPsid && pageAccessToken) {
+      // Stamp earned notification
+      if (updatedCard?.goal_id && goalReward) {
+        const msg = buildStampEarnedMessage(
+          earnings.stamps,
+          updatedCard.current_stamps,
+          goalReward.stamps_required ?? 0,
+          goalReward.name,
+          earnings.booster_id
+        );
+        await sendLoyaltyNotification(messengerPsid, msg, pageAccessToken);
+      }
+
+      // Goal achieved notification
+      if (goalReached && goalReward) {
+        const goalMsg = buildGoalAchievedMessage(goalReward.name, config.claim_window_days || 7);
+        await sendLoyaltyNotification(messengerPsid, goalMsg, pageAccessToken);
       }
     }
   } catch (notifErr) {
@@ -459,9 +480,9 @@ export async function creditLoyalty(orderId: string): Promise<ActionResult> {
   return { success: true, data: { stamps: earnings.stamps, points: earnings.points, goalReached } };
 }
 
-// ─── redeemReward ────────────────────────────────────────────────────────────
+// ─── redeemGoal ─────────────────────────────────────────────────────────────
 
-export async function redeemReward(
+export async function redeemGoal(
   redemptionId: string,
   branchId: string,
 ): Promise<ActionResult> {
@@ -488,20 +509,21 @@ export async function redeemReward(
   }
 
   // Call RPC for atomic redemption
-  const { error } = await (supabaseServer as any).rpc('redeem_loyalty_reward', {
+  const { error } = await (supabaseServer as any).rpc('redeem_loyalty_goal', {
     p_redemption_id: redemptionIdResult.data,
     p_branch_id: branchIdResult.data,
     p_claimed_by: performedBy,
   });
 
   if (error) {
-    console.error('[redeemReward] RPC error:', error.message);
-    return { success: false, error: error.message || 'Failed to redeem reward' };
+    console.error('[redeemGoal] RPC error:', error.message);
+    return { success: false, error: error.message || 'Failed to redeem goal' };
   }
 
   revalidateTag('loyalty-cards');
   revalidateTag('loyalty-redemptions');
   revalidateTag('loyalty-transactions');
+  revalidateTag('loyalty-goals');
   return { success: true };
 }
 
@@ -517,25 +539,45 @@ export async function setGoal(
   const rewardIdResult = uuidSchema.safeParse(rewardId);
   if (!rewardIdResult.success) return { success: false, error: 'Invalid reward ID' };
 
-  // Verify reward exists and is active
+  // Guard: prevent changing goal if one is already active
+  const { data: card } = await (supabaseServer
+    .from('loyalty_cards') as any)
+    .select('goal_id, current_stamps')
+    .eq('id', cardIdResult.data)
+    .single();
+
+  if (card?.goal_id) {
+    return { success: false, error: 'You already have an active goal. Complete it first to choose a new one.' };
+  }
+
+  // Verify goal exists and is active
   const { data: reward } = await (supabaseServer
-    .from('loyalty_rewards') as any)
+    .from('loyalty_goals') as any)
     .select('id, is_active')
     .eq('id', rewardIdResult.data)
     .single();
 
-  if (!reward) return { success: false, error: 'Reward not found' };
-  if (!reward.is_active) return { success: false, error: 'Reward is not active' };
+  if (!reward) return { success: false, error: 'Goal not found' };
+  if (!reward.is_active) return { success: false, error: 'Goal is not active' };
 
   // Update loyalty card goal
   const { error } = await (supabaseServer
     .from('loyalty_cards') as any)
-    .update({ goal_reward_id: rewardIdResult.data })
+    .update({ goal_id: rewardIdResult.data })
     .eq('id', cardIdResult.data);
 
   if (error) {
     console.error('[setGoal] DB error:', error.code);
     return { success: false, error: 'Failed to set goal' };
+  }
+
+  // Check if carryover stamps already cross any milestones
+  if (card?.current_stamps && card.current_stamps > 0) {
+    await checkAndClaimMilestones(
+      supabaseServer,
+      { id: cardIdResult.data, goal_id: rewardIdResult.data, current_stamps: card.current_stamps },
+      null, null  // No messenger notification on goal selection
+    );
   }
 
   revalidateTag('loyalty-cards');
@@ -602,24 +644,31 @@ export async function lookupCard(query: string): Promise<ActionResult> {
     return { success: true, data: [] };
   }
 
-  // Enrich each card with goal reward and pending redemptions
+  // Enrich each card with goal and pending redemptions
   const results = await Promise.all(
     cards.map(async (card: any) => {
-      let goalReward = null;
-      if (card.goal_reward_id) {
-        const { data: reward } = await (supabaseServer
-          .from('loyalty_rewards') as any)
+      let goal = null;
+      if (card.goal_id) {
+        const { data: goalData } = await (supabaseServer
+          .from('loyalty_goals') as any)
           .select('*')
-          .eq('id', card.goal_reward_id)
+          .eq('id', card.goal_id)
           .single();
-        goalReward = reward;
+        goal = goalData;
       }
 
       const { data: pendingRedemptions } = await (supabaseServer
         .from('loyalty_redemptions') as any)
-        .select('*, loyalty_rewards(name)')
+        .select('*, loyalty_goals(name)')
         .eq('card_id', card.id)
         .eq('status', 'earned');
+
+      // Fetch milestone claims for this card + goal
+      const { data: milestoneClaims } = await (supabaseServer
+        .from('loyalty_milestone_claims') as any)
+        .select('*, loyalty_milestones(name, stamps_required)')
+        .eq('card_id', card.id)
+        .eq('goal_id', card.goal_id);
 
       return {
         ...card,
@@ -627,11 +676,12 @@ export async function lookupCard(query: string): Promise<ActionResult> {
         customer_email: card.customers?.email || null,
         customer_phone: card.customers?.phone || null,
         messenger_psid: card.customers?.messenger_psid || null,
-        goal_reward: goalReward,
+        goal: goal,
+        milestone_claims: milestoneClaims || [],
         pending_redemptions: (pendingRedemptions || []).map((r: any) => ({
           ...r,
-          reward_name: r.loyalty_rewards?.name || null,
-          loyalty_rewards: undefined,
+          reward_name: r.loyalty_goals?.name || null,
+          loyalty_goals: undefined,
         })),
         customers: undefined, // Remove nested join data
       };
@@ -649,7 +699,7 @@ export async function getCardByCustomerId(customerId: string): Promise<ActionRes
   if (!idResult.success) return { success: false, error: 'Invalid ID' };
 
   const { data: card } = await (supabaseServer.from('loyalty_cards') as any)
-    .select('*, loyalty_rewards!goal_reward_id(name, stamps_required, points_required)')
+    .select('*, loyalty_goals!goal_id(name, stamps_required, points_required)')
     .eq('customer_id', idResult.data)
     .maybeSingle();
 
