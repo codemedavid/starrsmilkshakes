@@ -154,6 +154,18 @@ export const getCachedLoyaltyBoosters = unstable_cache(
   { revalidate: 60, tags: ['loyalty-boosters'] }
 );
 
+// ── Bundles ──────────────────────────────────────────────────
+export const getCachedBundles = unstable_cache(
+  async () => {
+    const { data } = await (supabaseServer.from('bundles') as any)
+      .select('*, bundle_slots(*, bundle_slot_items(*, menu_items(id, name, base_price, category, image_url)))')
+      .order('sort_order', { ascending: true });
+    return data || [];
+  },
+  ['admin-bundles'],
+  { revalidate: 300, tags: ['bundles'] }
+);
+
 // ── Loyalty Stats ───────────────────────────────────────────
 export const getCachedLoyaltyStats = unstable_cache(
   async () => {
