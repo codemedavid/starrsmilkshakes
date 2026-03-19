@@ -1,134 +1,208 @@
 'use client';
 
 import React from 'react';
-import { Trash2, Plus, Minus, ArrowLeft } from 'lucide-react';
-import { CartItem } from '../types';
+import { ArrowLeft, Trash2, Minus, Plus } from 'lucide-react';
+import { CartItem } from '@/types';
+import { BundleCartItem } from '@/types/bundle';
 
 interface CartProps {
   cartItems: CartItem[];
+  bundleItems?: BundleCartItem[];
   updateQuantity: (id: string, quantity: number) => void;
   removeFromCart: (id: string) => void;
+  removeBundleFromCart?: (index: number) => void;
+  updateBundleQuantity?: (index: number, quantity: number) => void;
   clearCart: () => void;
   getTotalPrice: () => number;
   onContinueShopping: () => void;
   onCheckout: () => void;
 }
 
-const Cart: React.FC<CartProps> = ({
+export default function Cart({
   cartItems,
+  bundleItems = [],
   updateQuantity,
   removeFromCart,
+  removeBundleFromCart,
+  updateBundleQuantity,
   clearCart,
   getTotalPrice,
   onContinueShopping,
-  onCheckout
-}) => {
-  if (cartItems.length === 0) {
+  onCheckout,
+}: CartProps) {
+  const totalItems =
+    cartItems.reduce((sum, item) => sum + item.quantity, 0) +
+    bundleItems.reduce((sum, item) => sum + item.quantity, 0);
+
+  // Empty state
+  if (cartItems.length === 0 && bundleItems.length === 0) {
     return (
-      <div className="max-w-4xl mx-auto px-4 py-12">
-        <div className="text-center py-16">
-          <div className="text-6xl mb-4">🥤</div>
-          <h2 className="text-2xl font-bold text-starrs-teal-dark mb-2" style={{ fontFamily: 'system-ui, -apple-system, sans-serif' }}>Your cart is empty</h2>
-          <p className="text-starrs-teal-dark/70 mb-6 font-medium">Add some delicious shakes to get started!</p>
-          <button
-            onClick={onContinueShopping}
-            className="bg-starrs-teal text-white px-6 py-3 rounded-full hover:bg-starrs-teal-dark transition-all duration-200 font-semibold shadow-lg"
-          >
-            Browse Menu
-          </button>
-        </div>
+      <div className="min-h-screen bg-starrs-linen flex flex-col items-center justify-center px-6 text-center">
+        <div className="text-6xl mb-4">🥤</div>
+        <h2 className="text-xl font-bold text-starrs-deep mb-2">Your cart is empty</h2>
+        <p className="text-starrs-muted text-sm mb-6">
+          Browse our menu and add your favorite shakes!
+        </p>
+        <button
+          onClick={onContinueShopping}
+          className="px-6 py-3 bg-starrs-sage text-starrs-cream-brand rounded-xl font-semibold"
+        >
+          Browse Menu
+        </button>
       </div>
     );
   }
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8">
-      <div className="flex items-center justify-between mb-8">
-        <button
-          onClick={onContinueShopping}
-          className="flex items-center space-x-2 text-starrs-teal-dark hover:text-starrs-teal-darker transition-colors duration-200 font-medium"
-        >
-          <ArrowLeft className="h-5 w-5" />
-          <span>Continue Shopping</span>
-        </button>
-        <h1 className="text-3xl font-bold text-starrs-teal-dark" style={{ fontFamily: 'system-ui, -apple-system, sans-serif' }}>Your Cart</h1>
-        <button
-          onClick={clearCart}
-          className="text-starrs-green hover:text-starrs-green-dark transition-colors duration-200 font-medium"
-        >
-          Clear All
-        </button>
+    <div className="min-h-screen bg-starrs-linen pb-36">
+      {/* Header */}
+      <div className="bg-starrs-sage px-5 py-4 flex items-center justify-between">
+        <div className="flex items-center gap-2.5">
+          <button onClick={onContinueShopping} className="text-starrs-cream-brand">
+            <ArrowLeft className="w-5 h-5" />
+          </button>
+          <span className="text-starrs-cream-brand font-bold text-lg tracking-tight">
+            Your Cart
+          </span>
+        </div>
+        <div className="flex items-center gap-3">
+          <span className="text-starrs-cream-brand/80 text-sm">{totalItems} items</span>
+          <button
+            onClick={clearCart}
+            className="text-starrs-cream-brand/70 text-xs font-medium"
+          >
+            Clear All
+          </button>
+        </div>
       </div>
 
-      <div className="bg-white rounded-xl shadow-md border-2 border-starrs-teal/20 overflow-hidden mb-8">
-        {cartItems.map((item, index) => (
-          <div key={item.id} className={`p-6 ${index !== cartItems.length - 1 ? 'border-b border-starrs-teal/20' : ''}`}>
-            <div className="flex items-center justify-between">
-              <div className="flex-1">
-                <h3 className="text-lg font-bold text-starrs-teal-dark mb-1">{item.name}</h3>
-                {item.selectedVariation && (
-                  <p className="text-sm text-gray-500 mb-1">Size: {item.selectedVariation.name}</p>
-                )}
-                {item.selectedAddOns && item.selectedAddOns.length > 0 && (
-                  <p className="text-sm text-gray-500 mb-1">
-                    Add-ons: {item.selectedAddOns.map(addOn => 
-                      addOn.quantity && addOn.quantity > 1 
-                        ? `${addOn.name} x${addOn.quantity}`
-                        : addOn.name
-                    ).join(', ')}
-                  </p>
-                )}
-                <p className="text-lg font-semibold text-starrs-teal-dark">₱{item.totalPrice} each</p>
+      {/* Cart Items */}
+      <div className="px-4 pt-4 space-y-2.5">
+        {cartItems.map((item) => (
+          <div
+            key={item.id}
+            className="bg-white rounded-[14px] p-3.5 shadow-sm"
+          >
+            <div className="flex gap-3">
+              {/* Thumbnail */}
+              <div className="w-16 h-16 rounded-[10px] bg-gradient-to-br from-starrs-sage/20 to-starrs-sage/5 flex items-center justify-center text-2xl flex-shrink-0">
+                🥤
               </div>
-              
-              <div className="flex items-center space-x-4 ml-4">
-                <div className="flex items-center space-x-3 bg-starrs-teal-light rounded-full p-1 border-2 border-starrs-teal/30">
+              {/* Details */}
+              <div className="flex-1 min-w-0">
+                <div className="flex justify-between items-start">
+                  <div className="font-bold text-[15px] text-gray-900">{item.name}</div>
                   <button
-                    onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                    className="p-2 hover:bg-starrs-teal/20 rounded-full transition-colors duration-200"
+                    onClick={() => removeFromCart(item.id)}
+                    className="text-gray-300 hover:text-red-400 transition-colors p-0.5"
                   >
-                    <Minus className="h-4 w-4 text-starrs-teal-dark" />
-                  </button>
-                  <span className="font-semibold text-starrs-teal-dark min-w-[32px] text-center">{item.quantity}</span>
-                  <button
-                    onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                    className="p-2 hover:bg-starrs-teal/20 rounded-full transition-colors duration-200"
-                  >
-                    <Plus className="h-4 w-4 text-starrs-teal-dark" />
+                    <Trash2 className="w-4 h-4" />
                   </button>
                 </div>
-                
-                <div className="text-right">
-                  <p className="text-lg font-semibold text-starrs-teal-dark">₱{item.totalPrice * item.quantity}</p>
+                <div className="text-xs text-starrs-sage mt-0.5">
+                  {item.selectedVariation?.name}
+                  {item.selectedAddOns?.length
+                    ? ` • +${item.selectedAddOns.map((a) => a.name).join(', ')}`
+                    : ''}
                 </div>
-                
-                <button
-                  onClick={() => removeFromCart(item.id)}
-                  className="p-2 text-starrs-green hover:text-starrs-green-dark hover:bg-starrs-green/10 rounded-full transition-all duration-200"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
+                <div className="flex justify-between items-center mt-2">
+                  <span className="font-extrabold text-base text-starrs-deep">
+                    ₱{item.totalPrice.toLocaleString()}
+                  </span>
+                  {/* Quantity Stepper */}
+                  <div className="flex items-center bg-starrs-mint-soft rounded-[10px] overflow-hidden">
+                    <button
+                      onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                      className="w-[34px] h-[34px] flex items-center justify-center text-starrs-sage"
+                    >
+                      <Minus className="w-4 h-4" />
+                    </button>
+                    <span className="w-7 text-center font-bold text-[15px] text-starrs-deep">
+                      {item.quantity}
+                    </span>
+                    <button
+                      onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                      className="w-[34px] h-[34px] flex items-center justify-center bg-starrs-sage text-white rounded-r-[10px]"
+                    >
+                      <Plus className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        ))}
+
+        {/* Bundle Items */}
+        {bundleItems.map((item, index) => (
+          <div
+            key={`bundle-${index}`}
+            className="bg-white rounded-[14px] p-3.5 shadow-sm"
+          >
+            <div className="flex gap-3">
+              <div className="w-16 h-16 rounded-[10px] bg-gradient-to-br from-amber-100 to-amber-50 flex items-center justify-center text-2xl flex-shrink-0">
+                🎁
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex justify-between items-start">
+                  <div className="font-bold text-[15px] text-gray-900">{item.bundle.name}</div>
+                  {removeBundleFromCart && (
+                    <button
+                      onClick={() => removeBundleFromCart(index)}
+                      className="text-gray-300 hover:text-red-400 transition-colors p-0.5"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+                <div className="text-xs text-starrs-sage mt-0.5">Bundle</div>
+                <div className="flex justify-between items-center mt-2">
+                  <span className="font-extrabold text-base text-starrs-deep">
+                    ₱{item.totalPrice.toLocaleString()}
+                  </span>
+                  {updateBundleQuantity && (
+                    <div className="flex items-center bg-starrs-mint-soft rounded-[10px] overflow-hidden">
+                      <button
+                        onClick={() => updateBundleQuantity(index, item.quantity - 1)}
+                        className="w-[34px] h-[34px] flex items-center justify-center text-starrs-sage"
+                      >
+                        <Minus className="w-4 h-4" />
+                      </button>
+                      <span className="w-7 text-center font-bold text-[15px] text-starrs-deep">
+                        {item.quantity}
+                      </span>
+                      <button
+                        onClick={() => updateBundleQuantity(index, item.quantity + 1)}
+                        className="w-[34px] h-[34px] flex items-center justify-center bg-starrs-sage text-white rounded-r-[10px]"
+                      >
+                        <Plus className="w-4 h-4" />
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </div>
         ))}
       </div>
 
-      <div className="bg-white rounded-xl shadow-md border-2 border-starrs-teal/20 p-6">
-        <div className="flex items-center justify-between text-2xl font-bold text-starrs-teal-dark mb-6" style={{ fontFamily: 'system-ui, -apple-system, sans-serif' }}>
-          <span>Total:</span>
-          <span className="text-starrs-green">₱{(getTotalPrice() || 0).toFixed(2)}</span>
+      {/* Sticky Bottom */}
+      <div className="fixed bottom-0 left-0 right-0 bg-white rounded-t-[20px] shadow-[0_-4px_20px_rgba(0,0,0,0.08)] px-5 py-4 z-40">
+        <div className="flex justify-between mb-3.5">
+          <span className="text-starrs-muted text-sm">
+            Subtotal ({totalItems} items)
+          </span>
+          <span className="font-extrabold text-xl text-starrs-deep">
+            ₱{getTotalPrice().toLocaleString()}
+          </span>
         </div>
-        
         <button
           onClick={onCheckout}
-          className="w-full bg-gradient-to-r from-starrs-teal to-starrs-teal-dark text-white py-4 rounded-xl hover:from-starrs-teal-dark hover:to-starrs-teal-darker transition-all duration-200 transform hover:scale-[1.02] font-semibold text-lg shadow-lg"
+          className="w-full py-4 bg-starrs-deep text-starrs-cream-brand rounded-[14px] text-base font-bold"
         >
           Proceed to Checkout
         </button>
       </div>
     </div>
   );
-};
-
-export default Cart;
+}
