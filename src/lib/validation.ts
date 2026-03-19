@@ -227,3 +227,45 @@ export const bulkImportCostsSchema = z.object({
 });
 
 export type BulkImportCostsInput = z.infer<typeof bulkImportCostsSchema>;
+
+// ─── Bundle ─────────────────────────────────────────────────────────────────
+
+const bundleSlotItemSchema = z.object({
+  menu_item_id: z.string().uuid(),
+  price_override: z.number().min(0).nullable().optional(),
+  sort_order: z.number().int().min(0).optional().default(0),
+});
+
+const bundleSlotSchema = z.object({
+  label: z.string().min(1, 'Slot label is required').max(100),
+  sort_order: z.number().int().min(0).optional().default(0),
+  min_selections: z.number().int().min(0).default(1),
+  max_selections: z.number().int().min(1).default(1),
+  items: z.array(bundleSlotItemSchema).min(1, 'Each slot needs at least one item'),
+}).refine(
+  (data) => data.max_selections >= data.min_selections,
+  { message: 'max_selections must be >= min_selections' }
+);
+
+export const createBundleSchema = z.object({
+  name: sanitized.pipe(z.string().min(1, 'Bundle name is required').max(200)),
+  description: z.string().max(500).nullable().optional(),
+  image_url: z.string().url().nullable().optional(),
+  base_price: z.number().positive('Price must be greater than zero'),
+  cost_price: z.number().min(0).nullable().optional(),
+  category: z.string().min(1, 'Category is required'),
+  discount_price: z.number().min(0).nullable().optional(),
+  discount_active: z.boolean().optional().default(false),
+  discount_start_date: z.string().nullable().optional(),
+  discount_end_date: z.string().nullable().optional(),
+  available: z.boolean().optional().default(true),
+  popular: z.boolean().optional().default(false),
+  sort_order: z.number().int().min(0).optional().default(0),
+  slots: z.array(bundleSlotSchema).min(1, 'Bundle needs at least one slot'),
+});
+
+export type CreateBundleInput = z.infer<typeof createBundleSchema>;
+
+export const updateBundleSchema = createBundleSchema;
+
+export type UpdateBundleInput = z.infer<typeof updateBundleSchema>;
