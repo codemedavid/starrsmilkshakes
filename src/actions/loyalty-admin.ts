@@ -22,10 +22,18 @@ export async function updateLoyaltyConfig(input: unknown): Promise<ActionResult>
   const parsed = loyaltyConfigSchema.safeParse(input);
   if (!parsed.success) return { success: false, error: 'Invalid input' };
 
+  // Singleton — fetch the row's UUID first, then update by it
+  const { data: row } = await (supabaseServer
+    .from('loyalty_config') as any)
+    .select('id')
+    .limit(1)
+    .single();
+  if (!row) return { success: false, error: 'Loyalty config not initialized' };
+
   const { data, error } = await (supabaseServer
     .from('loyalty_config') as any)
     .update(parsed.data)
-    .eq('id', 1)
+    .eq('id', row.id)
     .select()
     .single();
 
@@ -235,7 +243,7 @@ export async function getLoyaltyConfig(): Promise<ActionResult> {
   const { data, error } = await (supabaseServer
     .from('loyalty_config') as any)
     .select('*')
-    .eq('id', 1)
+    .limit(1)
     .single();
 
   if (error) {

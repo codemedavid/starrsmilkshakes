@@ -206,7 +206,7 @@ describe('Loyalty System — Full Flow', () => {
     const config = makeConfig({ stamps_per_order: 1, points_per_peso: 1 });
     const booster = makeBooster({
       multiplier: 3,
-      filter_mode: 'categories',
+      filter_mode: 'category',
       filter_ids: ['premium-shakes'],
     });
 
@@ -274,7 +274,7 @@ describe('Acceptance Tests', () => {
 
     const booster = makeBooster({
       multiplier: 2,
-      filter_mode: 'categories',
+      filter_mode: 'category',
       filter_ids: ['shakes'],
     });
 
@@ -329,7 +329,7 @@ describe('Acceptance Tests', () => {
     const config = makeConfig({ stamps_per_order: 1, points_per_peso: 1 });
     const booster = makeBooster({
       multiplier: 5,
-      filter_mode: 'items',
+      filter_mode: 'item',
       filter_ids: ['special-item'],
     });
 

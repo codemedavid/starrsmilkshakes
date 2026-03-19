@@ -18,18 +18,40 @@ interface GoalPickerProps {
 
 export default function GoalPicker({ card, rewards, hash }: GoalPickerProps) {
   const [selecting, setSelecting] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const handleSelect = async (rewardId: string) => {
     setSelecting(rewardId);
-    const result = await setGoal(card.id, rewardId);
-    if (result.success) {
-      window.location.href = `/loyalty/card/${hash}`;
+    setError(null);
+
+    try {
+      const result = await setGoal(card.id, rewardId);
+      if (result.success) {
+        window.location.href = `/loyalty/card/${hash}`;
+      } else {
+        setError('Could not set goal. Please try again.');
+        setSelecting(null);
+      }
+    } catch {
+      setError('Something went wrong. Please try again.');
+      setSelecting(null);
     }
-    setSelecting(null);
   };
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3" role="radiogroup" aria-label="Available rewards">
+      {/* Instruction text */}
+      <p className="text-xs text-stone-400 px-1">
+        Tap a reward to set it as your goal
+      </p>
+
+      {/* Error feedback */}
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-700" role="alert">
+          {error}
+        </div>
+      )}
+
       {rewards.map((reward) => (
         <RewardCard
           key={reward.id}

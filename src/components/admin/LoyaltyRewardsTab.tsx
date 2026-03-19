@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { AlertTriangle, CheckCircle, Pencil, Plus, X } from 'lucide-react';
+import { AlertTriangle, CheckCircle, Info, Pencil, Plus, X } from 'lucide-react';
 import type { LoyaltyReward } from '@/types/loyalty';
 import { useLoyaltyRewards } from '@/hooks/useLoyaltyRewards';
 
@@ -48,25 +48,48 @@ interface RewardFormProps {
   saving: boolean;
   onSave: (values: RewardFormValues) => Promise<void>;
   onCancel: () => void;
+  isEditing?: boolean;
 }
 
-function RewardForm({ initialValues, saving, onSave, onCancel }: RewardFormProps) {
+function RewardForm({ initialValues, saving, onSave, onCancel, isEditing = false }: RewardFormProps) {
   const [values, setValues] = useState<RewardFormValues>(initialValues);
+  const [validationError, setValidationError] = useState<string | null>(null);
 
-  const set = <K extends keyof RewardFormValues>(key: K, value: RewardFormValues[K]) =>
+  const set = <K extends keyof RewardFormValues>(key: K, value: RewardFormValues[K]) => {
     setValues(prev => ({ ...prev, [key]: value }));
+    setValidationError(null);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!values.name.trim()) return;
+    if (!values.name.trim()) {
+      setValidationError('Reward name is required.');
+      return;
+    }
+    if (!values.stamps_required && !values.points_required) {
+      setValidationError('Set at least one requirement: stamps or points.');
+      return;
+    }
+    setValidationError(null);
     await onSave(values);
   };
 
   const inputClass =
-    'w-full bg-[#F8F6F3] border border-[#E8E3DA] rounded-lg px-3 py-2 text-sm text-stone-800 focus:ring-2 focus:ring-[#7BBFB5] focus:border-transparent outline-none';
+    'w-full bg-[#F8F6F3] border border-[#E8E3DA] rounded-lg px-3 py-2 text-sm text-stone-800 focus:ring-2 focus:ring-[#7BBFB5] focus:border-transparent outline-none font-nunito';
 
   return (
-    <form onSubmit={handleSubmit} className="bg-white border border-[#7BBFB5] rounded-xl p-4 space-y-3">
+    <form onSubmit={handleSubmit} className="bg-white border-2 border-[#7BBFB5] rounded-xl p-4 space-y-3 shadow-sm">
+      <p className="text-xs font-nunito font-semibold text-[#3D8A80] uppercase tracking-wide">
+        {isEditing ? 'Edit Reward' : 'New Reward'}
+      </p>
+
+      {validationError && (
+        <div className="flex items-center gap-2 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg">
+          <Info className="h-3.5 w-3.5 text-amber-600 shrink-0" />
+          <p className="font-nunito text-xs text-amber-700">{validationError}</p>
+        </div>
+      )}
+
       <div>
         <label className="block text-xs font-nunito font-medium text-stone-500 uppercase tracking-wide mb-1.5">
           Name <span className="text-red-500">*</span>
@@ -78,6 +101,7 @@ function RewardForm({ initialValues, saving, onSave, onCancel }: RewardFormProps
           onChange={e => set('name', e.target.value)}
           placeholder="e.g. Free Shake"
           className={inputClass}
+          autoFocus
         />
       </div>
 
@@ -122,13 +146,16 @@ function RewardForm({ initialValues, saving, onSave, onCancel }: RewardFormProps
           />
         </div>
       </div>
+      <p className="text-[11px] font-nunito text-stone-400">
+        Set at least one requirement. If both are set, the customer can redeem with either.
+      </p>
 
       <div className="flex justify-end gap-2 pt-1">
         <button
           type="button"
           onClick={onCancel}
           disabled={saving}
-          className="border border-[#E8E3DA] text-stone-600 px-3 py-1.5 rounded-lg text-sm hover:bg-[#F2EEE8] transition-colors disabled:opacity-50"
+          className="border border-[#E8E3DA] text-stone-600 px-3 py-1.5 rounded-lg text-sm font-nunito hover:bg-[#F2EEE8] transition-colors disabled:opacity-50"
         >
           Cancel
         </button>
@@ -137,7 +164,14 @@ function RewardForm({ initialValues, saving, onSave, onCancel }: RewardFormProps
           disabled={saving || !values.name.trim()}
           className="bg-[#3D8A80] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#356E66] transition-colors disabled:opacity-50"
         >
-          {saving ? 'Saving…' : 'Save'}
+          {saving ? (
+            <span className="flex items-center gap-2">
+              <span className="inline-block w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              Saving...
+            </span>
+          ) : (
+            isEditing ? 'Update Reward' : 'Create Reward'
+          )}
         </button>
       </div>
     </form>
@@ -154,65 +188,104 @@ interface RewardCardProps {
 }
 
 function RewardCard({ reward, saving, onEdit, onToggle }: RewardCardProps) {
-  const hasCost = reward.stamps_required != null || reward.points_required != null;
+  const [showConfirm, setShowConfirm] = useState(false);
+
+  const handleToggle = () => {
+    if (reward.is_active) {
+      // Disabling requires confirmation
+      setShowConfirm(true);
+    } else {
+      onToggle(reward.id, true);
+    }
+  };
+
+  const confirmDisable = () => {
+    setShowConfirm(false);
+    onToggle(reward.id, false);
+  };
 
   return (
-    <div className={`bg-white border border-[#E8E3DA] rounded-xl p-4 flex items-start gap-4 transition-opacity ${reward.is_active ? '' : 'opacity-60'}`}>
-      {/* Left: name + description */}
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 flex-wrap">
-          <p className="text-sm font-medium text-stone-800 truncate">{reward.name}</p>
-          {!reward.is_active && (
-            <span className="text-xs px-2 py-0.5 rounded-full bg-stone-100 text-stone-500 font-medium">
-              Disabled
-            </span>
+    <div className={`bg-white border border-[#E8E3DA] rounded-xl p-4 transition-all hover:shadow-sm ${reward.is_active ? '' : 'opacity-60'}`}>
+      <div className="flex items-start gap-4">
+        {/* Left: name + description */}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <p className="text-sm font-medium text-stone-800 truncate font-nunito">{reward.name}</p>
+            {!reward.is_active && (
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-stone-100 text-stone-500 font-medium uppercase tracking-wide">
+                Disabled
+              </span>
+            )}
+          </div>
+          {reward.description && (
+            <p className="text-xs text-stone-500 mt-0.5 line-clamp-2 font-nunito">{reward.description}</p>
           )}
         </div>
-        {reward.description && (
-          <p className="text-xs text-stone-500 mt-0.5 line-clamp-2">{reward.description}</p>
-        )}
-      </div>
 
-      {/* Middle: cost chips */}
-      {hasCost && (
+        {/* Middle: cost chips */}
         <div className="flex items-center gap-2 shrink-0">
           {reward.stamps_required != null && (
-            <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200 whitespace-nowrap">
-              {reward.stamps_required} ⭐
+            <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200 whitespace-nowrap font-nunito">
+              {reward.stamps_required} stamps
             </span>
           )}
           {reward.points_required != null && (
-            <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-purple-50 text-purple-700 border border-purple-200 whitespace-nowrap">
+            <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-purple-50 text-purple-700 border border-purple-200 whitespace-nowrap font-nunito">
               {reward.points_required} pts
             </span>
           )}
         </div>
-      )}
 
-      {/* Right: actions */}
-      <div className="flex items-center gap-2 shrink-0">
-        <button
-          type="button"
-          onClick={() => onEdit(reward)}
-          aria-label={`Edit ${reward.name}`}
-          className="border border-[#E8E3DA] text-stone-600 px-3 py-1.5 rounded-lg text-sm hover:bg-[#F2EEE8] transition-colors inline-flex items-center gap-1.5"
-        >
-          <Pencil className="h-3.5 w-3.5" />
-          Edit
-        </button>
-        <button
-          type="button"
-          onClick={() => onToggle(reward.id, !reward.is_active)}
-          disabled={saving}
-          className={`text-sm transition-colors disabled:opacity-50 ${
-            reward.is_active
-              ? 'text-red-500 hover:text-red-600'
-              : 'text-[#3D8A80] hover:text-[#356E66]'
-          }`}
-        >
-          {reward.is_active ? 'Disable' : 'Enable'}
-        </button>
+        {/* Right: actions */}
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            type="button"
+            onClick={() => onEdit(reward)}
+            aria-label={`Edit ${reward.name}`}
+            className="border border-[#E8E3DA] text-stone-600 px-3 py-1.5 rounded-lg text-sm font-nunito hover:bg-[#F2EEE8] transition-colors inline-flex items-center gap-1.5"
+          >
+            <Pencil className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Edit</span>
+          </button>
+          <button
+            type="button"
+            onClick={handleToggle}
+            disabled={saving}
+            className={`text-sm font-nunito font-medium transition-colors disabled:opacity-50 px-2 py-1.5 rounded-lg ${
+              reward.is_active
+                ? 'text-red-500 hover:text-red-600 hover:bg-red-50'
+                : 'text-[#3D8A80] hover:text-[#356E66] hover:bg-[#7BBFB5]/10'
+            }`}
+          >
+            {reward.is_active ? 'Disable' : 'Enable'}
+          </button>
+        </div>
       </div>
+
+      {/* Confirmation dialog for disable */}
+      {showConfirm && (
+        <div className="mt-3 pt-3 border-t border-[#E8E3DA] flex items-center justify-between gap-4">
+          <p className="text-xs font-nunito text-stone-600">
+            Disable <span className="font-semibold">{reward.name}</span>? Customers won&apos;t be able to earn or claim this reward.
+          </p>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={() => setShowConfirm(false)}
+              className="text-xs font-nunito text-stone-500 hover:text-stone-700 px-2 py-1"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={confirmDisable}
+              className="text-xs font-nunito font-medium text-red-600 hover:text-red-700 bg-red-50 px-3 py-1.5 rounded-lg"
+            >
+              Yes, Disable
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -293,13 +366,15 @@ export default function LoyaltyRewardsTab({ initialRewards }: Props) {
       <div className="flex items-center justify-between">
         <h2 className="text-sm font-nunito font-semibold text-stone-700">
           Reward Catalog{' '}
-          <span className="font-normal text-stone-500">({activeCount} active)</span>
+          <span className="font-normal text-stone-500">
+            ({activeCount} active / {rewards.length} total)
+          </span>
         </h2>
         {!showAddForm && (
           <button
             type="button"
             onClick={() => { setEditingId(null); setShowAddForm(true); }}
-            className="inline-flex items-center gap-1.5 bg-[#3D8A80] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#356E66] transition-colors"
+            className="inline-flex items-center gap-1.5 bg-[#3D8A80] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#356E66] transition-colors shadow-sm"
           >
             <Plus className="h-4 w-4" />
             Add Reward
@@ -319,21 +394,25 @@ export default function LoyaltyRewardsTab({ initialRewards }: Props) {
 
       {/* Reward list */}
       {rewards.length === 0 && !showAddForm ? (
-        <div className="text-center py-12 text-stone-400">
-          <p className="text-sm">No rewards yet. Add your first reward above.</p>
+        <div className="text-center py-16 text-stone-400 bg-white border border-[#E8E3DA] rounded-xl">
+          <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-[#7BBFB5]/10 mb-3">
+            <Plus className="h-5 w-5 text-[#3D8A80]" />
+          </div>
+          <p className="text-sm font-nunito font-medium text-stone-600">No rewards yet</p>
+          <p className="text-xs font-nunito text-stone-400 mt-1">Add your first reward to get started</p>
         </div>
       ) : (
         <div className="space-y-3">
           {rewards.map(reward =>
             editingId === reward.id ? (
-              <div key={reward.id} className="space-y-0">
-                <RewardForm
-                  initialValues={rewardToForm(reward)}
-                  saving={saving}
-                  onSave={handleEdit}
-                  onCancel={cancelEdit}
-                />
-              </div>
+              <RewardForm
+                key={reward.id}
+                initialValues={rewardToForm(reward)}
+                saving={saving}
+                onSave={handleEdit}
+                onCancel={cancelEdit}
+                isEditing
+              />
             ) : (
               <RewardCard
                 key={reward.id}

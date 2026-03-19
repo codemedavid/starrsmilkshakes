@@ -2,10 +2,10 @@
 
 export type FilterMode = 'allowlist' | 'blocklist';
 export type BoosterAppliesTo = 'stamps' | 'points' | 'both';
-export type BoosterFilterMode = 'all' | 'categories' | 'items';
-export type TransactionType = 'earn' | 'redeem' | 'expire' | 'adjust';
-export type RedemptionStatus = 'earned' | 'claimed' | 'expired';
-export type LoyaltySessionPurpose = 'registration' | 'card_view';
+export type BoosterFilterMode = 'all' | 'category' | 'item';
+export type TransactionType = 'earn_stamps' | 'earn_points' | 'earn' | 'redeem' | 'adjust' | 'expire';
+export type RedemptionStatus = 'earned' | 'claimed' | 'expired' | 'voided';
+export type LoyaltySessionPurpose = 'registration' | 'card_view' | 'link' | 'balance' | 'redeem';
 
 export interface LoyaltyConfig {
   id: string;

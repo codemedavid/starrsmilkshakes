@@ -57,8 +57,8 @@ export function filterQualifyingItems(
  * - is_active must be true
  * - `date` must fall within [starts_at, ends_at]
  * - filter_mode='all'        → matches any order items
- * - filter_mode='categories' → at least one item's category_id in filter_ids
- * - filter_mode='items'      → at least one item's menu_item_id in filter_ids
+ * - filter_mode='category'   → at least one item's category_id in filter_ids
+ * - filter_mode='item'       → at least one item's menu_item_id in filter_ids
  * - Multiple matches → highest multiplier wins (no stacking)
  *
  * Returns null when nothing matches.
@@ -77,14 +77,17 @@ export function findActiveBoosters(
 
     if (booster.filter_mode === 'all') return true;
 
-    if (booster.filter_mode === 'categories') {
+    if (booster.filter_mode === 'category') {
       if (booster.filter_ids.length === 0) return false;
       return orderItems.some((item) => booster.filter_ids.includes(item.category_id));
     }
 
-    // filter_mode === 'items'
-    if (booster.filter_ids.length === 0) return false;
-    return orderItems.some((item) => booster.filter_ids.includes(item.menu_item_id));
+    if (booster.filter_mode === 'item') {
+      if (booster.filter_ids.length === 0) return false;
+      return orderItems.some((item) => booster.filter_ids.includes(item.menu_item_id));
+    }
+
+    return false;
   });
 
   if (matching.length === 0) return null;

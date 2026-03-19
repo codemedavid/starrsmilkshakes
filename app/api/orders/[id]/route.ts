@@ -605,17 +605,14 @@ export async function PATCH(
       })();
     }
 
-    // Credit loyalty card if order is completed (non-blocking)
+    // Credit loyalty card if order is completed
     if (status === 'completed' && currentOrder?.status !== 'completed') {
-      (async () => {
-        try {
-          const { creditLoyalty } = await import('@/actions/loyalty');
-          await creditLoyalty(id);
-        } catch (err) {
-          console.error('Failed to credit loyalty for order:', id, err);
-          // Don't fail the order update if loyalty crediting fails
-        }
-      })();
+      try {
+        const { creditLoyalty } = await import('@/actions/loyalty');
+        await creditLoyalty(id);
+      } catch (err) {
+        console.error('Failed to credit loyalty for order:', id, err);
+      }
     }
 
     // Format order

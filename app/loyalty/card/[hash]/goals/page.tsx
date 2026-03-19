@@ -16,13 +16,13 @@ function ErrorState({ message }: { message: string }) {
   return (
     <div className="min-h-screen flex items-center justify-center px-4 bg-[#FAF8F5]">
       <div className="max-w-md w-full bg-white border border-[#E8E3DA] rounded-2xl p-8 text-center shadow-sm">
-        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#3D8A80] to-[#7BBFB5] flex items-center justify-center mx-auto mb-4">
-          <span className="text-white text-xl">⭐</span>
+        <div className="w-14 h-14 rounded-full bg-gradient-to-br from-[#3D8A80] to-[#7BBFB5] flex items-center justify-center mx-auto mb-4 shadow-lg shadow-[#3D8A80]/20">
+          <span className="text-white text-2xl">⭐</span>
         </div>
         <h1 className="text-lg font-semibold text-stone-800 mb-2">
           Starr&apos;s Famous Shakes
         </h1>
-        <p className="text-sm text-stone-500 mt-4">{message}</p>
+        <p className="text-sm text-stone-500 mt-4 leading-relaxed">{message}</p>
       </div>
     </div>
   );
@@ -76,24 +76,55 @@ export default async function GoalsPage({ params }: PageProps) {
   // ── 4. Render ──────────────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen bg-[#FAF8F5] pb-10">
+    <div className="min-h-screen bg-[#FAF8F5] pb-12">
       <div className="max-w-md mx-auto">
 
         {/* ── Teal gradient header ─────────────────────────────────────────── */}
-        <div className="bg-gradient-to-br from-[#3D8A80] to-[#7BBFB5] px-6 pt-10 pb-8 text-center">
-          <p className="text-2xl font-bold text-white">Choose Your Goal 🎯</p>
-          <p className="text-sm text-white/70 mt-1">
+        <div className="bg-gradient-to-br from-[#3D8A80] to-[#7BBFB5] px-6 pt-12 pb-10 text-center relative overflow-hidden">
+          {/* Decorative circles */}
+          <div className="absolute top-4 left-4 w-20 h-20 rounded-full bg-white/5" aria-hidden="true" />
+          <div className="absolute -bottom-4 -right-4 w-28 h-28 rounded-full bg-white/5" aria-hidden="true" />
+
+          <h1 className="text-xl font-bold text-white relative z-10">Choose Your Goal</h1>
+          <p className="text-sm text-white/70 mt-1.5 relative z-10">
             Pick the reward you want to work toward
           </p>
+
+          {/* Stats summary */}
+          <div className="flex items-center justify-center gap-4 mt-4 relative z-10">
+            <div className="bg-white/15 backdrop-blur-sm rounded-lg px-3 py-1.5">
+              <span className="text-xs font-medium text-white">
+                {card.current_stamps} ⭐ starrs
+              </span>
+            </div>
+            <div className="bg-white/15 backdrop-blur-sm rounded-lg px-3 py-1.5">
+              <span className="text-xs font-medium text-white">
+                {card.current_points} pts
+              </span>
+            </div>
+          </div>
         </div>
 
         {/* ── Content ──────────────────────────────────────────────────────── */}
-        <div className="px-4 space-y-4 mt-4">
+        <div className="px-4 space-y-4 -mt-4 relative z-10">
+
+          {/* Reward count */}
+          {rewards.length > 0 && (
+            <p className="text-xs font-medium text-stone-400 text-center pt-2">
+              {rewards.length} reward{rewards.length !== 1 ? 's' : ''} available
+            </p>
+          )}
 
           {rewards.length === 0 ? (
-            <div className="bg-white border border-[#E8E3DA] rounded-2xl p-6 text-center shadow-sm">
-              <p className="text-sm text-stone-500">
-                No rewards are available right now. Check back soon!
+            <div className="bg-white border border-[#E8E3DA] rounded-2xl p-8 text-center shadow-sm">
+              <div className="w-16 h-16 rounded-2xl bg-[#F0EBE0] flex items-center justify-center mx-auto mb-3">
+                <span className="text-2xl" aria-hidden="true">🎁</span>
+              </div>
+              <p className="text-sm font-medium text-stone-700 mb-1">
+                No rewards available yet
+              </p>
+              <p className="text-xs text-stone-400 max-w-[220px] mx-auto">
+                New rewards are added regularly. Keep collecting starrs in the meantime!
               </p>
             </div>
           ) : (
@@ -103,14 +134,18 @@ export default async function GoalsPage({ params }: PageProps) {
           {/* Back link */}
           <Link
             href={`/loyalty/card/${hash}`}
-            className="flex items-center justify-center gap-2 w-full py-3 rounded-2xl
+            className="flex items-center justify-center gap-1.5 w-full py-3.5 rounded-2xl
               bg-white
               border border-[#E8E3DA]
-              text-sm font-semibold text-stone-700
-              hover:bg-[#F0EBE0]
+              text-sm font-semibold text-stone-600
+              hover:bg-[#F8F5EF] hover:border-stone-300
+              active:bg-[#F0EBE0]
               transition-colors shadow-sm"
           >
-            ← Back to My Card
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+            Back to My Card
           </Link>
 
         </div>

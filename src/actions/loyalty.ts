@@ -6,6 +6,7 @@ import { supabaseServer } from '@/lib/supabase-server';
 import { uuidSchema } from '@/lib/validation';
 import { calculateEarnings, checkGoalReached } from '@/lib/loyalty-engine';
 import { generateCardCode, generateLoyaltyToken, getLoyaltySessionExpiry } from '@/lib/loyalty-hash';
+import { buildStampEarnedMessage, buildGoalAchievedMessage, sendLoyaltyNotification } from '@/lib/loyalty-notifications';
 import { z } from 'zod';
 
 type ActionResult = { success: boolean; error?: string; data?: any };
@@ -246,15 +247,24 @@ export async function creditLoyalty(orderId: string): Promise<ActionResult> {
 
   if (!order) return { success: false, error: 'Order not found' };
 
-  // Get order items with category info
-  const { data: orderItems } = await (supabaseServer
+  // Get order items with category info (join through menu_items for category)
+  const { data: rawItems } = await (supabaseServer
     .from('order_items') as any)
-    .select('menu_item_id, category_id, name, quantity, subtotal')
+    .select('menu_item_id, menu_item_name, quantity, total_price, menu_items(category)')
     .eq('order_id', order.id);
 
-  if (!orderItems || orderItems.length === 0) {
+  if (!rawItems || rawItems.length === 0) {
     return { success: true, data: { stamps: 0, points: 0, goalReached: false } };
   }
+
+  // Map to LoyaltyOrderItem format expected by calculateEarnings
+  const orderItems = (rawItems || []).map((item: any) => ({
+    menu_item_id: item.menu_item_id,
+    category_id: item.menu_items?.category || '',
+    name: item.menu_item_name,
+    quantity: item.quantity,
+    subtotal: Number(item.total_price),
+  }));
 
   // Find loyalty card by customer_id
   let card: any = null;
@@ -307,7 +317,7 @@ export async function creditLoyalty(orderId: string): Promise<ActionResult> {
   const { data: config } = await (supabaseServer
     .from('loyalty_config') as any)
     .select('*')
-    .eq('id', 1)
+    .limit(1)
     .single();
 
   if (!config) {
@@ -374,13 +384,16 @@ export async function creditLoyalty(orderId: string): Promise<ActionResult> {
     .single();
 
   let goalReached = false;
+  let goalReward: any = null;
 
   if (updatedCard?.goal_reward_id) {
-    const { data: goalReward } = await (supabaseServer
+    const { data: fetchedGoalReward } = await (supabaseServer
       .from('loyalty_rewards') as any)
       .select('*')
       .eq('id', updatedCard.goal_reward_id)
       .single();
+
+    goalReward = fetchedGoalReward;
 
     if (goalReward && checkGoalReached(updatedCard, goalReward)) {
       goalReached = true;
@@ -399,6 +412,46 @@ export async function creditLoyalty(orderId: string): Promise<ActionResult> {
           expires_at: expiresAt.toISOString(),
         });
     }
+  }
+
+  // Send notifications (non-blocking, fail-silent)
+  try {
+    let psid = order.messenger_psid;
+    if (!psid) {
+      const { data: cust } = await (supabaseServer.from('customers') as any)
+        .select('messenger_psid')
+        .eq('id', card.customer_id)
+        .single();
+      psid = cust?.messenger_psid;
+    }
+
+    if (psid) {
+      const { data: fbConfig } = await (supabaseServer.from('facebook_config') as any)
+        .select('page_access_token')
+        .single();
+
+      if (fbConfig?.page_access_token) {
+        // Stamp earned notification
+        if (updatedCard?.goal_reward_id && goalReward) {
+          const msg = buildStampEarnedMessage(
+            earnings.stamps,
+            updatedCard.current_stamps,
+            goalReward.stamps_required ?? 0,
+            goalReward.name,
+            earnings.booster_id
+          );
+          await sendLoyaltyNotification(psid, msg, fbConfig.page_access_token);
+        }
+
+        // Goal achieved notification
+        if (goalReached && goalReward) {
+          const goalMsg = buildGoalAchievedMessage(goalReward.name, config.claim_window_days || 7);
+          await sendLoyaltyNotification(psid, goalMsg, fbConfig.page_access_token);
+        }
+      }
+    }
+  } catch (notifErr) {
+    console.error('[creditLoyalty] Notification error (non-fatal):', notifErr);
   }
 
   revalidateTag('loyalty-cards');
@@ -499,25 +552,46 @@ export async function lookupCard(query: string): Promise<ActionResult> {
 
   const searchTerm = `%${queryResult.data}%`;
 
-  // Search loyalty cards joined with customers
-  const { data: cards, error } = await (supabaseServer
+  // Search customers first, then find their loyalty cards.
+  // PostgREST .or() does not support filtering on joined tables,
+  // so we search customers separately and then query cards.
+  const { data: matchingCustomers, error: custErr } = await (supabaseServer
+    .from('customers') as any)
+    .select('id')
+    .or(
+      `name.ilike.${searchTerm},` +
+      `email.ilike.${searchTerm},` +
+      `phone.ilike.${searchTerm}`
+    );
+
+  if (custErr) {
+    console.error('[lookupCard] Customer search error:', custErr.code);
+    return { success: false, error: 'Failed to search cards' };
+  }
+
+  const customerIds = (matchingCustomers || []).map((c: any) => c.id);
+
+  // Build card query: match by card_code OR by customer IDs from name/email/phone search
+  let dbQuery = (supabaseServer
     .from('loyalty_cards') as any)
     .select(`
       *,
-      customers!inner (
+      customers (
         id,
         name,
         email,
         phone,
         messenger_psid
       )
-    `)
-    .or(
-      `card_code.ilike.${searchTerm},` +
-      `customers.name.ilike.${searchTerm},` +
-      `customers.email.ilike.${searchTerm},` +
-      `customers.phone.ilike.${searchTerm}`
-    );
+    `);
+
+  if (customerIds.length > 0) {
+    dbQuery = dbQuery.or(`card_code.ilike.${searchTerm},customer_id.in.(${customerIds.join(',')})`);
+  } else {
+    dbQuery = dbQuery.ilike('card_code', searchTerm);
+  }
+
+  const { data: cards, error } = await dbQuery;
 
   if (error) {
     console.error('[lookupCard] DB error:', error.code);
@@ -543,7 +617,7 @@ export async function lookupCard(query: string): Promise<ActionResult> {
 
       const { data: pendingRedemptions } = await (supabaseServer
         .from('loyalty_redemptions') as any)
-        .select('*')
+        .select('*, loyalty_rewards(name)')
         .eq('card_id', card.id)
         .eq('status', 'earned');
 
@@ -554,7 +628,11 @@ export async function lookupCard(query: string): Promise<ActionResult> {
         customer_phone: card.customers?.phone || null,
         messenger_psid: card.customers?.messenger_psid || null,
         goal_reward: goalReward,
-        pending_redemptions: pendingRedemptions || [],
+        pending_redemptions: (pendingRedemptions || []).map((r: any) => ({
+          ...r,
+          reward_name: r.loyalty_rewards?.name || null,
+          loyalty_rewards: undefined,
+        })),
         customers: undefined, // Remove nested join data
       };
     }),
@@ -581,24 +659,39 @@ export async function getCardByCustomerId(customerId: string): Promise<ActionRes
 // ─── linkOrderToCard ─────────────────────────────────────────────────────────
 
 export async function linkOrderToCard(
-  orderId: string,
+  orderIdentifier: string,
   cardId: string,
 ): Promise<ActionResult> {
   await requireAdmin();
   const { allowed } = await checkActionRateLimit();
   if (!allowed) return { success: false, error: 'Too many requests. Please try again later.' };
 
-  const orderIdResult = uuidSchema.safeParse(orderId);
-  if (!orderIdResult.success) return { success: false, error: 'Invalid order ID' };
-
   const cardIdResult = uuidSchema.safeParse(cardId);
   if (!cardIdResult.success) return { success: false, error: 'Invalid card ID' };
+
+  // Support both UUID and order_number (e.g. ORD-20250902-0001)
+  let resolvedOrderId: string;
+  const uuidResult = uuidSchema.safeParse(orderIdentifier);
+  if (uuidResult.success) {
+    resolvedOrderId = uuidResult.data;
+  } else {
+    // Try looking up by order_number
+    const sanitized = orderIdentifier.trim().toUpperCase();
+    const { data: order } = await (supabaseServer
+      .from('orders') as any)
+      .select('id')
+      .eq('order_number', sanitized)
+      .single();
+
+    if (!order) return { success: false, error: 'Order not found. Enter a valid order number (e.g. ORD-20260319-0001).' };
+    resolvedOrderId = order.id;
+  }
 
   // Check for existing 'earn' transaction with same order_id (prevent double-credit)
   const { data: existingTx } = await (supabaseServer
     .from('loyalty_transactions') as any)
     .select('id')
-    .eq('order_id', orderIdResult.data)
+    .eq('order_id', resolvedOrderId)
     .eq('type', 'earn')
     .single();
 
@@ -607,5 +700,5 @@ export async function linkOrderToCard(
   }
 
   // Call creditLoyalty internally
-  return creditLoyalty(orderIdResult.data);
+  return creditLoyalty(resolvedOrderId);
 }

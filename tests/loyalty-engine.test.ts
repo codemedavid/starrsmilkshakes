@@ -218,26 +218,26 @@ describe('findActiveBoosters', () => {
   });
 
   it('returns booster when filter_mode=categories and a category matches', () => {
-    const booster = baseBooster({ filter_mode: 'categories', filter_ids: ['cat-1'] });
+    const booster = baseBooster({ filter_mode: 'category', filter_ids: ['cat-1'] });
     const result = findActiveBoosters([booster], items, NOW);
     expect(result).not.toBeNull();
     expect(result!.id).toBe('boost-1');
   });
 
   it('returns null when filter_mode=categories and no category matches', () => {
-    const booster = baseBooster({ filter_mode: 'categories', filter_ids: ['cat-99'] });
+    const booster = baseBooster({ filter_mode: 'category', filter_ids: ['cat-99'] });
     expect(findActiveBoosters([booster], items, NOW)).toBeNull();
   });
 
   it('returns booster when filter_mode=items and an item matches', () => {
-    const booster = baseBooster({ filter_mode: 'items', filter_ids: ['item-1'] });
+    const booster = baseBooster({ filter_mode: 'item', filter_ids: ['item-1'] });
     const result = findActiveBoosters([booster], items, NOW);
     expect(result).not.toBeNull();
     expect(result!.id).toBe('boost-1');
   });
 
   it('returns null when filter_mode=items and no item matches', () => {
-    const booster = baseBooster({ filter_mode: 'items', filter_ids: ['item-99'] });
+    const booster = baseBooster({ filter_mode: 'item', filter_ids: ['item-99'] });
     expect(findActiveBoosters([booster], items, NOW)).toBeNull();
   });
 
@@ -250,12 +250,12 @@ describe('findActiveBoosters', () => {
   });
 
   it('returns null when filter_mode=categories with empty filter_ids', () => {
-    const booster = baseBooster({ filter_mode: 'categories', filter_ids: [] });
+    const booster = baseBooster({ filter_mode: 'category', filter_ids: [] });
     expect(findActiveBoosters([booster], items, NOW)).toBeNull();
   });
 
   it('returns null when filter_mode=items with empty filter_ids', () => {
-    const booster = baseBooster({ filter_mode: 'items', filter_ids: [] });
+    const booster = baseBooster({ filter_mode: 'item', filter_ids: [] });
     expect(findActiveBoosters([booster], items, NOW)).toBeNull();
   });
 });
