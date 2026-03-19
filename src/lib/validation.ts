@@ -165,9 +165,9 @@ export const loyaltyConfigSchema = z.object({
 
 export type LoyaltyConfigInput = z.infer<typeof loyaltyConfigSchema>;
 
-// ─── Loyalty Reward ──────────────────────────────────────────────────────────
+// ─── Loyalty Goal ────────────────────────────────────────────────────────────
 
-export const loyaltyRewardSchema = z.object({
+export const loyaltyGoalSchema = z.object({
   name: sanitized.pipe(z.string().min(1).max(100)),
   description: sanitized.pipe(z.string().max(500)).nullable().optional(),
   image_url: z.string().url().nullable().optional(),
@@ -177,7 +177,20 @@ export const loyaltyRewardSchema = z.object({
   sort_order: z.number().int().optional(),
 });
 
-export type LoyaltyRewardInput = z.infer<typeof loyaltyRewardSchema>;
+export type LoyaltyGoalInput = z.infer<typeof loyaltyGoalSchema>;
+
+// ─── Loyalty Milestone ────────────────────────────────────────────────────────
+
+export const loyaltyMilestoneSchema = z.object({
+  name: sanitized.pipe(z.string().min(1).max(100)),
+  description: sanitized.pipe(z.string().max(500)).nullable().optional(),
+  image_url: z.string().url().nullable().optional(),
+  stamps_required: z.number().int().min(1),
+  is_active: z.boolean().optional(),
+  sort_order: z.number().int().optional(),
+});
+
+export type LoyaltyMilestoneInput = z.infer<typeof loyaltyMilestoneSchema>;
 
 // ─── Loyalty Booster ─────────────────────────────────────────────────────────
 
