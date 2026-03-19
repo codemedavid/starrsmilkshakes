@@ -25,3 +25,9 @@ dist-ssr
 .env
 .worktrees/
 .superpowers/
+
+# Build output
+.next/
+
+# MCP config (may contain project refs)
+.mcp.json

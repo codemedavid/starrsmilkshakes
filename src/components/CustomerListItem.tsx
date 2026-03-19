@@ -20,7 +20,7 @@ const formatDate = (dateStr: string | null): string => {
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 };
 
-const CustomerListItem: React.FC<CustomerListItemProps> = ({ customer, selected, onClick }) => {
+const CustomerListItem: React.FC<CustomerListItemProps> = React.memo(function CustomerListItem({ customer, selected, onClick }) {
   const isAtRisk = customer.auto_tags.includes('At Risk');
   const contact = customer.phone || customer.email || 'No contact';
 
@@ -83,6 +83,6 @@ const CustomerListItem: React.FC<CustomerListItemProps> = ({ customer, selected,
       </div>
     </div>
   );
-};
+});
 
 export default CustomerListItem;

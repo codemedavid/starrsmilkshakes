@@ -1,0 +1,247 @@
+'use server';
+
+import { revalidatePath, revalidateTag } from 'next/cache';
+import { requireAdmin, checkActionRateLimit } from '@/lib/admin-guard';
+import { supabaseServer } from '@/lib/supabase-server';
+import {
+  loyaltyConfigSchema,
+  loyaltyRewardSchema,
+  loyaltyBoosterSchema,
+  uuidSchema,
+} from '@/lib/validation';
+
+type ActionResult = { success: boolean; error?: string; data?: any };
+
+// ─── updateLoyaltyConfig ─────────────────────────────────────────────────────
+
+export async function updateLoyaltyConfig(input: unknown): Promise<ActionResult> {
+  await requireAdmin();
+  const { allowed } = await checkActionRateLimit();
+  if (!allowed) return { success: false, error: 'Too many requests. Please try again later.' };
+
+  const parsed = loyaltyConfigSchema.safeParse(input);
+  if (!parsed.success) return { success: false, error: 'Invalid input' };
+
+  const { data, error } = await (supabaseServer
+    .from('loyalty_config') as any)
+    .update(parsed.data)
+    .eq('id', 1)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('[updateLoyaltyConfig] DB error:', error.code);
+    return { success: false, error: 'Failed to update loyalty config' };
+  }
+
+  revalidateTag('loyalty-config');
+  revalidatePath('/admin/loyalty');
+  return { success: true, data };
+}
+
+// ─── createReward ─────────────────────────────────────────────────────────────
+
+export async function createReward(input: unknown): Promise<ActionResult> {
+  await requireAdmin();
+  const { allowed } = await checkActionRateLimit();
+  if (!allowed) return { success: false, error: 'Too many requests. Please try again later.' };
+
+  const parsed = loyaltyRewardSchema.safeParse(input);
+  if (!parsed.success) return { success: false, error: 'Invalid input' };
+
+  const { data, error } = await (supabaseServer
+    .from('loyalty_rewards') as any)
+    .insert(parsed.data)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('[createReward] DB error:', error.code);
+    return { success: false, error: 'Failed to create reward' };
+  }
+
+  revalidateTag('loyalty-rewards');
+  revalidatePath('/admin/loyalty');
+  return { success: true, data };
+}
+
+// ─── updateReward ─────────────────────────────────────────────────────────────
+
+export async function updateReward(id: unknown, input: unknown): Promise<ActionResult> {
+  await requireAdmin();
+  const { allowed } = await checkActionRateLimit();
+  if (!allowed) return { success: false, error: 'Too many requests. Please try again later.' };
+
+  const idResult = uuidSchema.safeParse(id);
+  if (!idResult.success) return { success: false, error: 'Invalid ID' };
+
+  const parsed = loyaltyRewardSchema.safeParse(input);
+  if (!parsed.success) return { success: false, error: 'Invalid input' };
+
+  const { data, error } = await (supabaseServer
+    .from('loyalty_rewards') as any)
+    .update(parsed.data)
+    .eq('id', idResult.data)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('[updateReward] DB error:', error.code);
+    return { success: false, error: 'Failed to update reward' };
+  }
+
+  revalidateTag('loyalty-rewards');
+  revalidatePath('/admin/loyalty');
+  return { success: true, data };
+}
+
+// ─── toggleReward ─────────────────────────────────────────────────────────────
+
+export async function toggleReward(id: unknown, isActive: boolean): Promise<ActionResult> {
+  await requireAdmin();
+  const { allowed } = await checkActionRateLimit();
+  if (!allowed) return { success: false, error: 'Too many requests. Please try again later.' };
+
+  const idResult = uuidSchema.safeParse(id);
+  if (!idResult.success) return { success: false, error: 'Invalid ID' };
+
+  const { data, error } = await (supabaseServer
+    .from('loyalty_rewards') as any)
+    .update({ is_active: isActive })
+    .eq('id', idResult.data)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('[toggleReward] DB error:', error.code);
+    return { success: false, error: 'Failed to toggle reward' };
+  }
+
+  revalidateTag('loyalty-rewards');
+  revalidatePath('/admin/loyalty');
+  return { success: true, data };
+}
+
+// ─── createBooster ───────────────────────────────────────────────────────────
+
+export async function createBooster(input: unknown): Promise<ActionResult> {
+  await requireAdmin();
+  const { allowed } = await checkActionRateLimit();
+  if (!allowed) return { success: false, error: 'Too many requests. Please try again later.' };
+
+  const parsed = loyaltyBoosterSchema.safeParse(input);
+  if (!parsed.success) return { success: false, error: 'Invalid input' };
+
+  const { data, error } = await (supabaseServer
+    .from('loyalty_boosters') as any)
+    .insert(parsed.data)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('[createBooster] DB error:', error.code);
+    return { success: false, error: 'Failed to create booster' };
+  }
+
+  revalidateTag('loyalty-boosters');
+  revalidatePath('/admin/loyalty');
+  return { success: true, data };
+}
+
+// ─── updateBooster ───────────────────────────────────────────────────────────
+
+export async function updateBooster(id: unknown, input: unknown): Promise<ActionResult> {
+  await requireAdmin();
+  const { allowed } = await checkActionRateLimit();
+  if (!allowed) return { success: false, error: 'Too many requests. Please try again later.' };
+
+  const idResult = uuidSchema.safeParse(id);
+  if (!idResult.success) return { success: false, error: 'Invalid ID' };
+
+  const parsed = loyaltyBoosterSchema.safeParse(input);
+  if (!parsed.success) return { success: false, error: 'Invalid input' };
+
+  const { data, error } = await (supabaseServer
+    .from('loyalty_boosters') as any)
+    .update(parsed.data)
+    .eq('id', idResult.data)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('[updateBooster] DB error:', error.code);
+    return { success: false, error: 'Failed to update booster' };
+  }
+
+  revalidateTag('loyalty-boosters');
+  revalidatePath('/admin/loyalty');
+  return { success: true, data };
+}
+
+// ─── toggleBooster ───────────────────────────────────────────────────────────
+
+export async function toggleBooster(id: unknown, isActive: boolean): Promise<ActionResult> {
+  await requireAdmin();
+  const { allowed } = await checkActionRateLimit();
+  if (!allowed) return { success: false, error: 'Too many requests. Please try again later.' };
+
+  const idResult = uuidSchema.safeParse(id);
+  if (!idResult.success) return { success: false, error: 'Invalid ID' };
+
+  const { data, error } = await (supabaseServer
+    .from('loyalty_boosters') as any)
+    .update({ is_active: isActive })
+    .eq('id', idResult.data)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('[toggleBooster] DB error:', error.code);
+    return { success: false, error: 'Failed to toggle booster' };
+  }
+
+  revalidateTag('loyalty-boosters');
+  revalidatePath('/admin/loyalty');
+  return { success: true, data };
+}
+
+// ─── getRedemptions ──────────────────────────────────────────────────────────
+
+export async function getRedemptions(statusFilter?: string): Promise<ActionResult> {
+  await requireAdmin();
+
+  let query = (supabaseServer.from('loyalty_redemptions') as any)
+    .select('*, loyalty_cards!inner(customer_id, card_code, customers!inner(name, email)), loyalty_rewards!inner(name)')
+    .order('earned_at', { ascending: false })
+    .limit(50);
+
+  if (statusFilter && statusFilter !== 'all') {
+    query = query.eq('status', statusFilter);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    console.error('[getRedemptions] DB error:', error.code);
+    return { success: false, error: error.message };
+  }
+
+  return { success: true, data: data || [] };
+}
+
+// ─── getLoyaltyConfig ────────────────────────────────────────────────────────
+
+export async function getLoyaltyConfig(): Promise<ActionResult> {
+  const { data, error } = await (supabaseServer
+    .from('loyalty_config') as any)
+    .select('*')
+    .eq('id', 1)
+    .single();
+
+  if (error) {
+    console.error('[getLoyaltyConfig] DB error:', error.code);
+    return { success: false, error: 'Failed to fetch loyalty config' };
+  }
+
+  return { success: true, data };
+}

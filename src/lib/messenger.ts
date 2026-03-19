@@ -26,8 +26,14 @@ export interface Button {
 
 // --- Send API Calls ---
 
-export async function sendTextMessage(psid: string, text: string, pageToken: string): Promise<void> {
-  await callSendAPI(psid, { text }, pageToken);
+export async function sendTextMessage(
+  psid: string,
+  text: string,
+  pageToken: string,
+  messagingType: string = 'RESPONSE',
+  tag?: string
+): Promise<void> {
+  await callSendAPI(psid, { text }, pageToken, messagingType, tag);
 }
 
 export async function sendQuickReplies(
@@ -66,18 +72,27 @@ export async function sendButtonTemplate(
   }, pageToken);
 }
 
-async function callSendAPI(psid: string, message: Record<string, unknown>, pageToken: string): Promise<void> {
+async function callSendAPI(
+  psid: string,
+  message: Record<string, unknown>,
+  pageToken: string,
+  messagingType: string = 'RESPONSE',
+  tag?: string
+): Promise<void> {
+  const body: Record<string, unknown> = {
+    recipient: { id: psid },
+    messaging_type: messagingType,
+    message,
+  };
+  if (tag) body.tag = tag;
+
   const response = await fetch(`${GRAPH_API_BASE}/me/messages`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${pageToken}`,
     },
-    body: JSON.stringify({
-      recipient: { id: psid },
-      messaging_type: 'RESPONSE',
-      message,
-    }),
+    body: JSON.stringify(body),
   });
 
   if (!response.ok) {
@@ -142,6 +157,22 @@ export function buildCartSummary(
 
   lines.push(`\nTotal: ₱${total}`);
   return lines.join('\n');
+}
+
+export async function getUserProfile(
+  psid: string,
+  pageToken: string
+): Promise<{ name: string | null }> {
+  try {
+    const response = await fetch(
+      `${GRAPH_API_BASE}/${psid}?fields=name&access_token=${pageToken}`
+    );
+    if (!response.ok) return { name: null };
+    const data = await response.json();
+    return { name: data.name || null };
+  } catch {
+    return { name: null };
+  }
 }
 
 export function buildStatusMessage(
