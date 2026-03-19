@@ -30,7 +30,16 @@ export default {
             teal: '#2DD4BF',
             green: '#10B981',
             dark: '#0F766E'
-          }
+          },
+          sage: {
+            DEFAULT: '#8FB8A8',
+            light: '#A8CFC0',
+          },
+          deep: '#2A5A4A',
+          linen: '#F6F1EB',
+          'cream-brand': '#FFF8E7',
+          'mint-soft': '#F0F7F4',
+          muted: '#6B8F80',
         }
       },
       fontFamily: {
