@@ -2,28 +2,28 @@
 
 import { useState } from 'react';
 import { AlertTriangle, CheckCircle, Info, Pencil, Plus, X } from 'lucide-react';
-import type { LoyaltyReward } from '@/types/loyalty';
-import { useLoyaltyRewards } from '@/hooks/useLoyaltyRewards';
+import type { LoyaltyGoal } from '@/types/loyalty';
+import { useLoyaltyGoals } from '@/hooks/useLoyaltyGoals';
 
 interface Props {
-  initialRewards: LoyaltyReward[];
+  initialGoals: LoyaltyGoal[];
 }
 
-interface RewardFormValues {
+interface GoalFormValues {
   name: string;
   description: string;
   stamps_required: string;
   points_required: string;
 }
 
-const emptyForm = (): RewardFormValues => ({
+const emptyForm = (): GoalFormValues => ({
   name: '',
   description: '',
   stamps_required: '',
   points_required: '',
 });
 
-function rewardToForm(r: LoyaltyReward): RewardFormValues {
+function goalToForm(r: LoyaltyGoal): GoalFormValues {
   return {
     name: r.name,
     description: r.description ?? '',
@@ -32,7 +32,7 @@ function rewardToForm(r: LoyaltyReward): RewardFormValues {
   };
 }
 
-function formToPayload(f: RewardFormValues) {
+function formToPayload(f: GoalFormValues) {
   return {
     name: f.name.trim(),
     description: f.description.trim() || null,
@@ -43,19 +43,19 @@ function formToPayload(f: RewardFormValues) {
 
 // ─── Inline Form ───────────────────────────────────────────────────────────────
 
-interface RewardFormProps {
-  initialValues: RewardFormValues;
+interface GoalFormProps {
+  initialValues: GoalFormValues;
   saving: boolean;
-  onSave: (values: RewardFormValues) => Promise<void>;
+  onSave: (values: GoalFormValues) => Promise<void>;
   onCancel: () => void;
   isEditing?: boolean;
 }
 
-function RewardForm({ initialValues, saving, onSave, onCancel, isEditing = false }: RewardFormProps) {
-  const [values, setValues] = useState<RewardFormValues>(initialValues);
+function GoalForm({ initialValues, saving, onSave, onCancel, isEditing = false }: GoalFormProps) {
+  const [values, setValues] = useState<GoalFormValues>(initialValues);
   const [validationError, setValidationError] = useState<string | null>(null);
 
-  const set = <K extends keyof RewardFormValues>(key: K, value: RewardFormValues[K]) => {
+  const set = <K extends keyof GoalFormValues>(key: K, value: GoalFormValues[K]) => {
     setValues(prev => ({ ...prev, [key]: value }));
     setValidationError(null);
   };
@@ -63,7 +63,7 @@ function RewardForm({ initialValues, saving, onSave, onCancel, isEditing = false
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!values.name.trim()) {
-      setValidationError('Reward name is required.');
+      setValidationError('Goal name is required.');
       return;
     }
     if (!values.stamps_required && !values.points_required) {
@@ -80,7 +80,7 @@ function RewardForm({ initialValues, saving, onSave, onCancel, isEditing = false
   return (
     <form onSubmit={handleSubmit} className="bg-white border-2 border-[#7BBFB5] rounded-xl p-4 space-y-3 shadow-sm">
       <p className="text-xs font-nunito font-semibold text-[#3D8A80] uppercase tracking-wide">
-        {isEditing ? 'Edit Reward' : 'New Reward'}
+        {isEditing ? 'Edit Goal' : 'New Goal'}
       </p>
 
       {validationError && (
@@ -170,7 +170,7 @@ function RewardForm({ initialValues, saving, onSave, onCancel, isEditing = false
               Saving...
             </span>
           ) : (
-            isEditing ? 'Update Reward' : 'Create Reward'
+            isEditing ? 'Update Goal' : 'Create Goal'
           )}
         </button>
       </div>
@@ -178,60 +178,60 @@ function RewardForm({ initialValues, saving, onSave, onCancel, isEditing = false
   );
 }
 
-// ─── Reward Card ──────────────────────────────────────────────────────────────
+// ─── Goal Card ──────────────────────────────────────────────────────────────────
 
-interface RewardCardProps {
-  reward: LoyaltyReward;
+interface GoalCardProps {
+  goal: LoyaltyGoal;
   saving: boolean;
-  onEdit: (reward: LoyaltyReward) => void;
+  onEdit: (goal: LoyaltyGoal) => void;
   onToggle: (id: string, isActive: boolean) => void;
 }
 
-function RewardCard({ reward, saving, onEdit, onToggle }: RewardCardProps) {
+function GoalCard({ goal, saving, onEdit, onToggle }: GoalCardProps) {
   const [showConfirm, setShowConfirm] = useState(false);
 
   const handleToggle = () => {
-    if (reward.is_active) {
+    if (goal.is_active) {
       // Disabling requires confirmation
       setShowConfirm(true);
     } else {
-      onToggle(reward.id, true);
+      onToggle(goal.id, true);
     }
   };
 
   const confirmDisable = () => {
     setShowConfirm(false);
-    onToggle(reward.id, false);
+    onToggle(goal.id, false);
   };
 
   return (
-    <div className={`bg-white border border-[#E8E3DA] rounded-xl p-4 transition-all hover:shadow-sm ${reward.is_active ? '' : 'opacity-60'}`}>
+    <div className={`bg-white border border-[#E8E3DA] rounded-xl p-4 transition-all hover:shadow-sm ${goal.is_active ? '' : 'opacity-60'}`}>
       <div className="flex items-start gap-4">
         {/* Left: name + description */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <p className="text-sm font-medium text-stone-800 truncate font-nunito">{reward.name}</p>
-            {!reward.is_active && (
+            <p className="text-sm font-medium text-stone-800 truncate font-nunito">{goal.name}</p>
+            {!goal.is_active && (
               <span className="text-[10px] px-2 py-0.5 rounded-full bg-stone-100 text-stone-500 font-medium uppercase tracking-wide">
                 Disabled
               </span>
             )}
           </div>
-          {reward.description && (
-            <p className="text-xs text-stone-500 mt-0.5 line-clamp-2 font-nunito">{reward.description}</p>
+          {goal.description && (
+            <p className="text-xs text-stone-500 mt-0.5 line-clamp-2 font-nunito">{goal.description}</p>
           )}
         </div>
 
         {/* Middle: cost chips */}
         <div className="flex items-center gap-2 shrink-0">
-          {reward.stamps_required != null && (
+          {goal.stamps_required != null && (
             <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200 whitespace-nowrap font-nunito">
-              {reward.stamps_required} stamps
+              {goal.stamps_required} stamps
             </span>
           )}
-          {reward.points_required != null && (
+          {goal.points_required != null && (
             <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-purple-50 text-purple-700 border border-purple-200 whitespace-nowrap font-nunito">
-              {reward.points_required} pts
+              {goal.points_required} pts
             </span>
           )}
         </div>
@@ -240,8 +240,8 @@ function RewardCard({ reward, saving, onEdit, onToggle }: RewardCardProps) {
         <div className="flex items-center gap-2 shrink-0">
           <button
             type="button"
-            onClick={() => onEdit(reward)}
-            aria-label={`Edit ${reward.name}`}
+            onClick={() => onEdit(goal)}
+            aria-label={`Edit ${goal.name}`}
             className="border border-[#E8E3DA] text-stone-600 px-3 py-1.5 rounded-lg text-sm font-nunito hover:bg-[#F2EEE8] transition-colors inline-flex items-center gap-1.5"
           >
             <Pencil className="h-3.5 w-3.5" />
@@ -252,12 +252,12 @@ function RewardCard({ reward, saving, onEdit, onToggle }: RewardCardProps) {
             onClick={handleToggle}
             disabled={saving}
             className={`text-sm font-nunito font-medium transition-colors disabled:opacity-50 px-2 py-1.5 rounded-lg ${
-              reward.is_active
+              goal.is_active
                 ? 'text-red-500 hover:text-red-600 hover:bg-red-50'
                 : 'text-[#3D8A80] hover:text-[#356E66] hover:bg-[#7BBFB5]/10'
             }`}
           >
-            {reward.is_active ? 'Disable' : 'Enable'}
+            {goal.is_active ? 'Disable' : 'Enable'}
           </button>
         </div>
       </div>
@@ -266,7 +266,7 @@ function RewardCard({ reward, saving, onEdit, onToggle }: RewardCardProps) {
       {showConfirm && (
         <div className="mt-3 pt-3 border-t border-[#E8E3DA] flex items-center justify-between gap-4">
           <p className="text-xs font-nunito text-stone-600">
-            Disable <span className="font-semibold">{reward.name}</span>? Customers won&apos;t be able to earn or claim this reward.
+            Disable <span className="font-semibold">{goal.name}</span>? Customers won&apos;t be able to earn or claim this goal.
           </p>
           <div className="flex items-center gap-2 shrink-0">
             <button
@@ -292,32 +292,32 @@ function RewardCard({ reward, saving, onEdit, onToggle }: RewardCardProps) {
 
 // ─── Main Tab ─────────────────────────────────────────────────────────────────
 
-export default function LoyaltyRewardsTab({ initialRewards }: Props) {
-  const { rewards, addReward, editReward, toggle, saving, error, setError } =
-    useLoyaltyRewards(initialRewards);
+export default function LoyaltyGoalsTab({ initialGoals }: Props) {
+  const { goals, addGoal, editGoal, toggle, saving, error, setError } =
+    useLoyaltyGoals(initialGoals);
 
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
 
-  const activeCount = rewards.filter(r => r.is_active).length;
+  const activeCount = goals.filter(r => r.is_active).length;
 
   const flashSaved = () => {
     setSaved(true);
     setTimeout(() => setSaved(false), 3000);
   };
 
-  const handleAdd = async (values: RewardFormValues) => {
-    const result = await addReward(formToPayload(values));
+  const handleAdd = async (values: GoalFormValues) => {
+    const result = await addGoal(formToPayload(values));
     if (result.success) {
       setShowAddForm(false);
       flashSaved();
     }
   };
 
-  const handleEdit = async (values: RewardFormValues) => {
+  const handleEdit = async (values: GoalFormValues) => {
     if (!editingId) return;
-    const result = await editReward(editingId, formToPayload(values));
+    const result = await editGoal(editingId, formToPayload(values));
     if (result.success) {
       setEditingId(null);
       flashSaved();
@@ -328,9 +328,9 @@ export default function LoyaltyRewardsTab({ initialRewards }: Props) {
     toggle(id, isActive);
   };
 
-  const startEdit = (reward: LoyaltyReward) => {
+  const startEdit = (goal: LoyaltyGoal) => {
     setShowAddForm(false);
-    setEditingId(reward.id);
+    setEditingId(goal.id);
   };
 
   const cancelEdit = () => setEditingId(null);
@@ -358,16 +358,16 @@ export default function LoyaltyRewardsTab({ initialRewards }: Props) {
       {saved && (
         <div className="flex items-center gap-3 px-4 py-3 bg-emerald-50 border border-emerald-200 rounded-xl">
           <CheckCircle className="h-4 w-4 text-emerald-500 shrink-0" />
-          <p className="font-nunito text-sm text-emerald-700">Reward saved successfully.</p>
+          <p className="font-nunito text-sm text-emerald-700">Goal saved successfully.</p>
         </div>
       )}
 
       {/* Header row */}
       <div className="flex items-center justify-between">
         <h2 className="text-sm font-nunito font-semibold text-stone-700">
-          Reward Catalog{' '}
+          Goal Catalog{' '}
           <span className="font-normal text-stone-500">
-            ({activeCount} active / {rewards.length} total)
+            ({activeCount} active / {goals.length} total)
           </span>
         </h2>
         {!showAddForm && (
@@ -377,14 +377,14 @@ export default function LoyaltyRewardsTab({ initialRewards }: Props) {
             className="inline-flex items-center gap-1.5 bg-[#3D8A80] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#356E66] transition-colors shadow-sm"
           >
             <Plus className="h-4 w-4" />
-            Add Reward
+            Add Goal
           </button>
         )}
       </div>
 
       {/* Add form */}
       {showAddForm && (
-        <RewardForm
+        <GoalForm
           initialValues={emptyForm()}
           saving={saving}
           onSave={handleAdd}
@@ -392,31 +392,31 @@ export default function LoyaltyRewardsTab({ initialRewards }: Props) {
         />
       )}
 
-      {/* Reward list */}
-      {rewards.length === 0 && !showAddForm ? (
+      {/* Goal list */}
+      {goals.length === 0 && !showAddForm ? (
         <div className="text-center py-16 text-stone-400 bg-white border border-[#E8E3DA] rounded-xl">
           <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-[#7BBFB5]/10 mb-3">
             <Plus className="h-5 w-5 text-[#3D8A80]" />
           </div>
-          <p className="text-sm font-nunito font-medium text-stone-600">No rewards yet</p>
-          <p className="text-xs font-nunito text-stone-400 mt-1">Add your first reward to get started</p>
+          <p className="text-sm font-nunito font-medium text-stone-600">No goals yet</p>
+          <p className="text-xs font-nunito text-stone-400 mt-1">Add your first goal to get started</p>
         </div>
       ) : (
         <div className="space-y-3">
-          {rewards.map(reward =>
-            editingId === reward.id ? (
-              <RewardForm
-                key={reward.id}
-                initialValues={rewardToForm(reward)}
+          {goals.map(goal =>
+            editingId === goal.id ? (
+              <GoalForm
+                key={goal.id}
+                initialValues={goalToForm(goal)}
                 saving={saving}
                 onSave={handleEdit}
                 onCancel={cancelEdit}
                 isEditing
               />
             ) : (
-              <RewardCard
-                key={reward.id}
-                reward={reward}
+              <GoalCard
+                key={goal.id}
+                goal={goal}
                 saving={saving}
                 onEdit={startEdit}
                 onToggle={handleToggle}

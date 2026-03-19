@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { AlertTriangle, CheckCircle, Clock, Gift, RefreshCw, X } from 'lucide-react';
 import { getRedemptions } from '@/actions/loyalty-admin';
-import { redeemReward } from '@/actions/loyalty';
+import { redeemGoal } from '@/actions/loyalty';
 
 type StatusFilter = 'all' | 'earned' | 'claimed' | 'expired';
 
@@ -105,7 +105,7 @@ interface RedemptionCardProps {
 function RedemptionCard({ redemption, onMarkRedeemed, redeeming, branchId, onBranchIdNeeded }: RedemptionCardProps) {
   const [showConfirm, setShowConfirm] = useState(false);
   const customer = redemption.loyalty_cards?.customers;
-  const rewardName = redemption.loyalty_rewards?.name ?? '--';
+  const rewardName = redemption.loyalty_goals?.name ?? '--';
   const cardCode = redemption.loyalty_cards?.card_code ?? '--';
   const isRedeeming = redeeming === redemption.id;
   const isPending = redemption.status === 'earned';
@@ -275,7 +275,7 @@ export default function LoyaltyRedemptionsTab() {
       }
       setRedeeming(redemptionId);
       setRedeemError(null);
-      const result = await redeemReward(redemptionId, branchId.trim());
+      const result = await redeemGoal(redemptionId, branchId.trim());
       if (result.success) {
         setRedeemSuccess(true);
         setTimeout(() => setRedeemSuccess(false), 4000);

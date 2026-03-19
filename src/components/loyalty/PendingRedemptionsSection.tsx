@@ -21,14 +21,14 @@ function formatDate(iso: string): string {
 
 export default async function PendingRedemptionsSection({ cardId }: Props) {
   const { data } = await (supabaseServer.from('loyalty_redemptions') as any)
-    .select('id, expires_at, loyalty_rewards(name)')
+    .select('id, expires_at, loyalty_goals(name)')
     .eq('card_id', cardId)
     .eq('status', 'earned');
 
   const pendingRedemptions: Array<{
     id: string;
     expires_at: string;
-    loyalty_rewards: { name: string } | null;
+    loyalty_goals: { name: string } | null;
   }> = data ?? [];
 
   if (pendingRedemptions.length === 0) return null;
@@ -66,7 +66,7 @@ export default async function PendingRedemptionsSection({ cardId }: Props) {
               </div>
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-bold text-emerald-900 truncate">
-                  {r.loyalty_rewards?.name ?? 'Reward'}
+                  {r.loyalty_goals?.name ?? 'Reward'}
                 </p>
                 <p className="text-xs text-emerald-600 mt-0.5 flex items-center gap-1">
                   {isExpiringSoon && (

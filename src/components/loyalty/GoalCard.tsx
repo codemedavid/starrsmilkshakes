@@ -1,28 +1,28 @@
 'use client';
 
-import type { LoyaltyReward } from '@/types/loyalty';
+import type { LoyaltyGoal } from '@/types/loyalty';
 
-interface RewardCardProps {
-  reward: LoyaltyReward;
+interface GoalCardProps {
+  goal: LoyaltyGoal;
   currentStamps: number;
   currentPoints: number;
   isCurrentGoal: boolean;
-  onSelect: (rewardId: string) => void;
+  onSelect: (goalId: string) => void;
   selecting: boolean;
 }
 
-export default function RewardCard({
-  reward,
+export default function GoalCard({
+  goal,
   currentStamps,
   currentPoints,
   isCurrentGoal,
   onSelect,
   selecting,
-}: RewardCardProps) {
-  const stampsRequired = reward.stamps_required ?? 0;
-  const pointsRequired = reward.points_required ?? 0;
+}: GoalCardProps) {
+  const stampsRequired = goal.stamps_required ?? 0;
+  const pointsRequired = goal.points_required ?? 0;
 
-  // Progress toward this reward
+  // Progress toward this goal
   const stampsProgress =
     stampsRequired > 0 ? Math.min(currentStamps / stampsRequired, 1) : 0;
   const pointsProgress =
@@ -39,9 +39,9 @@ export default function RewardCard({
   return (
     <button
       type="button"
-      onClick={() => onSelect(reward.id)}
+      onClick={() => onSelect(goal.id)}
       disabled={selecting}
-      aria-label={`${isCurrentGoal ? 'Current goal: ' : 'Select '}${reward.name}${stampsRequired > 0 ? `, requires ${stampsRequired} starrs` : ''}${pointsRequired > 0 ? `, requires ${pointsRequired} points` : ''}`}
+      aria-label={`${isCurrentGoal ? 'Current goal: ' : 'Select '}${goal.name}${stampsRequired > 0 ? `, requires ${stampsRequired} starrs` : ''}${pointsRequired > 0 ? `, requires ${pointsRequired} points` : ''}`}
       className={[
         'w-full text-left rounded-2xl p-4 cursor-pointer transition-all duration-200',
         'active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-[#3D8A80]/40 focus:ring-offset-2',
@@ -64,13 +64,13 @@ export default function RewardCard({
       )}
 
       <div className="flex items-start justify-between gap-3">
-        {/* Left: reward image or icon placeholder + info */}
+        {/* Left: goal image or icon placeholder + info */}
         <div className="flex gap-3 flex-1 min-w-0">
-          {/* Reward thumbnail */}
-          {reward.image_url ? (
+          {/* Goal thumbnail */}
+          {goal.image_url ? (
             <div className="w-12 h-12 rounded-xl overflow-hidden shrink-0 bg-[#F8F5EF]">
               <img
-                src={reward.image_url}
+                src={goal.image_url}
                 alt=""
                 className="w-full h-full object-cover"
               />
@@ -83,11 +83,11 @@ export default function RewardCard({
 
           <div className="min-w-0 flex-1">
             <p className="text-sm font-semibold text-stone-800 leading-snug">
-              {reward.name}
+              {goal.name}
             </p>
-            {reward.description && (
+            {goal.description && (
               <p className="text-xs text-stone-500 mt-0.5 leading-snug line-clamp-2">
-                {reward.description}
+                {goal.description}
               </p>
             )}
 

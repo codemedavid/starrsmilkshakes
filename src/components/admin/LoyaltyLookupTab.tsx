@@ -69,7 +69,7 @@ function LookupCard({ card, onRedeem, onCreditOrder }: LookupCardProps) {
   const [redeemSuccess, setRedeemSuccess] = useState(false);
   const [orderSuccess, setOrderSuccess] = useState(false);
 
-  const goal = card.goal_reward as any | null;
+  const goal = card.goal as any | null;
   const stampsGoal = goal?.stamps_required ?? null;
   const pointsGoal = goal?.points_required ?? null;
   const currentStamps: number = card.current_stamps ?? 0;
