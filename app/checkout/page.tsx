@@ -2,26 +2,43 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import Header from '@/components/Header';
-import Checkout from '@/components/Checkout';
 import { useCartContext } from '@/contexts/CartContext';
 import { useSiteSettings } from '@/hooks/useSiteSettings';
 import * as fpixel from '@/lib/fpixel';
+import CheckoutAccordion from '@/components/checkout/CheckoutAccordion';
+import UpgradeScreen from '@/components/UpgradeScreen';
+import BestPairScreen from '@/components/BestPairScreen';
+import CheckoutInterstitial from '@/components/CheckoutInterstitial';
+import { getUpgradeOffers, getPairSuggestions } from '@/actions/upsell';
+import type { UpsellOffer, PairOffer, InterstitialOffer } from '@/types/upsell';
+import type { SlotSelection } from '@/types/bundle';
 
-const CheckoutPage = () => {
+type UpsellStep = 'upgrade' | 'pair' | 'checkout' | 'interstitial' | 'placing';
+
+export default function CheckoutPage() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const msession = searchParams.get('msession');
     const cart = useCartContext();
     const { siteSettings } = useSiteSettings();
     const hasTrackedCheckout = useRef(false);
+
+    // Messenger session state
     const [messengerLoading, setMessengerLoading] = useState(!!msession);
     const [messengerError, setMessengerError] = useState<string | null>(null);
+
+    // Upsell state (moved from old Checkout.tsx)
+    const [upsellStep, setUpsellStep] = useState<UpsellStep>('upgrade');
+    const [upgradeOffers, setUpgradeOffers] = useState<UpsellOffer[]>([]);
+    const [pairOffers, setPairOffers] = useState<PairOffer[]>([]);
+    const [interstitialOffer, setInterstitialOffer] = useState<InterstitialOffer | null>(null);
+
+    // Interstitial declined = skip and place order directly
+    const [skipInterstitial, setSkipInterstitial] = useState(false);
 
     // Load cart from Messenger session if msession param is present
     useEffect(() => {
         if (!msession) return;
-
         const loadMessengerSession = async () => {
             try {
                 const res = await fetch(`/api/messenger/session/${msession}`);
@@ -34,19 +51,44 @@ const CheckoutPage = () => {
                 if (data.cart && Array.isArray(data.cart)) {
                     cart.loadFromMessengerSession(data.cart);
                 }
-                if (data.branchId) {
-                    // branchId is available for use if needed
-                }
             } catch {
                 setMessengerError('Failed to load your session. Please try again.');
             } finally {
                 setMessengerLoading(false);
             }
         };
-
         void loadMessengerSession();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [msession]);
+
+    // Fetch upsell offers on mount
+    useEffect(() => {
+        if (cart.cartItems.length === 0) return;
+        const fetchUpsellData = async () => {
+            const cartItemsMapped = cart.cartItems.map(i => ({
+                menu_item_id: i.id,
+                category: i.category,
+                quantity: i.quantity,
+                unit_price: i.totalPrice / i.quantity,
+            }));
+            const [upgradeRes, pairRes] = await Promise.all([
+                getUpgradeOffers(cartItemsMapped),
+                getPairSuggestions(cartItemsMapped),
+            ]);
+            if (upgradeRes.success && upgradeRes.data?.length > 0) {
+                setUpgradeOffers(upgradeRes.data);
+                setUpsellStep('upgrade');
+            } else if (pairRes.success && pairRes.data?.length > 0) {
+                setPairOffers(pairRes.data);
+                setUpsellStep('pair');
+            } else {
+                setUpsellStep('checkout');
+            }
+            if (pairRes.success) setPairOffers(pairRes.data || []);
+        };
+        fetchUpsellData();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     // Track InitiateCheckout on page load (only once)
     useEffect(() => {
@@ -63,36 +105,34 @@ const CheckoutPage = () => {
         }
     }, [cart, siteSettings?.currency_code]);
 
-    // Redirect to menu if cart is empty — but not while waiting for msession to load
+    // Redirect to menu if cart is empty (not during msession load)
     useEffect(() => {
-        if (!msession && cart.cartItems.length === 0) {
+        if (!msession && cart.cartItems.length === 0 && cart.bundleItems.length === 0) {
             router.push('/');
         }
-    }, [cart.cartItems.length, router, msession]);
+    }, [cart.cartItems.length, cart.bundleItems.length, router, msession]);
 
-    const handleBack = () => {
-        router.push('/?view=cart');
-    };
-
+    // Messenger loading state
     if (messengerLoading) {
         return (
-            <div className="min-h-screen bg-gradient-to-b from-starrs-mint-light to-starrs-cream-light font-inter flex items-center justify-center">
+            <div className="min-h-screen bg-starrs-linen flex items-center justify-center">
                 <div className="text-center">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-starrs-teal mx-auto mb-4"></div>
-                    <p className="text-starrs-teal-dark">Loading your order from Messenger...</p>
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-starrs-sage mx-auto mb-4" />
+                    <p className="text-starrs-muted">Loading your order from Messenger...</p>
                 </div>
             </div>
         );
     }
 
+    // Messenger error state
     if (messengerError) {
         return (
-            <div className="min-h-screen bg-gradient-to-b from-starrs-mint-light to-starrs-cream-light font-inter flex items-center justify-center">
+            <div className="min-h-screen bg-starrs-linen flex items-center justify-center">
                 <div className="text-center max-w-sm mx-auto p-6">
                     <p className="text-red-600 font-semibold mb-4">{messengerError}</p>
                     <button
                         onClick={() => router.push('/')}
-                        className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                        className="px-6 py-2 bg-starrs-sage text-starrs-cream-brand rounded-xl"
                     >
                         Go to Menu
                     </button>
@@ -101,33 +141,79 @@ const CheckoutPage = () => {
         );
     }
 
-    if (cart.cartItems.length === 0) {
+    // Empty cart redirect state
+    if (cart.cartItems.length === 0 && cart.bundleItems.length === 0) {
         return (
-            <div className="min-h-screen bg-gradient-to-b from-starrs-mint-light to-starrs-cream-light font-inter flex items-center justify-center">
+            <div className="min-h-screen bg-starrs-linen flex items-center justify-center">
                 <div className="text-center">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-starrs-teal mx-auto mb-4"></div>
-                    <p className="text-starrs-teal-dark">Redirecting to menu...</p>
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-starrs-sage mx-auto mb-4" />
+                    <p className="text-starrs-muted">Redirecting to menu...</p>
                 </div>
             </div>
         );
     }
 
-    return (
-        <div className="min-h-screen bg-gradient-to-b from-starrs-mint-light to-starrs-cream-light font-inter">
-            <Header
-                cartItemsCount={cart.getTotalItems()}
-                onCartClick={() => router.push('/?view=cart')}
-                onMenuClick={() => router.push('/')}
+    // Phase 1: Upgrade Screen
+    if (upsellStep === 'upgrade') {
+        return (
+            <UpgradeScreen
+                offers={upgradeOffers}
+                onAcceptBundle={(_bundleId: string, _selections: SlotSelection[], _totalPrice: number) => {
+                    setUpsellStep(pairOffers.length > 0 ? 'pair' : 'checkout');
+                }}
+                onAcceptItem={(_itemId: string) => {
+                    setUpsellStep(pairOffers.length > 0 ? 'pair' : 'checkout');
+                }}
+                onSkip={() => setUpsellStep(pairOffers.length > 0 ? 'pair' : 'checkout')}
             />
-            <Checkout
+        );
+    }
+
+    // Phase 3: Best Pair Screen
+    if (upsellStep === 'pair') {
+        return (
+            <BestPairScreen
+                offers={pairOffers}
+                onAddItem={(_itemId: string) => {
+                    setUpsellStep('checkout');
+                }}
+                onSkip={() => setUpsellStep('checkout')}
+            />
+        );
+    }
+
+    // Phase 2 (checkout): Accordion + interstitial overlay
+    return (
+        <>
+            <CheckoutAccordion
                 cartItems={cart.cartItems}
                 bundleItems={cart.bundleItems}
                 totalPrice={cart.getTotalPrice()}
-                onBack={handleBack}
+                onBack={() => router.push('/cart')}
                 msession={msession ?? undefined}
+                onShowInterstitial={(offer) => {
+                    setInterstitialOffer(offer);
+                    setUpsellStep('interstitial');
+                }}
+                skipInterstitial={skipInterstitial}
             />
-        </div>
-    );
-};
 
-export default CheckoutPage;
+            {/* Phase 4: Interstitial overlay on top of checkout */}
+            {upsellStep === 'interstitial' && interstitialOffer && (
+                <CheckoutInterstitial
+                    offer={interstitialOffer}
+                    onAccept={() => {
+                        setInterstitialOffer(null);
+                        setUpsellStep('checkout');
+                    }}
+                    onDecline={() => {
+                        setInterstitialOffer(null);
+                        setUpsellStep('checkout');
+                        // Set flag so ReviewStep skips interstitial check and places order
+                        setSkipInterstitial(true);
+                    }}
+                />
+            )}
+        </>
+    );
+}
