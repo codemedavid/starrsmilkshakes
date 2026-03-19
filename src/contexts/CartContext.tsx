@@ -2,10 +2,12 @@
 
 import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
 import { CartItem, MenuItem, Variation, AddOn } from '../types';
+import type { Bundle, BundleCartItem, SlotSelection } from '../types/bundle';
 import * as fpixel from '../lib/fpixel';
 
 interface CartContextType {
     cartItems: CartItem[];
+    bundleItems: BundleCartItem[];
     isCartOpen: boolean;
     addToCart: (item: MenuItem, quantity?: number, variation?: Variation, addOns?: AddOn[]) => void;
     updateQuantity: (id: string, quantity: number) => void;
@@ -16,12 +18,16 @@ interface CartContextType {
     openCart: () => void;
     closeCart: () => void;
     loadFromMessengerSession: (items: CartItem[]) => void;
+    addBundleToCart: (bundle: Bundle, selections: SlotSelection[], totalPrice: number) => void;
+    removeBundleFromCart: (index: number) => void;
+    updateBundleQuantity: (index: number, quantity: number) => void;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
 export const CartProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const [cartItems, setCartItems] = useState<CartItem[]>([]);
+    const [bundleItems, setBundleItems] = useState<BundleCartItem[]>([]);
     const [isCartOpen, setIsCartOpen] = useState(false);
 
     const calculateItemPrice = useCallback((item: MenuItem, variation?: Variation, addOns?: AddOn[]) => {
@@ -108,13 +114,41 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setCartItems([]);
     }, []);
 
+    const addBundleToCart = useCallback((bundle: Bundle, selections: SlotSelection[], totalPrice: number) => {
+        setBundleItems(prev => [...prev, {
+            bundle_id: bundle.id,
+            bundle,
+            quantity: 1,
+            slot_selections: selections,
+            totalPrice,
+        }]);
+    }, []);
+
+    const removeBundleFromCart = useCallback((index: number) => {
+        setBundleItems(prev => prev.filter((_, i) => i !== index));
+    }, []);
+
+    const updateBundleQuantity = useCallback((index: number, quantity: number) => {
+        if (quantity <= 0) {
+            setBundleItems(prev => prev.filter((_, i) => i !== index));
+            return;
+        }
+        setBundleItems(prev =>
+            prev.map((item, i) => i === index ? { ...item, quantity } : item)
+        );
+    }, []);
+
     const getTotalPrice = useCallback(() => {
-        return cartItems.reduce((total, item) => total + (item.totalPrice * item.quantity), 0);
-    }, [cartItems]);
+        const itemsTotal = cartItems.reduce((total, item) => total + (item.totalPrice * item.quantity), 0);
+        const bundlesTotal = bundleItems.reduce((total, item) => total + (item.totalPrice * item.quantity), 0);
+        return itemsTotal + bundlesTotal;
+    }, [cartItems, bundleItems]);
 
     const getTotalItems = useCallback(() => {
-        return cartItems.reduce((total, item) => total + item.quantity, 0);
-    }, [cartItems]);
+        const itemsCount = cartItems.reduce((total, item) => total + item.quantity, 0);
+        const bundlesCount = bundleItems.reduce((total, item) => total + item.quantity, 0);
+        return itemsCount + bundlesCount;
+    }, [cartItems, bundleItems]);
 
     const openCart = useCallback(() => setIsCartOpen(true), []);
     const closeCart = useCallback(() => setIsCartOpen(false), []);
@@ -129,6 +163,7 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return (
         <CartContext.Provider value={{
             cartItems,
+            bundleItems,
             isCartOpen,
             addToCart,
             updateQuantity,
@@ -138,7 +173,10 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             getTotalItems,
             openCart,
             closeCart,
-            loadFromMessengerSession
+            loadFromMessengerSession,
+            addBundleToCart,
+            removeBundleFromCart,
+            updateBundleQuantity,
         }}>
             {children}
         </CartContext.Provider>

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Header from '@/components/Header';
 import Menu from '@/components/Menu';
@@ -8,12 +8,41 @@ import Cart from '@/components/Cart';
 import FloatingCartButton from '@/components/FloatingCartButton';
 import { useCartContext } from '@/contexts/CartContext';
 import { useMenu } from '@/hooks/useMenu';
+import { supabase } from '@/lib/supabase';
+import type { Bundle } from '@/types/bundle';
 
 const HomePage = () => {
   const router = useRouter();
   const cart = useCartContext();
   const { menuItems } = useMenu();
   const [currentView, setCurrentView] = React.useState<'menu' | 'cart'>('menu');
+  const [bundles, setBundles] = useState<Bundle[]>([]);
+
+  const fetchBundles = useCallback(async () => {
+    const { data } = await (supabase.from('bundles') as any)
+      .select(`
+        *,
+        slots:bundle_slots (
+          *,
+          items:bundle_slot_items (
+            *,
+            menu_item:menu_items (
+              *,
+              variations (*),
+              add_ons (*)
+            )
+          )
+        )
+      `)
+      .eq('available', true)
+      .order('sort_order', { ascending: true });
+
+    if (data) setBundles(data as Bundle[]);
+  }, []);
+
+  useEffect(() => {
+    void fetchBundles();
+  }, [fetchBundles]);
 
   // Handle URL-based view switching (e.g., /?view=cart)
   useEffect(() => {
@@ -50,7 +79,9 @@ const HomePage = () => {
       {currentView === 'menu' && (
         <Menu
           menuItems={menuItems}
+          bundles={bundles}
           addToCart={cart.addToCart}
+          addBundleToCart={cart.addBundleToCart}
           cartItems={cart.cartItems}
           updateQuantity={cart.updateQuantity}
         />
