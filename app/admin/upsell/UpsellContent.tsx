@@ -5,7 +5,8 @@ import type { MenuItem, Category } from '@/types';
 import type { Bundle } from '@/types/bundle';
 import UpsellUpgradesTab from '@/components/admin/UpsellUpgradesTab';
 import UpsellAddonsTab from '@/components/admin/UpsellAddonsTab';
-// UpsellPairsTab and UpsellInterstitialsTab will be in Task 26b
+import UpsellPairsTab from '@/components/admin/UpsellPairsTab';
+import UpsellInterstitialsTab from '@/components/admin/UpsellInterstitialsTab';
 
 const TABS = [
   { key: 'upgrades', label: 'Upgrades' },
@@ -65,10 +66,10 @@ export default function UpsellContent({ rules, suggestions, pairRules, menuItems
           <UpsellAddonsTab suggestions={suggestions} menuItems={menuItems} />
         )}
         {activeTab === 'pairs' && (
-          <div className="text-center py-12 text-stone-400 font-nunito">Best Pairs tab — coming in next task</div>
+          <UpsellPairsTab pairRules={pairRules} menuItems={menuItems} categories={categories} bundles={bundles} />
         )}
         {activeTab === 'interstitials' && (
-          <div className="text-center py-12 text-stone-400 font-nunito">Interstitials tab — coming in next task</div>
+          <UpsellInterstitialsTab rules={interstitialRules} menuItems={menuItems} categories={categories} bundles={bundles} />
         )}
       </div>
     </div>
