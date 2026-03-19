@@ -181,6 +181,75 @@ const buildOrderItemsFromCart = (cartItems: any[], menuItemsById: Map<string, an
   });
 };
 
+const buildBundleOrderItems = async (bundleItems: any[]) => {
+  const result = [];
+
+  for (const item of bundleItems) {
+    const bundleId = item.bundle_id;
+    const quantity = Number(item.quantity) || 1;
+
+    // Fetch bundle with full slot data
+    const { data: bundle, error } = await (supabaseServer.from('bundles') as any)
+      .select('*, bundle_slots(*, bundle_slot_items(*, menu_items(id, name, base_price, cost_price, variations(*), add_ons(*))))')
+      .eq('id', bundleId)
+      .single();
+
+    if (error || !bundle) throw new Error('Invalid bundle');
+    if (!bundle.available) throw new Error('Bundle is no longer available');
+
+    // Import and validate
+    const { validateBundleSelections, calculateBundlePrice } = await import('@/lib/bundle-engine');
+
+    const slotSelections = item.slot_selections || [];
+    const validation = validateBundleSelections(bundle, slotSelections);
+    if (!validation.valid) throw new Error('Invalid bundle selections: ' + validation.errors.join(', '));
+
+    // Recompute price server-side
+    const pricing = calculateBundlePrice(bundle, slotSelections, new Date());
+
+    // Build bundle_selections JSONB
+    const bundleSelectionsJson: any[] = [];
+    for (const sel of slotSelections) {
+      const slot = bundle.bundle_slots.find((s: any) => s.id === sel.slot_id);
+      if (!slot) continue;
+
+      for (const selectedItem of sel.selected_items) {
+        const slotItem = slot.bundle_slot_items.find((si: any) => si.menu_item_id === selectedItem.menu_item_id);
+        const mi = slotItem?.menu_items;
+        if (!mi) continue;
+
+        bundleSelectionsJson.push({
+          slot_label: slot.label,
+          item_name: mi.name,
+          item_price: slotItem.price_override ?? 0,
+          variation: selectedItem.selected_variation ? {
+            name: selectedItem.selected_variation.name,
+            price: Number(selectedItem.selected_variation.price),
+          } : null,
+          add_ons: (selectedItem.selected_add_ons || []).map((a: any) => ({
+            name: a.name, price: Number(a.price), quantity: a.quantity || 1,
+          })),
+        });
+      }
+    }
+
+    result.push({
+      menu_item_id: null,
+      menu_item_name: bundle.name,
+      quantity,
+      unit_price: pricing.total,
+      total_price: pricing.total * quantity,
+      selected_variation: null,
+      selected_add_ons: null,
+      cost_price: bundle.cost_price != null ? Number(bundle.cost_price) : null,
+      bundle_id: bundle.id,
+      bundle_selections: bundleSelectionsJson,
+    });
+  }
+
+  return result;
+};
+
 /**
  * GET /api/orders
  * Fetch orders with optional filters
@@ -291,6 +360,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
 
     const cartItems = Array.isArray(body.cartItems) ? body.cartItems : [];
+    const bundleItems = Array.isArray(body.bundleItems) ? body.bundleItems : [];
     const customerName = normalizeText(body.customerName);
     const contactNumber = normalizeText(body.contactNumber);
     const serviceType = normalizeText(body.serviceType);
@@ -298,8 +368,12 @@ export async function POST(request: NextRequest) {
     const options = typeof body.options === 'object' && body.options ? body.options : {};
     const submittedTotal = toFiniteNumber(body.total);
 
-    if (cartItems.length === 0 || cartItems.length > MAX_CART_ITEMS) {
+    if (cartItems.length === 0 && bundleItems.length === 0) {
       return NextResponse.json({ error: 'Cart items are required' }, { status: 400 });
+    }
+
+    if (cartItems.length > MAX_CART_ITEMS) {
+      return NextResponse.json({ error: 'Too many cart items' }, { status: 400 });
     }
 
     if (!customerName || customerName.length > 120) {
@@ -331,45 +405,49 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'One or more cart items are invalid' }, { status: 400 });
     }
 
-    const { data: menuItemsData, error: menuItemsError } = await supabaseServer
-      .from('menu_items')
-      .select(`
-        id,
-        name,
-        base_price,
-        discount_price,
-        discount_start_date,
-        discount_end_date,
-        discount_active,
-        available,
-        variations (
+    let menuItemsById = new Map<string, any>();
+
+    if (cartItems.length > 0) {
+      const { data: menuItemsData, error: menuItemsError } = await supabaseServer
+        .from('menu_items')
+        .select(`
           id,
           name,
-          price,
-          image_url
-        ),
-        add_ons (
-          id,
-          name,
-          price,
-          category
-        )
-      `)
-      .in('id', menuItemIds);
+          base_price,
+          discount_price,
+          discount_start_date,
+          discount_end_date,
+          discount_active,
+          available,
+          variations (
+            id,
+            name,
+            price,
+            image_url
+          ),
+          add_ons (
+            id,
+            name,
+            price,
+            category
+          )
+        `)
+        .in('id', menuItemIds);
 
-    if (menuItemsError) {
-      console.error('Error validating cart menu items:', menuItemsError);
-      return NextResponse.json({ error: 'Failed to validate cart items' }, { status: 500 });
-    }
+      if (menuItemsError) {
+        console.error('Error validating cart menu items:', menuItemsError);
+        return NextResponse.json({ error: 'Failed to validate cart items' }, { status: 500 });
+      }
 
-    const menuItemsById = new Map(((menuItemsData || []) as any[]).map((item) => [item.id, item]));
-    if (menuItemsById.size !== new Set(menuItemIds).size) {
-      return NextResponse.json({ error: 'One or more cart items are invalid or unavailable' }, { status: 400 });
-    }
+      menuItemsById = new Map(((menuItemsData || []) as any[]).map((item) => [item.id, item]));
+      if (menuItemsById.size !== new Set(menuItemIds).size) {
+        return NextResponse.json({ error: 'One or more cart items are invalid or unavailable' }, { status: 400 });
+      }
 
-    const unavailableItem = Array.from(menuItemsById.values()).find((item) => item.available === false);
-    if (unavailableItem) {
-      return NextResponse.json({ error: `${unavailableItem.name} is currently unavailable` }, { status: 400 });
+      const unavailableItem = Array.from(menuItemsById.values()).find((item) => item.available === false);
+      if (unavailableItem) {
+        return NextResponse.json({ error: `${unavailableItem.name} is currently unavailable` }, { status: 400 });
+      }
     }
 
     const { data: paymentMethodData, error: paymentMethodError } = await (supabaseServer
@@ -405,12 +483,24 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    let bundleOrderItems: any[] = [];
+    try {
+      bundleOrderItems = await buildBundleOrderItems(bundleItems);
+    } catch (error) {
+      return NextResponse.json(
+        { error: error instanceof Error ? error.message : 'Invalid bundle item data' },
+        { status: 400 }
+      );
+    }
+
+    const allOrderItems = [...orderItems, ...bundleOrderItems];
+
     const deliveryFee = serviceType === 'delivery' ? toFiniteNumber((options as any).deliveryFee) ?? 0 : 0;
     if (deliveryFee < 0) {
       return NextResponse.json({ error: 'Invalid delivery fee' }, { status: 400 });
     }
 
-    const computedSubtotal = orderItems.reduce((sum: number, item: any) => sum + Number(item.total_price), 0);
+    const computedSubtotal = allOrderItems.reduce((sum: number, item: any) => sum + Number(item.total_price), 0);
     const computedTotal = Number((computedSubtotal + deliveryFee).toFixed(2));
 
     if (Math.abs(computedTotal - submittedTotal) > 0.01) {
@@ -458,7 +548,7 @@ export async function POST(request: NextRequest) {
     }
 
     const orderData = order as any;
-    const itemsToInsert = orderItems.map((item: any) => ({
+    const itemsToInsert = allOrderItems.map((item: any) => ({
       order_id: orderData.id,
       ...item,
     }));
