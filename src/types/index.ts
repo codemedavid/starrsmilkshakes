@@ -109,6 +109,8 @@ export interface OrderItem {
   selected_variation: Variation | null;
   selected_add_ons: AddOn[] | null;
   created_at: string;
+  bundle_id?: string | null;
+  bundle_selections?: import('@/types/bundle').BundleSelectionRecord[] | null;
 }
 
 export interface Order {
