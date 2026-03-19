@@ -89,14 +89,17 @@ export default function CheckoutAccordion({
   const paymentSummary = paymentMethodId ? `💳 ${paymentMethodName || 'Selected'}` : undefined;
 
   return (
-    <div className="min-h-screen bg-starrs-linen pb-24">
+    <div className="min-h-screen bg-[#F4F0EB] pb-24">
       {/* Header */}
-      <div className="bg-starrs-sage px-5 pt-4 pb-5">
-        <div className="flex items-center gap-2.5 mb-3">
-          <button onClick={onBack} className="text-starrs-cream-brand">
-            <ArrowLeft className="w-5 h-5" />
+      <div className="bg-[#8FB8A8] px-5 pt-12 pb-5">
+        <div className="flex items-center gap-3 mb-4">
+          <button
+            onClick={onBack}
+            className="w-9 h-9 rounded-full bg-white/15 backdrop-blur-sm flex items-center justify-center active:scale-95 transition-transform"
+          >
+            <ArrowLeft className="w-[18px] h-[18px] text-white" />
           </button>
-          <span className="text-starrs-cream-brand font-bold text-lg tracking-tight">
+          <span className="text-white font-bold text-[20px] tracking-tight">
             Checkout
           </span>
         </div>

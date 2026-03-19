@@ -166,43 +166,48 @@ export default function ReviewStep(props: ReviewStepProps) {
   return (
     <div className="space-y-4">
       {/* Order Items */}
-      <div className="space-y-0">
+      <div className="space-y-2">
         {cartItems.map((item) => (
           <div
             key={item.id}
-            className="flex justify-between py-2 border-b border-gray-100 last:border-0"
+            className="flex items-center gap-3 py-1.5"
           >
-            <div>
-              <div className="font-semibold text-sm">{item.name}</div>
-              <div className="text-xs text-starrs-sage">
+            <div className="w-11 h-11 rounded-lg overflow-hidden bg-[#F0EDE8] flex-shrink-0">
+              {item.image ? (
+                <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-lg">🥤</div>
+              )}
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="font-semibold text-sm text-[#1A2B22] truncate">{item.name}</div>
+              <div className="text-[11px] text-[#8B9E95]">
                 {item.selectedVariation?.name}
                 {item.selectedAddOns?.length
-                  ? ` • +${item.selectedAddOns.map((a) => a.name).join(', ')}`
+                  ? ` · ${item.selectedAddOns.map((a) => a.name).join(', ')}`
                   : ''}
+                {' '}×{item.quantity}
               </div>
             </div>
-            <div className="text-right">
-              <div className="font-bold text-sm text-starrs-deep">
-                ₱{item.totalPrice.toLocaleString()}
-              </div>
-              <div className="text-xs text-gray-400">×{item.quantity}</div>
+            <div className="font-bold text-sm text-[#2A5A4A] tabular-nums flex-shrink-0">
+              ₱{item.totalPrice.toLocaleString()}
             </div>
           </div>
         ))}
         {bundleItems.map((item, index) => (
           <div
             key={`bundle-${index}`}
-            className="flex justify-between py-2 border-b border-gray-100 last:border-0"
+            className="flex items-center gap-3 py-1.5"
           >
-            <div>
-              <div className="font-semibold text-sm">{item.bundle.name}</div>
-              <div className="text-xs text-starrs-sage">Bundle</div>
+            <div className="w-11 h-11 rounded-lg overflow-hidden bg-[#8FB8A8]/10 flex items-center justify-center flex-shrink-0 text-lg">
+              🎁
             </div>
-            <div className="text-right">
-              <div className="font-bold text-sm text-starrs-deep">
-                ₱{item.totalPrice.toLocaleString()}
-              </div>
-              <div className="text-xs text-gray-400">×{item.quantity}</div>
+            <div className="flex-1 min-w-0">
+              <div className="font-semibold text-sm text-[#1A2B22] truncate">{item.bundle.name}</div>
+              <div className="text-[11px] text-[#8B9E95]">Bundle ×{item.quantity}</div>
+            </div>
+            <div className="font-bold text-sm text-[#2A5A4A] tabular-nums flex-shrink-0">
+              ₱{item.totalPrice.toLocaleString()}
             </div>
           </div>
         ))}
