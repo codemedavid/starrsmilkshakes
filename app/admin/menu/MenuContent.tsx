@@ -262,6 +262,34 @@ export default function MenuContent({ menuItems, categories }: MenuContentProps)
                         )}
                       </div>
 
+                      {/* Cost & Margin */}
+                      {item.costPrice != null && (
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="font-nunito text-xs text-stone-400">
+                            Cost: P{Number(item.costPrice).toFixed(2)}
+                          </span>
+                          <span className="text-stone-300">|</span>
+                          {(() => {
+                            const sell = item.effectivePrice ?? item.basePrice;
+                            const cost = Number(item.costPrice);
+                            const margin = sell > 0 ? ((sell - cost) / sell) * 100 : 0;
+                            const color =
+                              margin > 60
+                                ? 'text-green-600 bg-green-50'
+                                : margin > 40
+                                  ? 'text-amber-600 bg-amber-50'
+                                  : 'text-red-600 bg-red-50';
+                            return (
+                              <span
+                                className={`inline-flex px-1.5 py-0.5 text-[10px] font-nunito font-medium rounded-full ${color}`}
+                              >
+                                {margin.toFixed(0)}% margin
+                              </span>
+                            );
+                          })()}
+                        </div>
+                      )}
+
                       {/* Status badges */}
                       <div className="flex flex-wrap gap-1.5">
                         {item.available === false && (

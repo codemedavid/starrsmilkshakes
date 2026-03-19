@@ -29,6 +29,7 @@ export const mapMenuRows = (items: any[] | null | undefined): MenuItem[] =>
       discountActive: Boolean(item.discount_active),
       effectivePrice,
       isOnDiscount: isDiscountActive,
+      costPrice: item.cost_price != null ? Number(item.cost_price) : null,
       variations:
         item.variations?.map((variation: any) => ({
           id: variation.id,

@@ -33,6 +33,8 @@ export interface MenuItem {
   effectivePrice?: number;
   isOnDiscount?: boolean;
   show_in_messenger?: boolean;
+  // Cost tracking
+  costPrice?: number | null;
 }
 
 export interface CartItem extends MenuItem {
