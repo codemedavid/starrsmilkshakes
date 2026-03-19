@@ -131,7 +131,8 @@ CREATE TABLE upsell_rules (
   CONSTRAINT upsell_rules_offer_check CHECK (
     (offer_type = 'item' AND offer_item_id IS NOT NULL) OR
     (offer_type = 'bundle' AND offer_bundle_id IS NOT NULL) OR
-    (offer_type IN ('discount', 'loyalty_nudge'))
+    (offer_type = 'discount' AND offer_discount_percent IS NOT NULL) OR
+    (offer_type = 'loyalty_nudge')
   )
 );
 
@@ -170,6 +171,17 @@ CREATE TABLE pair_rules (
 
 -- When referenced items/bundles are deleted (SET NULL), rules become broken.
 -- The upsell engine skips rules where the paired target is NULL.
+```
+
+**Triggers:**
+```sql
+CREATE TRIGGER update_upsell_rules_updated_at
+  BEFORE UPDATE ON upsell_rules
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_pair_rules_updated_at
+  BEFORE UPDATE ON pair_rules
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 ```
 
 **Indexes:**
@@ -238,7 +250,10 @@ SELECT
     )
     ELSE NULL
   END AS margin_percent,
-  SUM(oi.total_price) - SUM(oi.quantity * COALESCE(oi.cost_price, 0)) AS gross_profit
+  CASE WHEN SUM(CASE WHEN oi.cost_price IS NOT NULL THEN 1 ELSE 0 END) > 0
+    THEN SUM(oi.total_price) - SUM(oi.quantity * COALESCE(oi.cost_price, 0))
+    ELSE NULL
+  END AS gross_profit
 FROM order_items oi
 JOIN menu_items mi ON mi.id = oi.menu_item_id
 JOIN orders o ON o.id = oi.order_id
@@ -249,22 +264,39 @@ GROUP BY oi.menu_item_id, mi.name, mi.category, mi.base_price, mi.cost_price;
 CREATE UNIQUE INDEX idx_item_performance_mv_item ON item_performance_mv(menu_item_id);
 
 -- Bundle performance (separate view for bundle-level analytics)
+-- Uses LEFT JOIN so deleted bundles still show historical data (name from order_items.menu_item_name)
 CREATE MATERIALIZED VIEW bundle_performance_mv AS
 SELECT
   oi.bundle_id,
-  b.name AS bundle_name,
+  COALESCE(b.name, oi.menu_item_name) AS bundle_name,
   b.category,
   b.base_price AS sell_price,
   b.cost_price AS current_cost_price,
   COUNT(DISTINCT oi.order_id) AS total_orders,
   SUM(oi.quantity) AS total_quantity,
-  SUM(oi.total_price) AS total_revenue
+  SUM(oi.total_price) AS total_revenue,
+  CASE WHEN SUM(CASE WHEN oi.cost_price IS NOT NULL THEN 1 ELSE 0 END) > 0
+    THEN SUM(oi.quantity * COALESCE(oi.cost_price, 0))
+    ELSE NULL
+  END AS total_cost,
+  CASE WHEN SUM(CASE WHEN oi.cost_price IS NOT NULL THEN 1 ELSE 0 END) > 0
+       AND SUM(oi.total_price) > 0
+    THEN ROUND(
+      (SUM(oi.total_price) - SUM(oi.quantity * COALESCE(oi.cost_price, 0)))
+      / SUM(oi.total_price) * 100, 2
+    )
+    ELSE NULL
+  END AS margin_percent,
+  CASE WHEN SUM(CASE WHEN oi.cost_price IS NOT NULL THEN 1 ELSE 0 END) > 0
+    THEN SUM(oi.total_price) - SUM(oi.quantity * COALESCE(oi.cost_price, 0))
+    ELSE NULL
+  END AS gross_profit
 FROM order_items oi
-JOIN bundles b ON b.id = oi.bundle_id
+LEFT JOIN bundles b ON b.id = oi.bundle_id
 JOIN orders o ON o.id = oi.order_id
 WHERE o.status = 'completed'
   AND oi.bundle_id IS NOT NULL
-GROUP BY oi.bundle_id, b.name, b.category, b.base_price, b.cost_price;
+GROUP BY oi.bundle_id, b.name, oi.menu_item_name, b.category, b.base_price, b.cost_price;
 
 CREATE UNIQUE INDEX idx_bundle_performance_mv_bundle ON bundle_performance_mv(bundle_id);
 ```
