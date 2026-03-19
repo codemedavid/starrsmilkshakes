@@ -234,7 +234,7 @@ SELECT
   mi.name AS item_name,
   mi.category,
   mi.base_price AS sell_price,
-  mi.cost_price AS current_cost_price,
+  mi.cost_price,
   COUNT(DISTINCT oi.order_id) AS total_orders,
   SUM(oi.quantity) AS total_quantity,
   SUM(oi.total_price) AS total_revenue,
@@ -264,14 +264,16 @@ GROUP BY oi.menu_item_id, mi.name, mi.category, mi.base_price, mi.cost_price;
 CREATE UNIQUE INDEX idx_item_performance_mv_item ON item_performance_mv(menu_item_id);
 
 -- Bundle performance (separate view for bundle-level analytics)
--- Uses LEFT JOIN so deleted bundles still show historical data (name from order_items.menu_item_name)
+-- Uses bundle_selections IS NOT NULL (not bundle_id IS NOT NULL) so that
+-- deleted bundles (where bundle_id was SET NULL) still appear in analytics.
+-- Falls back to order_items.menu_item_name when bundle is deleted.
 CREATE MATERIALIZED VIEW bundle_performance_mv AS
 SELECT
   oi.bundle_id,
   COALESCE(b.name, oi.menu_item_name) AS bundle_name,
   b.category,
   b.base_price AS sell_price,
-  b.cost_price AS current_cost_price,
+  b.cost_price,
   COUNT(DISTINCT oi.order_id) AS total_orders,
   SUM(oi.quantity) AS total_quantity,
   SUM(oi.total_price) AS total_revenue,
@@ -295,10 +297,12 @@ FROM order_items oi
 LEFT JOIN bundles b ON b.id = oi.bundle_id
 JOIN orders o ON o.id = oi.order_id
 WHERE o.status = 'completed'
-  AND oi.bundle_id IS NOT NULL
+  AND oi.bundle_selections IS NOT NULL    -- catches both active AND orphaned bundle orders
 GROUP BY oi.bundle_id, b.name, oi.menu_item_name, b.category, b.base_price, b.cost_price;
 
-CREATE UNIQUE INDEX idx_bundle_performance_mv_bundle ON bundle_performance_mv(bundle_id);
+-- Note: bundle_id can be NULL for deleted bundles, so no UNIQUE index on bundle_id.
+-- Instead, index on non-null bundle_id for fast lookups of active bundles.
+CREATE INDEX idx_bundle_performance_mv_bundle ON bundle_performance_mv(bundle_id) WHERE bundle_id IS NOT NULL;
 ```
 
 Refreshed on demand via `REFRESH MATERIALIZED VIEW CONCURRENTLY item_performance_mv` and `REFRESH MATERIALIZED VIEW CONCURRENTLY bundle_performance_mv`.
