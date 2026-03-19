@@ -1,32 +1,19 @@
+import { Suspense } from 'react';
 import Link from 'next/link';
 import { supabaseServer } from '@/lib/supabase-server';
 import { isTokenExpired } from '@/lib/loyalty-hash';
+import { getCachedActiveRewards } from '@/lib/cached-queries';
 import StampGrid from '@/components/loyalty/StampGrid';
 import PointsBar from '@/components/loyalty/PointsBar';
-import BoosterBanner from '@/components/loyalty/BoosterBanner';
-import ActivityList from '@/components/loyalty/ActivityList';
+import PendingRedemptionsSection from '@/components/loyalty/PendingRedemptionsSection';
+import BoostersSection from '@/components/loyalty/BoostersSection';
+import ActivitySection from '@/components/loyalty/ActivitySection';
+import { RedemptionsSkeleton, BoosterSkeleton, ActivitySkeleton } from '@/components/loyalty/skeletons';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface PageProps {
   params: Promise<{ hash: string }>;
-}
-
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-
-function formatExpiryCountdown(expiresAt: string): string {
-  const diffMs = new Date(expiresAt).getTime() - Date.now();
-  const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
-  if (diffDays <= 0) return 'expires today';
-  if (diffDays === 1) return '1 day left';
-  return `${diffDays} days left`;
-}
-
-function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString('en-PH', {
-    month: 'short',
-    day: 'numeric',
-  });
 }
 
 // ─── Error State ─────────────────────────────────────────────────────────────

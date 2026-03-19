@@ -30,10 +30,10 @@ interface ServiceDetailsStepProps {
   onContinue: () => void;
 }
 
-const SERVICE_TYPES: { value: ServiceType; label: string; icon: string }[] = [
-  { value: 'dine-in', label: 'Dine In', icon: '🪑' },
-  { value: 'pickup', label: 'Pickup', icon: '🚶' },
-  { value: 'delivery', label: 'Delivery', icon: '🛵' },
+const SERVICE_TYPES: { value: ServiceType; label: string; icon: string; color: string }[] = [
+  { value: 'dine-in', label: 'Dine In', icon: '🪑', color: 'bg-amber-500' },
+  { value: 'pickup', label: 'Pickup', icon: '🚶', color: 'bg-blue-500' },
+  { value: 'delivery', label: 'Delivery', icon: '🛵', color: 'bg-violet-500' },
 ];
 
 const PICKUP_TIMES = ['5-10', '15-20', '25-30'];
@@ -171,21 +171,24 @@ export default function ServiceDetailsStep({
   return (
     <div className="space-y-4">
       {/* Service Type Pills */}
-      <div className="flex gap-2">
-        {SERVICE_TYPES.map((st) => (
-          <button
-            key={st.value}
-            onClick={() => onChange({ serviceType: st.value })}
-            className={`flex-1 py-2.5 px-1.5 rounded-xl text-center transition-colors ${
-              data.serviceType === st.value
-                ? 'bg-starrs-deep text-starrs-cream-brand'
-                : 'bg-starrs-mint-soft text-starrs-deep'
-            }`}
-          >
-            <div className="text-lg mb-0.5">{st.icon}</div>
-            <div className="text-xs font-semibold">{st.label}</div>
-          </button>
-        ))}
+      <div className="flex gap-2.5">
+        {SERVICE_TYPES.map((st) => {
+          const isActive = data.serviceType === st.value;
+          return (
+            <button
+              key={st.value}
+              onClick={() => onChange({ serviceType: st.value })}
+              className={`flex-1 py-3 px-2 rounded-2xl text-center transition-all active:scale-[0.96] border-2 ${
+                isActive
+                  ? `${st.color} text-white border-transparent shadow-lg`
+                  : 'bg-white text-[#5A6B62] border-[#E8E4DE] hover:border-[#C4BDB4]'
+              }`}
+            >
+              <div className="text-[22px] mb-1">{st.icon}</div>
+              <div className={`text-[12px] font-bold ${isActive ? 'text-white' : ''}`}>{st.label}</div>
+            </button>
+          );
+        })}
       </div>
 
       {/* Pickup Time (conditional) */}
@@ -222,7 +225,7 @@ export default function ServiceDetailsStep({
               type="time"
               value={data.customTime}
               onChange={(e) => onChange({ customTime: e.target.value, pickupTime: 'custom' })}
-              className="w-full px-3 py-2.5 border-[1.5px] border-starrs-mint-soft rounded-xl text-sm bg-gray-50"
+              className="w-full px-3.5 py-3 border border-[#E8E4DE] rounded-xl text-[14px] bg-white focus:outline-none focus:border-[#8FB8A8] focus:ring-2 focus:ring-[#8FB8A8]/10 transition-all"
             />
           )}
         </div>
@@ -283,7 +286,7 @@ export default function ServiceDetailsStep({
               value={data.landmark}
               onChange={(e) => onChange({ landmark: e.target.value })}
               placeholder="Near a landmark? Helps the rider find you"
-              className="w-full px-3 py-2.5 border-[1.5px] border-starrs-mint-soft rounded-xl text-sm bg-gray-50"
+              className="w-full px-3.5 py-3 border border-[#E8E4DE] rounded-xl text-[14px] bg-white focus:outline-none focus:border-[#8FB8A8] focus:ring-2 focus:ring-[#8FB8A8]/10 transition-all"
             />
           </div>
           {/* Delivery fee display */}
@@ -313,7 +316,7 @@ export default function ServiceDetailsStep({
             value={data.customerName}
             onChange={(e) => onChange({ customerName: e.target.value })}
             placeholder="Your name"
-            className="w-full px-3 py-2.5 border-[1.5px] border-starrs-mint-soft rounded-xl text-sm bg-gray-50"
+            className="w-full px-3.5 py-3 border border-[#E8E4DE] rounded-xl text-[14px] bg-white focus:outline-none focus:border-[#8FB8A8] focus:ring-2 focus:ring-[#8FB8A8]/10 transition-all"
           />
         </div>
         <div>
@@ -324,7 +327,7 @@ export default function ServiceDetailsStep({
             onChange={(e) => onChange({ contactNumber: e.target.value })}
             onBlur={(e) => onChange({ contactNumber: normalizePhone(e.target.value) })}
             placeholder="+63 912 345 6789"
-            className="w-full px-3 py-2.5 border-[1.5px] border-starrs-mint-soft rounded-xl text-sm bg-gray-50"
+            className="w-full px-3.5 py-3 border border-[#E8E4DE] rounded-xl text-[14px] bg-white focus:outline-none focus:border-[#8FB8A8] focus:ring-2 focus:ring-[#8FB8A8]/10 transition-all"
           />
         </div>
       </div>
@@ -345,10 +348,10 @@ export default function ServiceDetailsStep({
       <button
         onClick={handleContinue}
         disabled={!isValid}
-        className={`w-full py-3.5 rounded-xl text-[15px] font-bold transition-colors ${
+        className={`w-full py-3.5 rounded-2xl text-[15px] font-bold transition-all active:scale-[0.98] ${
           isValid
-            ? 'bg-starrs-sage text-starrs-cream-brand'
-            : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+            ? 'bg-[#2A5A4A] text-[#FFF8E7] shadow-lg shadow-[#2A5A4A]/20'
+            : 'bg-[#E8E4DE] text-[#B8B2A9] cursor-not-allowed'
         }`}
       >
         Continue

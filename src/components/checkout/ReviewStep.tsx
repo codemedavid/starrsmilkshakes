@@ -111,7 +111,7 @@ export default function ReviewStep(props: ReviewStepProps) {
         customerName,
         contactNumber,
         serviceType,
-        selectedPayment?.name || 'cash',
+        paymentMethodId || 'cash',
         grandTotal,
         {
           address: serviceType === 'delivery' ? address : undefined,

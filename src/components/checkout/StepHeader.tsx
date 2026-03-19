@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { Check } from 'lucide-react';
 
 export type StepState = 'completed' | 'active' | 'locked';
 
@@ -23,25 +24,25 @@ export default function StepHeader({
 }: StepHeaderProps) {
   if (state === 'completed') {
     return (
-      <div className="bg-white rounded-[14px] px-4 py-3 mb-2 border-l-[3px] border-starrs-sage shadow-sm">
+      <div className="bg-white rounded-2xl px-4 py-3.5 mb-2.5 shadow-[0_1px_8px_rgba(0,0,0,0.04)] border border-[#E8E4DE]/50">
         <div className="flex justify-between items-center">
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-full bg-starrs-sage text-white flex items-center justify-center text-[11px] font-bold">
-              ✓
+          <div className="flex items-center gap-3">
+            <div className="w-7 h-7 rounded-full bg-[#2A5A4A] flex items-center justify-center">
+              <Check className="w-3.5 h-3.5 text-[#7EDCB5]" strokeWidth={3} />
             </div>
             <div>
-              <div className="text-[11px] text-starrs-sage font-semibold uppercase tracking-wider">
+              <div className="text-[11px] text-[#8B9E95] font-semibold uppercase tracking-widest">
                 {title}
               </div>
               {summary && (
-                <div className="font-semibold text-sm text-gray-800">{summary}</div>
+                <div className="font-medium text-[14px] text-[#1A2B22] mt-0.5">{summary}</div>
               )}
             </div>
           </div>
           {onEdit && (
             <button
               onClick={onEdit}
-              className="text-xs text-starrs-sage font-semibold"
+              className="text-[13px] text-[#8FB8A8] font-semibold hover:text-[#2A5A4A] transition-colors px-2 py-1 -mr-2 rounded-lg hover:bg-[#F0F7F4]"
             >
               Edit
             </button>
@@ -53,12 +54,12 @@ export default function StepHeader({
 
   if (state === 'locked') {
     return (
-      <div className="bg-gray-100 rounded-[14px] px-4 py-3 mb-2 opacity-60">
-        <div className="flex items-center gap-2">
-          <div className="w-6 h-6 rounded-full bg-gray-300 text-white flex items-center justify-center text-xs">
+      <div className="bg-[#EBE7E1]/60 rounded-2xl px-4 py-3.5 mb-2.5">
+        <div className="flex items-center gap-3">
+          <div className="w-7 h-7 rounded-full bg-[#D4CFC8] flex items-center justify-center text-[12px] font-bold text-white">
             {stepNumber}
           </div>
-          <span className="font-semibold text-gray-400">{title}</span>
+          <span className="font-semibold text-[14px] text-[#B8B2A9]">{title}</span>
         </div>
       </div>
     );
@@ -66,12 +67,12 @@ export default function StepHeader({
 
   // active
   return (
-    <div className="bg-white rounded-[14px] p-4 mb-2 border-2 border-starrs-sage shadow-md">
-      <div className="flex items-center gap-2 mb-3">
-        <div className="w-6 h-6 rounded-full bg-starrs-deep text-starrs-cream-brand flex items-center justify-center text-xs font-bold">
+    <div className="bg-white rounded-2xl p-4 mb-2.5 shadow-[0_4px_20px_rgba(42,90,74,0.08)] border border-[#8FB8A8]/30 ring-1 ring-[#8FB8A8]/10">
+      <div className="flex items-center gap-3 mb-4">
+        <div className="w-7 h-7 rounded-full bg-gradient-to-br from-[#8FB8A8] to-[#2A5A4A] flex items-center justify-center text-[12px] font-bold text-white shadow-sm">
           {stepNumber}
         </div>
-        <span className="font-bold text-[15px]">{title}</span>
+        <span className="font-bold text-[16px] text-[#1A2B22]">{title}</span>
       </div>
       {children}
     </div>
