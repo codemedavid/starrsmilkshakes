@@ -1,6 +1,6 @@
 'use server';
 
-import { revalidatePath } from 'next/cache';
+import { revalidatePath, revalidateTag } from 'next/cache';
 import { requireAdmin, checkActionRateLimit } from '@/lib/admin-guard';
 import { supabaseServer } from '@/lib/supabase-server';
 import { paymentMethodSchema, reorderSchema, uuidSchema } from '@/lib/validation';
@@ -38,6 +38,7 @@ export async function addPaymentMethod(input: unknown): Promise<ActionResult> {
     return { success: false, error: 'Failed to create payment method' };
   }
 
+  revalidateTag('payments');
   revalidatePath('/admin/payments');
   return { success: true, data };
 }
@@ -76,6 +77,7 @@ export async function updatePaymentMethod(id: unknown, input: unknown): Promise<
     return { success: false, error: 'Failed to update payment method' };
   }
 
+  revalidateTag('payments');
   revalidatePath('/admin/payments');
   return { success: true, data };
 }
@@ -100,6 +102,7 @@ export async function deletePaymentMethod(id: unknown): Promise<ActionResult> {
     return { success: false, error: 'Failed to delete payment method' };
   }
 
+  revalidateTag('payments');
   revalidatePath('/admin/payments');
   return { success: true };
 }
@@ -131,6 +134,7 @@ export async function reorderPaymentMethods(input: unknown): Promise<ActionResul
     return { success: false, error: 'Failed to reorder payment methods' };
   }
 
+  revalidateTag('payments');
   revalidatePath('/admin/payments');
   return { success: true };
 }

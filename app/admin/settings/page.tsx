@@ -1,22 +1,10 @@
 import { requireAdmin } from '@/lib/admin-guard';
-import { supabaseServer } from '@/lib/supabase-server';
-import { mapSiteSettingsRows } from '@/lib/site-settings';
+import { getCachedSiteSettings } from '@/lib/cached-queries';
 import SettingsForm from '@/components/admin/SettingsForm';
 
 export default async function SettingsPage() {
   await requireAdmin();
-
-  const { data, error } = await (supabaseServer
-    .from('site_settings') as any)
-    .select('*')
-    .order('id');
-
-  if (error) {
-    // Throwing here lets the nearest error.tsx boundary catch it
-    throw new Error('Failed to load site settings');
-  }
-
-  const settings = mapSiteSettingsRows(data as any[]);
+  const settings = await getCachedSiteSettings();
 
   return (
     <div className="min-h-screen bg-[#FAFAF8]">

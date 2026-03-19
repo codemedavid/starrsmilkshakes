@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import type { CustomerFilters, CustomerSummary } from '@/types/customer';
 
 async function parseResponse<T>(res: Response): Promise<T> {
@@ -9,13 +9,28 @@ async function parseResponse<T>(res: Response): Promise<T> {
   return data as T;
 }
 
-export const useCustomers = () => {
-  const [customers, setCustomers] = useState<CustomerSummary[]>([]);
-  const [total, setTotal] = useState(0);
+interface UseCustomersOptions {
+  initialCustomers?: CustomerSummary[];
+  initialTotal?: number;
+}
+
+export const useCustomers = (options: UseCustomersOptions = {}) => {
+  const { initialCustomers, initialTotal } = options;
+  const [customers, setCustomers] = useState<CustomerSummary[]>(initialCustomers ?? []);
+  const [total, setTotal] = useState(initialTotal ?? 0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Track whether we've consumed SSR data — skip first fetch if we have it
+  const hasInitialData = useRef(!!initialCustomers?.length);
 
   const fetchCustomers = useCallback(async (filters: CustomerFilters = {}) => {
+    // Skip the first fetch if SSR already provided data for page 1 with no filters
+    if (hasInitialData.current && !filters.search && !filters.tag && (filters.page ?? 1) === 1) {
+      hasInitialData.current = false;
+      return;
+    }
+    hasInitialData.current = false;
+
     setLoading(true);
     setError(null);
     try {

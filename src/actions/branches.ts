@@ -1,6 +1,6 @@
 'use server';
 
-import { revalidatePath } from 'next/cache';
+import { revalidatePath, revalidateTag } from 'next/cache';
 import { requireAdmin, checkActionRateLimit } from '@/lib/admin-guard';
 import { supabaseServer } from '@/lib/supabase-server';
 import { branchSchema, uuidSchema } from '@/lib/validation';
@@ -28,6 +28,7 @@ export async function addBranch(input: unknown): Promise<ActionResult> {
     return { success: false, error: 'Failed to create branch' };
   }
 
+  revalidateTag('branches');
   revalidatePath('/admin/branches');
   return { success: true, data };
 }
@@ -57,6 +58,7 @@ export async function updateBranch(id: unknown, input: unknown): Promise<ActionR
     return { success: false, error: 'Failed to update branch' };
   }
 
+  revalidateTag('branches');
   revalidatePath('/admin/branches');
   return { success: true, data };
 }
@@ -81,6 +83,7 @@ export async function deleteBranch(id: unknown): Promise<ActionResult> {
     return { success: false, error: 'Failed to delete branch' };
   }
 
+  revalidateTag('branches');
   revalidatePath('/admin/branches');
   return { success: true };
 }

@@ -1,15 +1,9 @@
 import { requireAdmin } from '@/lib/admin-guard';
-import { supabaseServer } from '@/lib/supabase-server';
+import { getCachedPaymentMethods } from '@/lib/cached-queries';
 import PaymentsContent from './PaymentsContent';
-import type { AdminPaymentMethod as PaymentMethod } from '@/types';
 
 export default async function PaymentsPage() {
   await requireAdmin();
-
-  const { data: paymentMethods } = await (supabaseServer
-    .from('payment_methods') as any)
-    .select('*')
-    .order('sort_order', { ascending: true });
-
-  return <PaymentsContent paymentMethods={(paymentMethods as PaymentMethod[]) || []} />;
+  const paymentMethods = await getCachedPaymentMethods();
+  return <PaymentsContent paymentMethods={paymentMethods} />;
 }

@@ -1,6 +1,6 @@
 'use server';
 
-import { revalidatePath } from 'next/cache';
+import { revalidatePath, revalidateTag } from 'next/cache';
 import { requireAdmin, checkActionRateLimit } from '@/lib/admin-guard';
 import { supabaseServer } from '@/lib/supabase-server';
 import { categorySchema, reorderSchema, uuidSchema } from '@/lib/validation';
@@ -37,6 +37,7 @@ export async function addCategory(input: unknown): Promise<ActionResult> {
     return { success: false, error: 'Failed to create category' };
   }
 
+  revalidateTag('categories');
   revalidatePath('/admin/categories');
   return { success: true, data };
 }
@@ -71,6 +72,7 @@ export async function updateCategory(id: unknown, input: unknown): Promise<Actio
     return { success: false, error: 'Failed to update category' };
   }
 
+  revalidateTag('categories');
   revalidatePath('/admin/categories');
   return { success: true, data };
 }
@@ -111,6 +113,7 @@ export async function deleteCategory(id: unknown): Promise<ActionResult> {
     return { success: false, error: 'Failed to delete category' };
   }
 
+  revalidateTag('categories');
   revalidatePath('/admin/categories');
   return { success: true };
 }
@@ -142,6 +145,7 @@ export async function reorderCategories(input: unknown): Promise<ActionResult> {
     return { success: false, error: 'Failed to reorder categories' };
   }
 
+  revalidateTag('categories');
   revalidatePath('/admin/categories');
   return { success: true };
 }

@@ -1,6 +1,6 @@
 'use server';
 
-import { revalidatePath } from 'next/cache';
+import { revalidatePath, revalidateTag } from 'next/cache';
 import { requireAdmin, checkActionRateLimit } from '@/lib/admin-guard';
 import { supabaseServer } from '@/lib/supabase-server';
 import { menuItemSchema, uuidSchema } from '@/lib/validation';
@@ -119,6 +119,7 @@ export async function addMenuItem(input: unknown): Promise<ActionResult> {
     }
   }
 
+  revalidateTag('menu');
   revalidatePath('/admin/menu');
   return { success: true, data: menuItem };
 }
@@ -171,6 +172,7 @@ export async function updateMenuItem(id: unknown, input: unknown): Promise<Actio
     }
   }
 
+  revalidateTag('menu');
   revalidatePath('/admin/menu');
   return { success: true };
 }
@@ -200,6 +202,7 @@ export async function deleteMenuItem(id: unknown): Promise<ActionResult> {
     return { success: false, error: 'Failed to delete menu item' };
   }
 
+  revalidateTag('menu');
   revalidatePath('/admin/menu');
   return { success: true };
 }
@@ -244,6 +247,7 @@ export async function bulkUpdateMessengerVisibility(input: unknown): Promise<Act
     return { success: false, error: 'Failed to update menu items' };
   }
 
+  revalidateTag('menu');
   revalidatePath('/admin/menu');
   return { success: true, data: { updated: Array.isArray(data) ? data.length : 0 } };
 }

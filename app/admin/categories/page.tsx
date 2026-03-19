@@ -1,14 +1,9 @@
 import { requireAdmin } from '@/lib/admin-guard';
-import { supabaseServer } from '@/lib/supabase-server';
+import { getCachedCategories } from '@/lib/cached-queries';
 import CategoriesContent from './CategoriesContent';
 
 export default async function CategoriesPage() {
   await requireAdmin();
-
-  const { data: categories } = await (supabaseServer
-    .from('categories') as any)
-    .select('*')
-    .order('sort_order', { ascending: true });
-
-  return <CategoriesContent categories={categories || []} />;
+  const categories = await getCachedCategories();
+  return <CategoriesContent categories={categories} />;
 }

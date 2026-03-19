@@ -1,6 +1,6 @@
 'use server';
 
-import { revalidatePath } from 'next/cache';
+import { revalidatePath, revalidateTag } from 'next/cache';
 import { requireAdmin, requireSuperAdmin, getClientIPFromHeaders, checkActionRateLimit } from '@/lib/admin-guard';
 import { supabaseServer } from '@/lib/supabase-server';
 import { customerLinkSchema, customerUnlinkSchema } from '@/lib/validation';
@@ -57,6 +57,7 @@ export async function linkCustomer(input: unknown): Promise<ActionResult> {
       ip_address: ip,
     });
 
+  revalidateTag('customers');
   revalidatePath('/admin/orders');
   return { success: true };
 }
@@ -106,6 +107,7 @@ export async function unlinkCustomer(input: unknown): Promise<ActionResult> {
       ip_address: ip,
     });
 
+  revalidateTag('customers');
   revalidatePath('/admin/orders');
   return { success: true };
 }

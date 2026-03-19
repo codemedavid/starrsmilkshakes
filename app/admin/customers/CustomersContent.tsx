@@ -4,22 +4,31 @@ import { useState, useCallback } from 'react';
 import CustomerSearch from '@/components/admin/CustomerSearch';
 import CustomerDetailPanel from '@/components/CustomerDetailPanel';
 import type { CustomerStats } from '@/components/admin/CustomerSearch';
+import type { CustomerSummary } from '@/types/customer';
 
 interface CustomersContentProps {
+  initialCustomers: CustomerSummary[];
   initialTotal: number;
+  initialTotalLtv: number;
+  initialAtRiskCount: number;
 }
 
 const formatCurrency = (amount: number): string =>
   `P${amount.toLocaleString('en-PH', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
 
-export default function CustomersContent({ initialTotal }: CustomersContentProps) {
+export default function CustomersContent({
+  initialCustomers,
+  initialTotal,
+  initialTotalLtv,
+  initialAtRiskCount,
+}: CustomersContentProps) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
-  // Stats are seeded from SSR then kept current via CustomerSearch's onStatsChange callback.
+  // Stats are seeded from SSR with real data, then kept current via onStatsChange callback.
   const [stats, setStats] = useState<CustomerStats>({
     total: initialTotal,
-    totalLtv: 0,
-    atRiskCount: 0,
+    totalLtv: initialTotalLtv,
+    atRiskCount: initialAtRiskCount,
   });
 
   const handleStatsChange = useCallback((next: CustomerStats) => {
@@ -95,6 +104,8 @@ export default function CustomersContent({ initialTotal }: CustomersContentProps
               onSelect={setSelectedId}
               onStatsChange={handleStatsChange}
               onCustomerDeleted={handleCustomerDeleted}
+              initialCustomers={initialCustomers}
+              initialTotal={initialTotal}
             />
           </div>
 

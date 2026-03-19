@@ -1,6 +1,6 @@
 'use server';
 
-import { revalidatePath } from 'next/cache';
+import { revalidatePath, revalidateTag } from 'next/cache';
 import { requireAdmin, checkActionRateLimit } from '@/lib/admin-guard';
 import { supabaseServer } from '@/lib/supabase-server';
 import { siteSettingsSchema } from '@/lib/validation';
@@ -50,6 +50,7 @@ export async function updateSiteSettings(input: unknown): Promise<ActionResult> 
     return { success: false, error: 'Settings updated but failed to reload' };
   }
 
+  revalidateTag('settings');
   revalidatePath('/admin/settings');
   return { success: true, data: mapSiteSettingsRows(data as any[]) };
 }

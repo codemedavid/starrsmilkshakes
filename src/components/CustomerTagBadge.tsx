@@ -20,7 +20,7 @@ const autoTagStyles: Record<AutoTagLabel, string> = {
   'At Risk': 'bg-red-50 text-red-600 border border-red-200/60',
 };
 
-const CustomerTagBadge: React.FC<CustomerTagBadgeProps> = ({ label, type, onTeal = false, onRemove }) => {
+const CustomerTagBadge: React.FC<CustomerTagBadgeProps> = React.memo(function CustomerTagBadge({ label, type, onTeal = false, onRemove }) {
   // Auto tags always use semantic colors (they pop against both white and teal)
   if (type === 'auto') {
     const style = autoTagStyles[label as AutoTagLabel] || 'bg-gray-50 text-gray-600 border border-gray-200/60';
@@ -86,6 +86,6 @@ const CustomerTagBadge: React.FC<CustomerTagBadgeProps> = ({ label, type, onTeal
       {label}
     </span>
   );
-};
+});
 
 export default CustomerTagBadge;

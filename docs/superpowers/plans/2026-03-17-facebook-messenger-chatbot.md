@@ -81,11 +81,11 @@
 - [ ] **Step 1: Add environment variables to `.env.local`**
 
 ```
-FACEBOOK_APP_ID=1477113107453692
-FACEBOOK_APP_SECRET=c081f1c89a0d806aa915bbd5d3bbfbf7
-FACEBOOK_VERIFY_TOKEN=starrs_messenger_verify_2026
-MESSENGER_SESSION_SECRET=starrs_messenger_session_secret_2026
-SUPER_ADMIN_PASSWORD=SuperStarrs@2026
+FACEBOOK_APP_ID=<your-facebook-app-id>
+FACEBOOK_APP_SECRET=<REDACTED — rotate and set from Meta Developer Console>
+FACEBOOK_VERIFY_TOKEN=<REDACTED — generate a new random token>
+MESSENGER_SESSION_SECRET=<REDACTED — generate with: openssl rand -hex 32>
+SUPER_ADMIN_PASSWORD=<REDACTED — use a strong random password>
 ```
 
 - [ ] **Step 2: Install bcryptjs**
@@ -664,7 +664,7 @@ main();
 
 - [ ] **Step 2: Test manually**
 
-Run: `npx ts-node scripts/create-super-admin.ts --email admin@starrs.com --password SuperStarrs@2026`
+Run: `npx ts-node scripts/create-super-admin.ts --email admin@starrs.com --password <YOUR_SUPER_ADMIN_PASSWORD>`
 Expected: "Super admin created: admin@starrs.com (ID: ...)"
 
 - [ ] **Step 3: Commit**

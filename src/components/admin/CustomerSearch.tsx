@@ -27,6 +27,8 @@ interface CustomerSearchProps {
   onSelect: (id: string) => void;
   onStatsChange?: (stats: CustomerStats) => void;
   onCustomerDeleted?: (id: string) => void;
+  initialCustomers?: import('@/types/customer').CustomerSummary[];
+  initialTotal?: number;
 }
 
 const ITEMS_PER_PAGE = 20;
@@ -36,9 +38,11 @@ export default function CustomerSearch({
   onSelect,
   onStatsChange,
   onCustomerDeleted,
+  initialCustomers,
+  initialTotal,
 }: CustomerSearchProps) {
   const { customers, total, loading, error, fetchCustomers, createCustomer, deleteCustomer } =
-    useCustomers();
+    useCustomers({ initialCustomers, initialTotal });
 
   // Search state
   const [search, setSearch] = useState('');

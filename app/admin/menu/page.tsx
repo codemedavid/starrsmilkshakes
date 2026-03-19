@@ -1,25 +1,14 @@
 import { requireAdmin } from '@/lib/admin-guard';
-import { supabaseServer } from '@/lib/supabase-server';
-import { mapMenuRows } from '@/lib/menu-utils';
+import { getCachedMenuItems, getCachedCategories } from '@/lib/cached-queries';
 import MenuContent from './MenuContent';
 
 export default async function MenuPage() {
   await requireAdmin();
 
-  const [{ data: menuItemsRaw }, { data: categories }] = await Promise.all([
-    (supabaseServer.from('menu_items') as any)
-      .select(`
-        *,
-        variations (*),
-        add_ons (*)
-      `)
-      .order('created_at', { ascending: true }),
-    (supabaseServer.from('categories') as any)
-      .select('*')
-      .order('sort_order', { ascending: true }),
+  const [menuItems, categories] = await Promise.all([
+    getCachedMenuItems(),
+    getCachedCategories(),
   ]);
 
-  const menuItems = mapMenuRows(menuItemsRaw);
-
-  return <MenuContent menuItems={menuItems} categories={categories || []} />;
+  return <MenuContent menuItems={menuItems} categories={categories} />;
 }
