@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { supabaseServer } from '@/lib/supabase-server';
 import { isTokenExpired } from '@/lib/loyalty-hash';
 import GoalPicker from './GoalPicker';
+import { getCachedActiveRewards } from '@/lib/cached-queries';
 import type { LoyaltyReward } from '@/types/loyalty';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -62,16 +63,8 @@ export default async function GoalsPage({ params }: PageProps) {
     return <ErrorState message="No loyalty card found. Open Messenger to register." />;
   }
 
-  // ── 3. Load active rewards ────────────────────────────────────────────────
-
-  const { data: rewardsData } = await (supabaseServer.from('loyalty_rewards') as any)
-    .select(
-      'id, name, description, image_url, stamps_required, points_required, is_active, sort_order, created_at, updated_at',
-    )
-    .eq('is_active', true)
-    .order('sort_order', { ascending: true });
-
-  const rewards: LoyaltyReward[] = rewardsData ?? [];
+  // ── 3. Load active rewards (cached) ──────────────────────────────────────
+  const rewards: LoyaltyReward[] = await getCachedActiveRewards();
 
   // ── 4. Render ──────────────────────────────────────────────────────────────
 
