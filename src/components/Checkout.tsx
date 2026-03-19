@@ -9,18 +9,33 @@ import { useSiteSettings } from '../hooks/useSiteSettings';
 import { fetchDeliveryQuotation, buildLalamoveConfig } from '../lib/lalamove';
 import * as fpixel from '../lib/fpixel';
 import { sendPurchaseEvent } from '../lib/meta-conversions';
+import UpgradeScreen from './UpgradeScreen';
+import BestPairScreen from './BestPairScreen';
+import CheckoutInterstitial from './CheckoutInterstitial';
+import { getUpgradeOffers, getPairSuggestions, getInterstitialOffers } from '@/actions/upsell';
+import type { UpsellOffer, PairOffer, InterstitialOffer } from '@/types/upsell';
+import type { BundleCartItem, SlotSelection } from '@/types/bundle';
 
 interface CheckoutProps {
   cartItems: CartItem[];
+  bundleItems?: BundleCartItem[];
   totalPrice: number;
   onBack: () => void;
   msession?: string;
 }
 
-const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, msession }) => {
+type UpsellStep = 'upgrade' | 'pair' | 'checkout' | 'interstitial' | 'placing';
+
+const Checkout: React.FC<CheckoutProps> = ({ cartItems, bundleItems = [], totalPrice, onBack, msession }) => {
   const { paymentMethods } = usePaymentMethods();
   const { createOrder } = useOrders();
   const [step, setStep] = useState<'details' | 'payment'>('details');
+
+  // Upsell flow state
+  const [upsellStep, setUpsellStep] = useState<UpsellStep>('upgrade');
+  const [upgradeOffers, setUpgradeOffers] = useState<UpsellOffer[]>([]);
+  const [pairOffers, setPairOffers] = useState<PairOffer[]>([]);
+  const [interstitialOffer, setInterstitialOffer] = useState<InterstitialOffer | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [customerName, setCustomerName] = useState('');
@@ -51,6 +66,37 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, mses
   const { siteSettings } = useSiteSettings();
   const [selectedBranch, setSelectedBranch] = useState<Branch | null>(null);
   const [showBranchSelector, setShowBranchSelector] = useState(false);
+
+  // Fetch upsell data on mount and determine initial upsell step
+  useEffect(() => {
+    const fetchUpsellData = async () => {
+      const cartItemsMapped = cartItems.map(i => ({
+        menu_item_id: i.id,
+        category: i.category,
+        quantity: i.quantity,
+        unit_price: i.totalPrice / i.quantity,
+      }));
+
+      const [upgradeRes, pairRes] = await Promise.all([
+        getUpgradeOffers(cartItemsMapped),
+        getPairSuggestions(cartItemsMapped),
+      ]);
+
+      if (upgradeRes.success && upgradeRes.data?.length > 0) {
+        setUpgradeOffers(upgradeRes.data);
+        setUpsellStep('upgrade');
+      } else if (pairRes.success && pairRes.data?.length > 0) {
+        setPairOffers(pairRes.data);
+        setUpsellStep('pair');
+      } else {
+        setUpsellStep('checkout');
+      }
+
+      if (pairRes.success) setPairOffers(pairRes.data || []);
+    };
+    fetchUpsellData();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Load branch from local storage on mount
   useEffect(() => {
@@ -241,6 +287,25 @@ Please confirm this order to proceed. Thank you for choosing Starr's Famous Shak
     }
   };
 
+  // Intercept "Place Order" to show interstitial offer first if one exists
+  const handlePrePlaceOrder = async () => {
+    const cartItemsMapped = cartItems.map(i => ({
+      menu_item_id: i.id,
+      category: i.category,
+      quantity: i.quantity,
+      unit_price: i.totalPrice / i.quantity,
+    }));
+    const cart = { items: cartItemsMapped, total: totalWithDelivery };
+
+    const res = await getInterstitialOffers(cart);
+    if (res.success && res.data) {
+      setInterstitialOffer(res.data);
+      setUpsellStep('interstitial');
+    } else {
+      handlePlaceOrder();
+    }
+  };
+
   // Handle address selection from autocomplete
   const handleAddressSelect = (suggestion: AddressSuggestion) => {
     setAddress(suggestion.display_name);
@@ -377,6 +442,37 @@ Please confirm this order to proceed. Thank you for choosing Starr's Famous Shak
   const isDetailsValid = customerName && contactNumber &&
     (serviceType !== 'delivery' || (address && deliveryFee !== null)) &&
     (serviceType !== 'pickup' || (pickupTime !== 'custom' || customTime));
+
+  // Phase 1: Upgrade Screen
+  if (upsellStep === 'upgrade') {
+    return (
+      <UpgradeScreen
+        offers={upgradeOffers}
+        onAcceptBundle={(_bundleId: string, _selections: SlotSelection[], _totalPrice: number) => {
+          // After accepting a bundle upgrade, move to pair step
+          setUpsellStep(pairOffers.length > 0 ? 'pair' : 'checkout');
+        }}
+        onAcceptItem={(_itemId: string) => {
+          // After accepting an item upgrade, move to pair step
+          setUpsellStep(pairOffers.length > 0 ? 'pair' : 'checkout');
+        }}
+        onSkip={() => setUpsellStep(pairOffers.length > 0 ? 'pair' : 'checkout')}
+      />
+    );
+  }
+
+  // Phase 3: Best Pair Screen
+  if (upsellStep === 'pair') {
+    return (
+      <BestPairScreen
+        offers={pairOffers}
+        onAddItem={(_itemId: string) => {
+          setUpsellStep('checkout');
+        }}
+        onSkip={() => setUpsellStep('checkout')}
+      />
+    );
+  }
 
   if (step === 'details') {
     return (
@@ -944,7 +1040,7 @@ Please confirm this order to proceed. Thank you for choosing Starr's Famous Shak
           )}
 
           <button
-            onClick={handlePlaceOrder}
+            onClick={handlePrePlaceOrder}
             disabled={isSubmitting}
             className={`w-full py-4 rounded-xl font-medium text-lg transition-all duration-200 transform ${isSubmitting
               ? 'bg-gray-400 text-white cursor-not-allowed'
@@ -959,6 +1055,21 @@ Please confirm this order to proceed. Thank you for choosing Starr's Famous Shak
           </p>
         </div>
       </div>
+
+      {/* Phase 4: Interstitial offer overlay — shown on top of the payment step */}
+      {upsellStep === 'interstitial' && interstitialOffer && (
+        <CheckoutInterstitial
+          offer={interstitialOffer}
+          onAccept={() => {
+            setInterstitialOffer(null);
+            setUpsellStep('checkout');
+          }}
+          onDecline={() => {
+            setInterstitialOffer(null);
+            handlePlaceOrder();
+          }}
+        />
+      )}
     </div>
   );
 };
