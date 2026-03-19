@@ -65,26 +65,31 @@ export default function CheckoutPage() {
     useEffect(() => {
         if (cart.cartItems.length === 0) return;
         const fetchUpsellData = async () => {
-            const cartItemsMapped = cart.cartItems.map(i => ({
-                menu_item_id: i.id,
-                category: i.category,
-                quantity: i.quantity,
-                unit_price: i.totalPrice / i.quantity,
-            }));
-            const [upgradeRes, pairRes] = await Promise.all([
-                getUpgradeOffers(cartItemsMapped),
-                getPairSuggestions(cartItemsMapped),
-            ]);
-            if (upgradeRes.success && upgradeRes.data?.length > 0) {
-                setUpgradeOffers(upgradeRes.data);
-                setUpsellStep('upgrade');
-            } else if (pairRes.success && pairRes.data?.length > 0) {
-                setPairOffers(pairRes.data);
-                setUpsellStep('pair');
-            } else {
-                setUpsellStep('checkout');
+            try {
+                const cartItemsMapped = cart.cartItems.map(i => ({
+                    menu_item_id: i.id,
+                    category: i.category,
+                    quantity: i.quantity,
+                    unit_price: i.totalPrice / i.quantity,
+                }));
+                const [upgradeRes, pairRes] = await Promise.all([
+                    getUpgradeOffers(cartItemsMapped),
+                    getPairSuggestions(cartItemsMapped),
+                ]);
+                if (upgradeRes.success && upgradeRes.data?.length > 0) {
+                    setUpgradeOffers(upgradeRes.data);
+                    setUpsellStep('upgrade');
+                } else if (pairRes.success && pairRes.data?.length > 0) {
+                    setPairOffers(pairRes.data);
+                    setUpsellStep('pair');
+                } else {
+                    setUpsellStep('checkout');
+                }
+                if (pairRes.success) setPairOffers(pairRes.data || []);
+            } catch (err) {
+                console.error('Failed to fetch upsell offers:', err);
+                setUpsellStep('checkout'); // Skip upsells on error
             }
-            if (pairRes.success) setPairOffers(pairRes.data || []);
         };
         fetchUpsellData();
         // eslint-disable-next-line react-hooks/exhaustive-deps

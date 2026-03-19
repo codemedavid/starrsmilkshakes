@@ -82,17 +82,22 @@ export default function ReviewStep(props: ReviewStepProps) {
 
     // Skip interstitial check if we've already shown it (user declined)
     if (!skipInterstitial && onShowInterstitial) {
-      const cartItemsMapped = cartItems.map(i => ({
-        menu_item_id: i.id,
-        category: i.category,
-        quantity: i.quantity,
-        unit_price: i.totalPrice / i.quantity,
-      }));
-      const cart = { items: cartItemsMapped, total: grandTotal };
-      const res = await getInterstitialOffers(cart);
-      if (res.success && res.data) {
-        onShowInterstitial(res.data);
-        return; // Don't place order yet — interstitial will handle it
+      try {
+        const cartItemsMapped = cartItems.map(i => ({
+          menu_item_id: i.id,
+          category: i.category,
+          quantity: i.quantity,
+          unit_price: i.totalPrice / i.quantity,
+        }));
+        const cart = { items: cartItemsMapped, total: grandTotal };
+        const res = await getInterstitialOffers(cart);
+        if (res.success && res.data) {
+          onShowInterstitial(res.data);
+          return; // Don't place order yet — interstitial will handle it
+        }
+      } catch (err) {
+        console.error('Failed to fetch interstitial offers:', err);
+        // Skip interstitial on error, proceed to place order
       }
     }
 
