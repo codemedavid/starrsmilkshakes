@@ -223,3 +223,32 @@ export const getCachedLoyaltyStats = unstable_cache(
   ['admin-loyalty-stats'],
   { revalidate: 60, tags: ['loyalty-cards', 'loyalty-redemptions'] }
 );
+
+// ── Customer-Facing: Active Rewards ─────────────────────────
+export const getCachedActiveRewards = unstable_cache(
+  async () => {
+    const { data } = await (supabaseServer.from('loyalty_rewards') as any)
+      .select(
+        'id, name, description, image_url, stamps_required, points_required, is_active, sort_order, created_at, updated_at',
+      )
+      .eq('is_active', true)
+      .order('sort_order', { ascending: true });
+    return data || [];
+  },
+  ['customer-active-rewards'],
+  { revalidate: 60, tags: ['loyalty-rewards'] }
+);
+
+// ── Customer-Facing: Active Boosters ────────────────────────
+// Date filtering is done at render time, not here — prevents
+// cached `now` timestamp from showing/hiding boosters at wrong times.
+export const getCachedActiveBoosters = unstable_cache(
+  async () => {
+    const { data } = await (supabaseServer.from('loyalty_boosters') as any)
+      .select('name, ends_at, starts_at')
+      .eq('is_active', true);
+    return data || [];
+  },
+  ['customer-active-boosters'],
+  { revalidate: 60, tags: ['loyalty-boosters'] }
+);
