@@ -18,6 +18,7 @@ import {
   X,
   Shield,
   ShieldCheck,
+  Bot,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -33,6 +34,7 @@ const navItems = [
   { label: 'Branches', href: '/admin/branches', icon: MapPin },
   { label: 'Payments', href: '/admin/payments', icon: CreditCard },
   { label: 'Settings', href: '/admin/settings', icon: Settings },
+  { label: 'AI Logs', href: '/admin/ai-logs', icon: Bot },
 ];
 
 const superAdminItems = [
