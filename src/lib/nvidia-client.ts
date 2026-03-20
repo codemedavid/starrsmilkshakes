@@ -1,7 +1,7 @@
 const NVIDIA_BASE_URL = 'https://integrate.api.nvidia.com/v1';
-const CHAT_MODEL = 'qwen/qwen3.5-397b-a17b';
+const CHAT_MODEL = 'deepseek-ai/deepseek-v3.2';
 const EMBEDDING_MODEL = 'nvidia/nv-embedqa-e5-v5';
-const TIMEOUT_MS = 30_000; // 30s — Qwen 397B is a large model
+const TIMEOUT_MS = 30_000;
 const MAX_INPUT_LENGTH = 500;
 const MAX_RESPONSE_LENGTH = 2000; // Messenger character limit
 
@@ -79,9 +79,8 @@ export async function chatCompletion(messages: ChatMessage[]): Promise<ChatResul
       model: CHAT_MODEL,
       messages,
       max_tokens: 2048,
-      temperature: 0.60,
+      temperature: 0.7,
       top_p: 0.95,
-      top_k: 20,
       stream: false,
     }),
   });
