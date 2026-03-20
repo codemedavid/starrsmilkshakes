@@ -556,6 +556,14 @@ async function createCheckoutSession(
     [{ type: 'web_url', title: 'Complete Order', url: checkoutUrl }],
     pageToken
   );
+
+  // Remind about loyalty card
+  await sendQuickReplies(
+    psid,
+    'For a better experience next time, visit starrsmilkshake.com',
+    [{ content_type: 'text', title: 'My Loyalty Card', payload: 'LOYALTY_CARD' }],
+    pageToken
+  );
 }
 
 async function handleRemoveItem(psid: string, index: number, pageToken: string): Promise<void> {
@@ -608,8 +616,8 @@ async function handleLoyaltyCard(psid: string, pageToken: string): Promise<void>
 
   const buttonTitle = hasCard ? 'View My Card' : 'Get My Starr Card';
   const messageText = hasCard
-    ? '⭐ Tap below to view your Starr Card!'
-    : '⭐ Earn starrs with every order! Tap below to get your loyalty card.';
+    ? "⭐ Tap below to view your Starr Card!\n\nThis link expires in 30 minutes. Type 'Loyalty' anytime to get a new one."
+    : "⭐ Earn starrs with every order! Tap below to get your loyalty card.\n\nThis link expires in 30 minutes. Type 'Loyalty' anytime to get a new one.";
 
   await sendButtonTemplate(psid, messageText, [
     { type: 'web_url', title: buttonTitle, url, webview_height_ratio: 'tall' },
