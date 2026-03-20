@@ -1,7 +1,7 @@
 const NVIDIA_BASE_URL = 'https://integrate.api.nvidia.com/v1';
 const CHAT_MODEL = 'qwen/qwen3.5-397b-a17b';
 const EMBEDDING_MODEL = 'nvidia/nv-embedqa-e5-v5';
-const TIMEOUT_MS = 10_000;
+const TIMEOUT_MS = 30_000; // 30s — Qwen 397B is a large model
 const MAX_INPUT_LENGTH = 500;
 const MAX_RESPONSE_LENGTH = 2000; // Messenger character limit
 
