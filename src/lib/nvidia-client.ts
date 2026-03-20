@@ -1,5 +1,5 @@
 const NVIDIA_BASE_URL = 'https://integrate.api.nvidia.com/v1';
-const CHAT_MODEL = 'deepseek-ai/deepseek-v3.2';
+const CHAT_MODEL = 'deepseek-ai/deepseek-v3.1';
 const EMBEDDING_MODEL = 'nvidia/nv-embedqa-e5-v5';
 const TIMEOUT_MS = 30_000;
 const MAX_INPUT_LENGTH = 500;
@@ -79,8 +79,8 @@ export async function chatCompletion(messages: ChatMessage[]): Promise<ChatResul
       model: CHAT_MODEL,
       messages,
       max_tokens: 2048,
-      temperature: 0.7,
-      top_p: 0.95,
+      temperature: 0.2,
+      top_p: 0.7,
       stream: false,
     }),
   });
