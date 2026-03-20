@@ -510,6 +510,10 @@ Please confirm this order to proceed. Thank you for choosing Starr's Famous Shak
           }
           setUpsellStep('checkout');
         }}
+        onNavigateToProduct={(itemId: string) => {
+          // Legacy checkout flow — treat same as skip for now
+          setUpsellStep('checkout');
+        }}
         onSkip={() => setUpsellStep('checkout')}
       />
     );
