@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation';
 import { Plus, Minus, X, ShoppingCart } from 'lucide-react';
 import { MenuItem, Variation, AddOn } from '../types';
 import { getAddonSuggestions } from '@/actions/upsell';
-import type { AddonSuggestion } from '@/types/upsell';
+import { useUpsell } from '@/contexts/UpsellContext';
+import type { AddonSuggestion, UpsellCartItem } from '@/types/upsell';
 
 interface MenuItemCardProps {
   item: MenuItem;
@@ -21,6 +22,8 @@ const MenuItemCard: React.FC<MenuItemCardProps> = ({
   onUpdateQuantity
 }) => {
   const router = useRouter();
+  const { showUpgrade, showPair } = useUpsell();
+  const [navigating, setNavigating] = useState(false);
   const [showCustomization, setShowCustomization] = useState(false);
   const [selectedVariation, setSelectedVariation] = useState<Variation | undefined>(
     item.variations?.[0]
@@ -56,11 +59,8 @@ const MenuItemCard: React.FC<MenuItemCardProps> = ({
   };
 
   const handleAddToCart = () => {
-    if (item.variations?.length || item.addOns?.length) {
-      setShowCustomization(true);
-    } else {
-      onAddToCart(item, 1);
-    }
+    // Navigate to product detail page for customization & add-to-cart
+    router.push(`/product/${item.id}`);
   };
 
   const handleCustomizedAddToCart = () => {
@@ -133,9 +133,30 @@ const MenuItemCard: React.FC<MenuItemCardProps> = ({
           className={`relative aspect-square rounded-2xl overflow-hidden transition-all duration-200 ${!item.available ? 'cursor-not-allowed' : 'cursor-pointer active:scale-[0.98]'
             }`}
           style={{ backgroundColor: '#00704A' }}
-          onClick={!item.available ? undefined : () => {
-            // Navigate to product details page using client-side navigation
-            router.push(`/product/${item.id}`);
+          onClick={!item.available ? undefined : async () => {
+            if (navigating) return;
+            setNavigating(true);
+
+            const result = await showUpgrade(item.id, item.category, item.effectivePrice || item.basePrice);
+
+            if (result === 'accepted') {
+              // Upgrade was accepted and added to cart by the overlay.
+              // Show pair suggestions using the original item's category context,
+              // then go back to menu.
+              const upgradeItem: UpsellCartItem = {
+                menu_item_id: item.id,
+                category: item.category,
+                quantity: 1,
+                unit_price: item.effectivePrice || item.basePrice,
+              };
+              await showPair([upgradeItem]);
+              setNavigating(false);
+              router.push('/');
+            } else {
+              // No upgrade or skipped — go to product detail for customization
+              router.push(`/product/${item.id}`);
+              setNavigating(false);
+            }
           }}
         >
           {/* Product Image - Cover Entire Card */}
