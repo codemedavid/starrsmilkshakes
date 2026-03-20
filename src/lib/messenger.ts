@@ -24,6 +24,22 @@ export interface Button {
   webview_height_ratio?: 'compact' | 'tall' | 'full';
 }
 
+// --- Typing Indicator ---
+
+export async function sendTypingOn(psid: string, pageToken: string): Promise<void> {
+  await fetch(`${GRAPH_API_BASE}/me/messages`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${pageToken}`,
+    },
+    body: JSON.stringify({
+      recipient: { id: psid },
+      sender_action: 'typing_on',
+    }),
+  });
+}
+
 // --- Send API Calls ---
 
 export async function sendTextMessage(

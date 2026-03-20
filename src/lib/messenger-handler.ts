@@ -5,6 +5,7 @@ import {
   sendQuickReplies,
   sendGenericTemplate,
   sendButtonTemplate,
+  sendTypingOn,
   buildCategoryQuickReplies,
   buildProductCards,
   buildCartSummary,
@@ -103,6 +104,9 @@ async function handleAiFallback(psid: string, text: string, _session: MessengerS
     }
 
     cleanupOldConversations().catch(() => {});
+
+    // Show typing indicator while AI processes
+    await sendTypingOn(psid, pageToken);
 
     const sessionId = await getOrCreateSessionId(psid);
     const sanitized = sanitizeInput(text);
