@@ -13,8 +13,23 @@ import {
 import { generateCheckoutHash, getCheckoutExpiresAt } from '@/lib/messenger-session';
 import { generateLoyaltyToken, getLoyaltySessionExpiry } from '@/lib/loyalty-hash';
 import type { MessengerSession, MessengerCartItem } from '@/types';
+import { sanitizeInput, truncateResponse, chatCompletion, type ChatMessage } from '@/lib/nvidia-client';
+import { searchRagContext, buildSystemPrompt } from '@/lib/rag-engine';
+import { parseAiResponse } from '@/lib/ai-intent-parser';
+import { fuzzyMatchMenuItems, type MenuItemRow } from '@/lib/ai-menu-matcher';
+import { getOrCreateSessionId, getSessionHistory, logConversation, cleanupOldConversations } from '@/lib/ai-conversation';
+import { checkAiRateLimit } from '@/lib/ai-rate-limiter';
 
 const PRODUCTS_PER_PAGE = 10;
+
+async function isAiEnabled(): Promise<boolean> {
+  const { data } = await supabaseServer
+    .from('site_settings')
+    .select('value')
+    .eq('id', 'ai_faq_enabled')
+    .single();
+  return data?.value === 'true';
+}
 
 export async function handleMessengerEvent(event: any, pageToken: string): Promise<void> {
   const psid: string = event.sender?.id;
@@ -64,9 +79,192 @@ async function handleTextMessage(psid: string, text: string, _session: Messenger
   const lower = text.toLowerCase().trim();
   if (lower === 'loyalty' || lower === 'loyalty card' || lower === 'starr card' || lower === 'my card') {
     await handleLoyaltyCard(psid, pageToken);
-  } else {
-    await showCategories(psid, pageToken);
+    return;
   }
+
+  // 3. AI fallback (if toggle is on)
+  const aiHandled = await handleAiFallback(psid, text, _session, pageToken);
+  if (aiHandled) return;
+
+  // 4. Default fallback — show categories
+  await showCategories(psid, pageToken);
+}
+
+async function handleAiFallback(psid: string, text: string, _session: MessengerSession, pageToken: string): Promise<boolean> {
+  const startTime = Date.now();
+  try {
+    const enabled = await isAiEnabled();
+    if (!enabled) return false;
+
+    const rateLimit = await checkAiRateLimit(psid);
+    if (!rateLimit.allowed) {
+      await sendTextMessage(psid, "I'm getting a lot of messages! Give me a moment.", pageToken);
+      await showCategories(psid, pageToken);
+      return true;
+    }
+
+    cleanupOldConversations().catch(() => {});
+
+    const sessionId = await getOrCreateSessionId(psid);
+    const sanitized = sanitizeInput(text);
+    const history = await getSessionHistory(sessionId);
+
+    // Log user message AFTER fetching history (avoids duplicate in prompt)
+    await logConversation(sessionId, psid, 'user', sanitized);
+
+    const ragContext = await searchRagContext(sanitized);
+    const systemPrompt = buildSystemPrompt(ragContext, history);
+
+    const messages: ChatMessage[] = [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: sanitized },
+    ];
+    const result = await chatCompletion(messages);
+    const parsed = parseAiResponse(result.content);
+    const latencyMs = Date.now() - startTime;
+
+    await logConversation(sessionId, psid, 'assistant', result.content, parsed.intent, {
+      tokens: result.usage,
+      latency_ms: latencyMs,
+    });
+
+    if (parsed.data.message) {
+      parsed.data.message = truncateResponse(parsed.data.message);
+    }
+
+    switch (parsed.intent) {
+      case 'order':
+        await handleOrderIntent(psid, parsed, pageToken);
+        break;
+      case 'browse':
+        await handleBrowseIntent(psid, parsed, pageToken);
+        break;
+      case 'info':
+      default:
+        await sendTextMessage(psid, parsed.data.message, pageToken);
+        break;
+    }
+
+    return true;
+  } catch (err) {
+    console.error('[ai-fallback] Error:', err);
+    try {
+      const sessionId = await getOrCreateSessionId(psid);
+      await logConversation(sessionId, psid, 'assistant', '', 'error', {
+        error: err instanceof Error ? err.message : String(err),
+        latency_ms: Date.now() - startTime,
+      });
+    } catch { /* don't fail on error logging */ }
+    return false;
+  }
+}
+
+async function handleOrderIntent(
+  psid: string,
+  parsed: ReturnType<typeof parseAiResponse>,
+  pageToken: string
+): Promise<void> {
+  if (!parsed.data.items || parsed.data.items.length === 0) {
+    await sendTextMessage(psid, parsed.data.message || "I'd love to help you order! What would you like?", pageToken);
+    return;
+  }
+
+  const { data: allItems } = await supabaseServer
+    .from('menu_items')
+    .select('id, name, base_price')
+    .eq('available', true);
+
+  if (!allItems) {
+    await sendTextMessage(psid, "Sorry, I couldn't load the menu right now. Try browsing instead!", pageToken);
+    await showCategories(psid, pageToken);
+    return;
+  }
+
+  const { matched, unmatched } = fuzzyMatchMenuItems(
+    parsed.data.items,
+    allItems as MenuItemRow[]
+  );
+
+  if (parsed.data.message) {
+    await sendTextMessage(psid, truncateResponse(parsed.data.message), pageToken);
+  }
+
+  // Process ONLY the first matched item to avoid session state clobbering
+  if (matched.length > 0) {
+    const first = matched[0];
+    const { data: variations } = await supabaseServer
+      .from('variations')
+      .select('id, name, price')
+      .eq('menu_item_id', first.item.id);
+
+    if (variations && variations.length > 0) {
+      if (first.size) {
+        const sizeMatch = variations.find(
+          (v: any) => v.name.toLowerCase().includes(first.size!.toLowerCase())
+        );
+        if (sizeMatch) {
+          await updateSession(psid, {
+            pending_item_id: first.item.id,
+            pending_variation_id: sizeMatch.id,
+            pending_add_ons: [],
+          } as any);
+          await checkAndShowAddOns(psid, first.item.id, pageToken);
+        } else {
+          await handleAddToCart(psid, first.item.id, pageToken);
+        }
+      } else {
+        await handleAddToCart(psid, first.item.id, pageToken);
+      }
+    } else {
+      await updateSession(psid, {
+        pending_item_id: first.item.id,
+        pending_variation_id: null,
+        pending_add_ons: [],
+      } as any);
+      await finalizeCartItem(psid, pageToken);
+    }
+
+    if (matched.length > 1) {
+      const remaining = matched.slice(1).map((m) => m.item.name).join(', ');
+      await sendTextMessage(psid, `I'll help you add ${remaining} next — just finish this one first!`, pageToken);
+    }
+  }
+
+  if (unmatched.length > 0) {
+    const unmatchedMsg = `I couldn't find: ${unmatched.join(', ')}. Try browsing the menu!`;
+    await sendTextMessage(psid, unmatchedMsg, pageToken);
+  }
+}
+
+async function handleBrowseIntent(
+  psid: string,
+  parsed: ReturnType<typeof parseAiResponse>,
+  pageToken: string
+): Promise<void> {
+  if (parsed.data.category) {
+    const { data: categories } = await supabaseServer
+      .from('categories')
+      .select('id, name')
+      .eq('active', true);
+
+    if (categories) {
+      const match = categories.find(
+        (c: any) => c.name.toLowerCase().includes(parsed.data.category!.toLowerCase())
+      );
+      if (match) {
+        if (parsed.data.message) {
+          await sendTextMessage(psid, parsed.data.message, pageToken);
+        }
+        await showProducts(psid, match.id, 0, pageToken);
+        return;
+      }
+    }
+  }
+
+  if (parsed.data.message) {
+    await sendTextMessage(psid, parsed.data.message, pageToken);
+  }
+  await showCategories(psid, pageToken);
 }
 
 async function handlePostback(psid: string, payload: string, session: MessengerSession, pageToken: string): Promise<void> {
