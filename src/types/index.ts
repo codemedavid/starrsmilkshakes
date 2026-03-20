@@ -290,3 +290,30 @@ export interface AdminPaymentMethod {
   created_at: string;
   updated_at: string;
 }
+
+// --- FAQ Types ---
+
+export type FaqActionType = 'text' | 'send_menu' | 'send_branches' | 'connect_human';
+
+export interface FaqEntry {
+  id: string;
+  question: string;
+  answer: string;
+  keywords: string[];
+  category: string | null;
+  action_type: FaqActionType;
+  sort_order: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface FaqInput {
+  id?: string;
+  question: string;
+  answer: string;
+  keywords: string[];
+  category?: string;
+  action_type?: FaqActionType;
+  sort_order?: number;
+}
