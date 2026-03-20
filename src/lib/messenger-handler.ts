@@ -168,16 +168,15 @@ async function handleOrderIntent(
   pageToken: string
 ): Promise<void> {
   const siteUrl = getSiteUrl();
-  const msg = parsed.data.message || "Let's get you ordering!";
+  const msg = parsed.data.message || "Here's our menu! Tap any item to add to cart:";
 
-  // Send AI message + order buttons
+  // 1. Friendly message + order link
   await sendButtonTemplate(psid, truncateResponse(msg), [
     { type: 'web_url', title: '🛒 Order Online', url: siteUrl },
-    { type: 'postback', title: '📋 Browse Menu', payload: 'MAIN_MENU' },
     { type: 'postback', title: '🛍️ View Cart', payload: 'VIEW_CART' },
   ], pageToken);
 
-  // Also show category quick replies so they can browse right away
+  // 2. Show real product cards so they can order right here
   await showCategories(psid, pageToken);
 }
 
@@ -186,6 +185,9 @@ async function handleBrowseIntent(
   parsed: ReturnType<typeof parseAiResponse>,
   pageToken: string
 ): Promise<void> {
+  const siteUrl = getSiteUrl();
+
+  // Try to match a specific category and show its real product cards
   if (parsed.data.category) {
     const { data: categories } = await supabaseServer
       .from('categories')
@@ -198,18 +200,23 @@ async function handleBrowseIntent(
       );
       if (match) {
         if (parsed.data.message) {
-          await sendTextMessage(psid, parsed.data.message, pageToken);
+          // Show message with order link before the cards
+          await sendButtonTemplate(psid, truncateResponse(parsed.data.message), [
+            { type: 'web_url', title: '🛒 Order Online', url: siteUrl },
+          ], pageToken);
         }
+        // Show REAL product cards from this category
         await showProducts(psid, match.id, 0, pageToken);
         return;
       }
     }
   }
 
-  // Show message + categories for browsing
-  if (parsed.data.message) {
-    await sendTextMessage(psid, parsed.data.message, pageToken);
-  }
+  // No specific category matched — show message + all categories
+  const msg = parsed.data.message || "Here's what we have!";
+  await sendButtonTemplate(psid, truncateResponse(msg), [
+    { type: 'web_url', title: '🛒 Order Online', url: siteUrl },
+  ], pageToken);
   await showCategories(psid, pageToken);
 }
 
@@ -221,7 +228,7 @@ async function handleInfoIntent(
   const siteUrl = getSiteUrl();
   const msg = parsed.data.message || "How can I help you?";
 
-  // Always show actionable buttons — never just plain text
+  // Answer their question + always show order link and menu access
   await sendButtonTemplate(psid, truncateResponse(msg), [
     { type: 'web_url', title: '🛒 Order Online', url: siteUrl },
     { type: 'postback', title: '📋 Browse Menu', payload: 'MAIN_MENU' },

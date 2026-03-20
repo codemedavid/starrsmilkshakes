@@ -75,8 +75,9 @@ describe('rag-engine', () => {
       const { buildSystemPrompt } = await import('../../src/lib/rag-engine');
       const prompt = buildSystemPrompt([], []);
       expect(prompt).toContain('Starr\'s Famous Shakes');
-      expect(prompt).not.toContain('CONTEXT');
-      expect(prompt).not.toContain('CONVERSATION HISTORY');
+      // Should not have the dynamic CONTEXT or HISTORY blocks (only the static template)
+      expect(prompt).not.toContain('CONVERSATION HISTORY:');
+      expect(prompt).not.toContain('\nCONTEXT:\n-');
     });
   });
 });
