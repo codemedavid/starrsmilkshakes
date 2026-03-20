@@ -2,7 +2,6 @@
 
 import React from 'react';
 import { usePaymentMethods } from '@/hooks/usePaymentMethods';
-import { Loader2 } from 'lucide-react';
 
 interface PaymentStepProps {
   selectedMethod: string | null;
@@ -11,17 +10,16 @@ interface PaymentStepProps {
   onSelectMethod: (methodId: string) => void;
   onReferenceChange: (value: string) => void;
   onContinue: () => void;
+  onMethodNameChange?: (name: string) => void;
 }
 
-const PAYMENT_COLORS: Record<string, { bg: string; activeBg: string; text: string; icon: string }> = {
-  gcash: { bg: 'bg-blue-50', activeBg: 'bg-blue-600', text: 'text-blue-700', icon: '📱' },
-  maya: { bg: 'bg-green-50', activeBg: 'bg-green-600', text: 'text-green-700', icon: '💚' },
-  'bank transfer': { bg: 'bg-amber-50', activeBg: 'bg-amber-600', text: 'text-amber-700', icon: '🏦' },
-  'bank-transfer': { bg: 'bg-amber-50', activeBg: 'bg-amber-600', text: 'text-amber-700', icon: '🏦' },
-  cash: { bg: 'bg-emerald-50', activeBg: 'bg-emerald-600', text: 'text-emerald-700', icon: '💵' },
+const PAYMENT_ICONS: Record<string, string> = {
+  gcash: 'smartphone',
+  maya: 'account_balance_wallet',
+  'bank transfer': 'account_balance',
+  'bank-transfer': 'account_balance',
+  cash: 'payments',
 };
-
-const DEFAULT_COLORS = { bg: 'bg-gray-50', activeBg: 'bg-[#2A5A4A]', text: 'text-gray-700', icon: '💳' };
 
 export default function PaymentStep({
   selectedMethod,
@@ -30,39 +28,69 @@ export default function PaymentStep({
   onSelectMethod,
   onReferenceChange,
   onContinue,
+  onMethodNameChange,
 }: PaymentStepProps) {
   const { paymentMethods, loading } = usePaymentMethods();
   const selected = paymentMethods.find((pm) => pm.id === selectedMethod);
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-8">
-        <Loader2 className="w-5 h-5 animate-spin text-[#8FB8A8]" />
+      <div className="flex items-center justify-center py-16">
+        <div className="animate-spin rounded-full h-8 w-8 border-2 border-[#7ed2c2] border-t-[#006b5e]" />
       </div>
     );
   }
 
   return (
-    <div className="space-y-3">
-      {/* Payment Method Grid */}
-      <div className="grid grid-cols-2 gap-2.5">
+    <div className="space-y-6">
+      {/* Payment Method Cards */}
+      <div className="space-y-4">
         {paymentMethods.map((pm) => {
-          const colors = PAYMENT_COLORS[pm.name?.toLowerCase()] || DEFAULT_COLORS;
           const isSelected = selectedMethod === pm.id;
+          const icon = PAYMENT_ICONS[pm.name?.toLowerCase()] || 'credit_card';
 
           return (
             <button
               key={pm.id}
-              onClick={() => onSelectMethod(pm.id)}
-              className={`rounded-2xl py-4 px-3 text-center transition-all border-2 active:scale-[0.97] ${
+              onClick={() => {
+                onSelectMethod(pm.id);
+                onMethodNameChange?.(pm.name);
+              }}
+              className={`w-full text-left rounded-[1rem] p-6 transition-all duration-300 active:scale-[0.98] ${
                 isSelected
-                  ? `${colors.activeBg} text-white border-transparent shadow-lg`
-                  : `${colors.bg} ${colors.text} border-transparent hover:border-[#E8E4DE]`
+                  ? 'bg-white ring-2 ring-[#006b5e] shadow-sm'
+                  : 'bg-[#cdfeed] hover:bg-[#c8f8e8]'
               }`}
             >
-              <div className="text-[26px] mb-1.5">{colors.icon}</div>
-              <div className={`text-[13px] font-bold ${isSelected ? 'text-white' : ''}`}>
-                {pm.name}
+              <div className="flex items-center gap-4">
+                <div
+                  className={`w-14 h-14 rounded-full flex items-center justify-center ${
+                    isSelected ? 'bg-[#006b5e]' : 'bg-[#bceddc]'
+                  }`}
+                >
+                  <span
+                    className={`material-symbols-outlined text-2xl ${
+                      isSelected ? 'text-[#e6fff5]' : 'text-[#006b5e]'
+                    }`}
+                  >
+                    {icon}
+                  </span>
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-headline text-lg font-bold text-[#002019]">
+                    {pm.name}
+                  </h3>
+                  {pm.name?.toLowerCase() !== 'cash' && (
+                    <p className="text-[#005b50] text-sm">{pm.account_name}</p>
+                  )}
+                </div>
+                <span
+                  className={`material-symbols-outlined text-xl ${
+                    isSelected ? 'text-[#006b5e]' : 'text-[#bec9c5]'
+                  }`}
+                >
+                  {isSelected ? 'check_circle' : 'radio_button_unchecked'}
+                </span>
               </div>
             </button>
           );
@@ -71,11 +99,11 @@ export default function PaymentStep({
 
       {/* Selected Method Details */}
       {selected && selected.name?.toLowerCase() !== 'cash' && (
-        <div className="bg-white rounded-2xl p-4 border border-[#E8E4DE]/50 shadow-sm space-y-4">
+        <div className="bg-white rounded-[1rem] p-6 space-y-5">
           {/* QR Code */}
           {selected.qr_code_url && (
             <div className="text-center">
-              <div className="w-28 h-28 bg-white rounded-xl mx-auto border-2 border-[#E8E4DE] overflow-hidden p-1">
+              <div className="w-32 h-32 bg-white rounded-[1rem] mx-auto overflow-hidden p-1">
                 <img
                   src={selected.qr_code_url}
                   alt={`${selected.name} QR Code`}
@@ -90,19 +118,23 @@ export default function PaymentStep({
 
           {/* Account Details */}
           <div className="text-center space-y-2">
-            <div className="text-[12px] text-[#8B9E95] font-medium">Send to this number</div>
-            <div className="font-mono text-[20px] font-bold text-[#1A2B22] bg-[#F4F0EB] px-4 py-2.5 rounded-xl inline-block tracking-[0.15em]">
+            <span className="font-label text-xs font-bold uppercase tracking-widest text-[#005b50]">
+              Send to this number
+            </span>
+            <div className="font-mono text-2xl font-bold text-[#002019] bg-[#cdfeed] px-6 py-3 rounded-[1rem] inline-block tracking-[0.15em]">
               {selected.account_number}
             </div>
-            <div className="text-[13px] text-[#8B9E95]">{selected.account_name}</div>
+            <p className="text-[#005b50] text-sm">{selected.account_name}</p>
           </div>
 
           {/* Amount */}
-          <div className="text-center bg-[#2A5A4A] rounded-xl py-3">
-            <div className="text-[11px] text-[#8FB8A8] font-medium uppercase tracking-wider mb-0.5">Amount to pay</div>
-            <div className="text-[24px] font-bold text-white tabular-nums tracking-tight">
+          <div className="text-center bg-[#006b5e] rounded-[1rem] py-4">
+            <span className="font-label text-[10px] font-bold uppercase tracking-widest text-[#7ed2c2] block mb-1">
+              Amount to pay
+            </span>
+            <span className="text-3xl font-headline font-extrabold text-white tabular-nums">
               ₱{totalAmount.toLocaleString()}
-            </div>
+            </span>
           </div>
         </div>
       )}
@@ -110,26 +142,33 @@ export default function PaymentStep({
       {/* Reference Number */}
       {selected && selected.name?.toLowerCase() !== 'cash' && (
         <div>
-          <label className="text-[12px] font-semibold text-[#8B9E95] block mb-1.5">
+          <label className="block font-label text-xs font-bold uppercase tracking-widest text-[#005b50] mb-2 ml-4">
             Reference Number (optional)
           </label>
-          <input
-            type="text"
-            value={referenceNumber}
-            onChange={(e) => onReferenceChange(e.target.value)}
-            placeholder="Enter if you've already paid"
-            className="w-full px-3.5 py-3 border border-[#E8E4DE] rounded-xl text-[14px] bg-white focus:outline-none focus:border-[#8FB8A8] focus:ring-2 focus:ring-[#8FB8A8]/10 transition-all"
-          />
+          <div className="relative">
+            <input
+              type="text"
+              value={referenceNumber}
+              onChange={(e) => onReferenceChange(e.target.value)}
+              placeholder="Enter if you've already paid"
+              className="w-full bg-[#bceddc] border-none rounded-[1rem] h-16 px-6 focus:ring-2 focus:ring-[#006b5e]/20 focus:bg-white transition-all placeholder:text-[#bec9c5] font-medium text-lg"
+            />
+            <span className="material-symbols-outlined absolute right-6 top-1/2 -translate-y-1/2 text-[#006b5e]/40">
+              receipt
+            </span>
+          </div>
         </div>
       )}
 
       {/* Info Tip */}
       {selected && selected.name?.toLowerCase() !== 'cash' && (
-        <div className="bg-[#FFF8E7] rounded-xl p-3 flex items-start gap-2.5 border border-[#F0E6C8]/50">
-          <span className="text-[14px] mt-0.5">💡</span>
-          <span className="text-[12px] text-[#8B7355] leading-relaxed">
+        <div className="bg-[#cdfeed] rounded-[1rem] p-5 flex items-start gap-4">
+          <div className="bg-white p-2 rounded-full shadow-sm">
+            <span className="material-symbols-outlined text-[#006b5e]">info</span>
+          </div>
+          <p className="text-[#005b50] text-sm leading-relaxed">
             You&apos;ll send your payment screenshot via Messenger after placing the order.
-          </span>
+          </p>
         </div>
       )}
 
@@ -137,13 +176,14 @@ export default function PaymentStep({
       <button
         onClick={onContinue}
         disabled={!selectedMethod}
-        className={`w-full py-3.5 rounded-2xl text-[15px] font-bold transition-all active:scale-[0.98] ${
+        className={`w-full rounded-full font-headline font-bold text-lg py-5 transition-all active:scale-95 flex items-center justify-center gap-2 ${
           selectedMethod
-            ? 'bg-[#2A5A4A] text-[#FFF8E7] shadow-lg shadow-[#2A5A4A]/20'
-            : 'bg-[#E8E4DE] text-[#B8B2A9] cursor-not-allowed'
+            ? 'bg-[#006b5e] text-[#e6fff5] shadow-lg shadow-[#006b5e]/20'
+            : 'bg-[#bceddc] text-[#bec9c5] cursor-not-allowed'
         }`}
       >
-        Continue
+        Next Step
+        <span className="material-symbols-outlined">arrow_forward</span>
       </button>
     </div>
   );

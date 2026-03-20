@@ -1,8 +1,7 @@
 // src/components/checkout/ReviewStep.tsx
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { Loader2 } from 'lucide-react';
+import React, { useState, useRef } from 'react';
 import { CartItem, Branch, ServiceType } from '@/types';
 import { BundleCartItem } from '@/types/bundle';
 import { useOrders } from '@/hooks/useOrders';
@@ -10,8 +9,6 @@ import { usePaymentMethods } from '@/hooks/usePaymentMethods';
 import { useSiteSettings } from '@/hooks/useSiteSettings';
 import * as fpixel from '@/lib/fpixel';
 import { sendPurchaseEvent } from '@/lib/meta-conversions';
-import { getInterstitialOffers } from '@/actions/upsell';
-import type { InterstitialOffer } from '@/types/upsell';
 
 interface ReviewStepProps {
   cartItems: CartItem[];
@@ -32,8 +29,6 @@ interface ReviewStepProps {
   lalamoveQuotationId: string | null;
   totalPrice: number;
   msession?: string;
-  onShowInterstitial?: (offer: InterstitialOffer) => void;
-  skipInterstitial?: boolean; // Set true after interstitial is declined (proceed to order)
 }
 
 export default function ReviewStep(props: ReviewStepProps) {
@@ -56,8 +51,6 @@ export default function ReviewStep(props: ReviewStepProps) {
     lalamoveQuotationId,
     totalPrice,
     msession,
-    onShowInterstitial,
-    skipInterstitial,
   } = props;
 
   const { createOrder } = useOrders();
@@ -65,48 +58,14 @@ export default function ReviewStep(props: ReviewStepProps) {
   const { siteSettings } = useSiteSettings();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const isPlacingRef = useRef(false); // Synchronous guard against double placement
 
   const selectedPayment = paymentMethods.find((pm) => pm.id === paymentMethodId);
   const grandTotal = totalPrice + (deliveryFee || 0);
 
-  // Auto-place order when interstitial is declined (skipInterstitial flips to true)
-  useEffect(() => {
-    if (skipInterstitial && !isSubmitting) {
-      handlePlaceOrder();
-    }
-  }, [skipInterstitial]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Check for interstitial offers before placing order (same as current handlePrePlaceOrder)
-  const handlePrePlaceOrder = async () => {
-    if (isSubmitting) return;
-
-    // Skip interstitial check if we've already shown it (user declined)
-    if (!skipInterstitial && onShowInterstitial) {
-      try {
-        const cartItemsMapped = cartItems.map(i => ({
-          menu_item_id: i.id,
-          category: i.category,
-          quantity: i.quantity,
-          unit_price: i.totalPrice / i.quantity,
-        }));
-        const cart = { items: cartItemsMapped, total: grandTotal };
-        const res = await getInterstitialOffers(cart);
-        if (res.success && res.data) {
-          onShowInterstitial(res.data);
-          return; // Don't place order yet — interstitial will handle it
-        }
-      } catch (err) {
-        console.error('Failed to fetch interstitial offers:', err);
-        // Skip interstitial on error, proceed to place order
-      }
-    }
-
-    // No interstitial, proceed to place order
-    await handlePlaceOrder();
-  };
-
   const handlePlaceOrder = async () => {
-    if (isSubmitting) return;
+    if (isSubmitting || isPlacingRef.current) return;
+    isPlacingRef.current = true;
     setIsSubmitting(true);
     setError(null);
 
@@ -131,7 +90,8 @@ export default function ReviewStep(props: ReviewStepProps) {
           branchId: branch?.id,
           branch: branch || undefined,
           msession,
-        }
+        },
+        bundleItems
       );
 
       // Track purchase events (must match exact signatures from fpixel.ts and meta-conversions.ts)
@@ -161,114 +121,127 @@ export default function ReviewStep(props: ReviewStepProps) {
         const orderText = buildOrderText(order, cartItems, bundleItems, selectedPayment?.name);
         const encodedText = encodeURIComponent(orderText);
         window.location.href = `https://m.me/${messengerUsername}?text=${encodedText}`;
+      } else {
+        // No Messenger redirect configured — reset submission state
+        setIsSubmitting(false);
+        isPlacingRef.current = false;
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to place order. Please try again.');
       setIsSubmitting(false);
+      isPlacingRef.current = false;
     }
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {/* Order Items */}
-      <div className="space-y-2">
+      <div className="bg-white rounded-[1rem] p-6 space-y-4">
+        <span className="font-label text-xs font-bold uppercase tracking-widest text-[#005b50]">
+          Order Summary
+        </span>
         {cartItems.map((item) => (
-          <div
-            key={item.id}
-            className="flex items-center gap-3 py-1.5"
-          >
-            <div className="w-11 h-11 rounded-lg overflow-hidden bg-[#F0EDE8] flex-shrink-0">
+          <div key={item.id} className="flex items-center gap-4 pt-3 border-t border-[#bec9c5]/10 first:border-t-0 first:pt-0">
+            <div className="w-14 h-14 rounded-[1rem] overflow-hidden bg-[#cdfeed] flex-shrink-0">
               {item.image ? (
                 <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
               ) : (
-                <div className="w-full h-full flex items-center justify-center text-lg">🥤</div>
+                <div className="w-full h-full flex items-center justify-center">
+                  <span className="material-symbols-outlined text-[#006b5e]">icecream</span>
+                </div>
               )}
             </div>
             <div className="flex-1 min-w-0">
-              <div className="font-semibold text-sm text-[#1A2B22] truncate">{item.name}</div>
-              <div className="text-[11px] text-[#8B9E95]">
+              <div className="font-headline font-bold text-[15px] text-[#002019] truncate">{item.name}</div>
+              <div className="text-[12px] text-[#005b50]">
                 {item.selectedVariation?.name}
                 {item.selectedAddOns?.length
-                  ? ` · ${item.selectedAddOns.map((a) => a.name).join(', ')}`
+                  ? ` + ${item.selectedAddOns.map((a) => a.name).join(', ')}`
                   : ''}
-                {' '}×{item.quantity}
+                {' '}x{item.quantity}
               </div>
             </div>
-            <div className="font-bold text-sm text-[#2A5A4A] tabular-nums flex-shrink-0">
+            <div className="font-headline font-bold text-[15px] text-[#006b5e] tabular-nums flex-shrink-0">
               ₱{item.totalPrice.toLocaleString()}
             </div>
           </div>
         ))}
         {bundleItems.map((item, index) => (
-          <div
-            key={`bundle-${index}`}
-            className="flex items-center gap-3 py-1.5"
-          >
-            <div className="w-11 h-11 rounded-lg overflow-hidden bg-[#8FB8A8]/10 flex items-center justify-center flex-shrink-0 text-lg">
-              🎁
+          <div key={`bundle-${index}`} className="flex items-center gap-4 pt-3 border-t border-[#bec9c5]/10">
+            <div className="w-14 h-14 rounded-[1rem] overflow-hidden bg-[#7ed2c2]/20 flex items-center justify-center flex-shrink-0">
+              <span className="material-symbols-outlined text-[#006b5e]">redeem</span>
             </div>
             <div className="flex-1 min-w-0">
-              <div className="font-semibold text-sm text-[#1A2B22] truncate">{item.bundle.name}</div>
-              <div className="text-[11px] text-[#8B9E95]">Bundle ×{item.quantity}</div>
+              <div className="font-headline font-bold text-[15px] text-[#002019] truncate">{item.bundle.name}</div>
+              <div className="text-[12px] text-[#005b50]">Bundle x{item.quantity}</div>
             </div>
-            <div className="font-bold text-sm text-[#2A5A4A] tabular-nums flex-shrink-0">
+            <div className="font-headline font-bold text-[15px] text-[#006b5e] tabular-nums flex-shrink-0">
               ₱{item.totalPrice.toLocaleString()}
             </div>
           </div>
         ))}
       </div>
 
-      {/* Customer Summary */}
-      <div className="bg-starrs-mint-soft rounded-xl p-3 space-y-1.5 text-[13px]">
-        <div className="flex justify-between">
-          <span className="text-starrs-muted">Customer</span>
-          <span className="font-semibold">{customerName}</span>
-        </div>
-        <div className="flex justify-between">
-          <span className="text-starrs-muted">Phone</span>
-          <span className="font-semibold">{contactNumber}</span>
-        </div>
-        <div className="flex justify-between">
-          <span className="text-starrs-muted">Service</span>
-          <span className="font-semibold">
-            {serviceType === 'dine-in' ? '🪑 Dine In' : serviceType === 'pickup' ? '🚶 Pickup' : '🛵 Delivery'}
-          </span>
-        </div>
-        {serviceType === 'pickup' && (
+      {/* Customer & Service Summary */}
+      <div className="bg-[#cdfeed] rounded-[1rem] p-6 space-y-3">
+        <span className="font-label text-xs font-bold uppercase tracking-widest text-[#005b50]">
+          Details
+        </span>
+        <div className="space-y-2 text-sm">
           <div className="flex justify-between">
-            <span className="text-starrs-muted">Pickup Time</span>
-            <span className="font-semibold">{customTime || `${pickupTime} min`}</span>
+            <span className="text-[#005b50]">Customer</span>
+            <span className="font-semibold text-[#002019]">{customerName}</span>
           </div>
-        )}
-        {serviceType === 'delivery' && address && (
           <div className="flex justify-between">
-            <span className="text-starrs-muted">Address</span>
-            <span className="font-semibold text-right max-w-[200px] truncate">{address}</span>
+            <span className="text-[#005b50]">Phone</span>
+            <span className="font-semibold text-[#002019]">{contactNumber}</span>
           </div>
-        )}
-        <div className="flex justify-between">
-          <span className="text-starrs-muted">Payment</span>
-          <span className="font-semibold">{selectedPayment?.name || 'Cash'}</span>
+          <div className="flex justify-between">
+            <span className="text-[#005b50]">Service</span>
+            <span className="font-semibold text-[#002019]">
+              {serviceType === 'dine-in' ? 'Dine In' : serviceType === 'pickup' ? 'Pickup' : 'Delivery'}
+            </span>
+          </div>
+          {serviceType === 'pickup' && (
+            <div className="flex justify-between">
+              <span className="text-[#005b50]">Pickup Time</span>
+              <span className="font-semibold text-[#002019]">{customTime || `${pickupTime} min`}</span>
+            </div>
+          )}
+          {serviceType === 'delivery' && address && (
+            <div className="flex justify-between">
+              <span className="text-[#005b50]">Address</span>
+              <span className="font-semibold text-[#002019] text-right max-w-[200px] truncate">{address}</span>
+            </div>
+          )}
+          <div className="flex justify-between">
+            <span className="text-[#005b50]">Payment</span>
+            <span className="font-semibold text-[#002019]">{selectedPayment?.name || 'Cash'}</span>
+          </div>
+          {branch && (
+            <div className="flex justify-between">
+              <span className="text-[#005b50]">Branch</span>
+              <span className="font-semibold text-[#002019]">{branch.name}</span>
+            </div>
+          )}
         </div>
-        {branch && (
-          <div className="flex justify-between">
-            <span className="text-starrs-muted">Branch</span>
-            <span className="font-semibold">{branch.name}</span>
-          </div>
-        )}
       </div>
 
       {/* Total */}
-      <div className="border-t-2 border-starrs-deep pt-3 space-y-1">
+      <div className="bg-[#006b5e] rounded-[1rem] p-6 space-y-2">
+        <div className="flex justify-between text-sm">
+          <span className="text-[#7ed2c2]/70">Subtotal</span>
+          <span className="text-white font-medium tabular-nums">₱{totalPrice.toLocaleString()}</span>
+        </div>
         {deliveryFee !== null && deliveryFee > 0 && (
           <div className="flex justify-between text-sm">
-            <span className="text-starrs-muted">Delivery Fee</span>
-            <span className="font-semibold">₱{deliveryFee.toLocaleString()}</span>
+            <span className="text-[#7ed2c2]/70">Delivery Fee</span>
+            <span className="text-white font-medium tabular-nums">₱{deliveryFee.toLocaleString()}</span>
           </div>
         )}
-        <div className="flex justify-between items-center">
-          <span className="text-base font-bold">Total</span>
-          <span className="text-2xl font-extrabold text-starrs-deep">
+        <div className="border-t border-white/15 pt-3 flex justify-between items-center">
+          <span className="font-headline font-bold text-white">Grand Total</span>
+          <span className="font-headline text-3xl font-extrabold text-white tabular-nums tracking-tight">
             ₱{grandTotal.toLocaleString()}
           </span>
         </div>
@@ -276,26 +249,31 @@ export default function ReviewStep(props: ReviewStepProps) {
 
       {/* Error */}
       {error && (
-        <div className="bg-red-50 text-red-600 text-sm rounded-xl p-3">{error}</div>
+        <div className="bg-[#fb5151]/10 text-[#ba1a1a] text-sm rounded-[1rem] p-4 flex items-center gap-3">
+          <span className="material-symbols-outlined">error</span>
+          {error}
+        </div>
       )}
 
       {/* CTA */}
       <button
-        onClick={handlePrePlaceOrder}
+        onClick={handlePlaceOrder}
         disabled={isSubmitting}
-        className="w-full py-4 bg-starrs-deep text-starrs-cream-brand rounded-[14px] text-base font-bold flex items-center justify-center gap-2 disabled:opacity-60"
+        className="w-full rounded-full font-headline font-bold text-lg py-5 transition-all active:scale-95 disabled:opacity-60 bg-[#006b5e] text-[#e6fff5] shadow-xl shadow-[#006b5e]/20 flex items-center justify-center gap-2"
       >
         {isSubmitting ? (
           <>
-            <Loader2 className="w-5 h-5 animate-spin" /> Placing Order...
+            <span className="material-symbols-outlined animate-spin">progress_activity</span>
+            Placing Order...
           </>
         ) : (
           <>
-            Send Order via Messenger <span className="text-lg">💬</span>
+            Place Order — ₱{grandTotal.toLocaleString()}
+            <span className="material-symbols-outlined">send</span>
           </>
         )}
       </button>
-      <p className="text-center text-[11px] text-gray-400">
+      <p className="text-center text-xs text-[#005b50]">
         You&apos;ll be redirected to Messenger to confirm your order
       </p>
     </div>

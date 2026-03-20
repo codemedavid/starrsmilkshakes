@@ -16,7 +16,6 @@ const STORAGE_KEY = 'starrs_selected_branch';
 export default function BranchStep({ selectedBranch, onSelect, onContinue }: BranchStepProps) {
   const [branches, setBranches] = useState<Branch[]>([]);
   const [loading, setLoading] = useState(true);
-  const [expanded, setExpanded] = useState(!selectedBranch);
 
   useEffect(() => {
     const fetchBranches = async () => {
@@ -32,19 +31,15 @@ export default function BranchStep({ selectedBranch, onSelect, onContinue }: Bra
     fetchBranches();
   }, []);
 
-  // Auto-select from localStorage on mount (current code stores full JSON object)
+  // Auto-select from localStorage on mount
   useEffect(() => {
     if (!selectedBranch && branches.length > 0) {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) {
         try {
           const parsed = JSON.parse(stored);
-          // Match by ID from the fetched branches to get fresh data
           const match = branches.find((b) => b.id === parsed.id);
-          if (match) {
-            onSelect(match);
-            setExpanded(false);
-          }
+          if (match) onSelect(match);
         } catch {
           // Invalid stored value, ignore
         }
@@ -55,63 +50,77 @@ export default function BranchStep({ selectedBranch, onSelect, onContinue }: Bra
   const handleSelect = (branch: Branch) => {
     onSelect(branch);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(branch));
-    setExpanded(false);
   };
 
   if (loading) {
-    return <div className="text-center py-4 text-starrs-muted text-sm">Loading branches...</div>;
-  }
-
-  if (!expanded && selectedBranch) {
     return (
-      <div className="space-y-2">
-        <div className="bg-starrs-mint-soft rounded-xl p-3 flex justify-between items-center">
-          <div>
-            <div className="font-semibold text-sm">{selectedBranch.name}</div>
-            <div className="text-xs text-starrs-muted">{selectedBranch.address}</div>
-          </div>
-          <button
-            onClick={() => setExpanded(true)}
-            className="text-xs text-starrs-sage font-semibold"
-          >
-            Change
-          </button>
-        </div>
-        <button
-          onClick={onContinue}
-          className="w-full py-3.5 bg-starrs-sage text-starrs-cream-brand rounded-xl text-[15px] font-bold"
-        >
-          Continue
-        </button>
+      <div className="flex items-center justify-center py-16">
+        <div className="animate-spin rounded-full h-8 w-8 border-2 border-[#7ed2c2] border-t-[#006b5e]" />
       </div>
     );
   }
 
   return (
-    <div className="space-y-2">
-      {branches.map((branch) => (
-        <button
-          key={branch.id}
-          onClick={() => handleSelect(branch)}
-          className={`w-full text-left rounded-xl p-3 border-2 transition-colors ${
-            selectedBranch?.id === branch.id
-              ? 'border-starrs-sage bg-starrs-mint-soft'
-              : 'border-transparent bg-gray-50 hover:bg-starrs-mint-soft'
-          }`}
-        >
-          <div className="font-semibold text-sm">{branch.name}</div>
-          <div className="text-xs text-starrs-muted">{branch.address}</div>
-          {branch.phone && (
-            <div className="text-xs text-starrs-muted">{branch.phone}</div>
-          )}
-        </button>
-      ))}
+    <div className="space-y-5">
+      {branches.map((branch, index) => {
+        const isSelected = selectedBranch?.id === branch.id;
+        return (
+          <button
+            key={branch.id}
+            onClick={() => handleSelect(branch)}
+            className={`w-full text-left rounded-[1rem] p-6 transition-all duration-300 active:scale-[0.98] ${
+              isSelected
+                ? 'bg-white shadow-sm ring-2 ring-[#006b5e]'
+                : 'bg-[#cdfeed] hover:bg-[#c8f8e8]'
+            }`}
+          >
+            <div className="flex justify-between items-start">
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-1">
+                  {(isSelected || (index === 0 && !selectedBranch)) && (
+                    <span className="bg-[#006b5e] text-[#e6fff5] px-3 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider">
+                      {isSelected ? 'Selected' : 'Closest'}
+                    </span>
+                  )}
+                  {branch.is_main && !isSelected && (
+                    <span className="bg-[#7ed2c2] text-[#005b50] px-3 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider">
+                      Main
+                    </span>
+                  )}
+                  <h3 className="font-headline text-xl font-bold text-[#002019]">
+                    {branch.name}
+                  </h3>
+                </div>
+                <p className="text-[#005b50] text-sm">{branch.address}</p>
+              </div>
+            </div>
+            <div className="flex items-center justify-between pt-4 mt-4 border-t border-[#bec9c5]/10">
+              <div className="flex items-center gap-2 text-[#005b50]">
+                {branch.phone && (
+                  <>
+                    <span className="material-symbols-outlined text-sm">call</span>
+                    <span className="text-xs font-medium">{branch.phone}</span>
+                  </>
+                )}
+              </div>
+              <span className="text-[#006b5e] font-bold text-xs uppercase tracking-widest flex items-center gap-1">
+                {isSelected ? 'Selected' : 'Select'}
+                <span className="material-symbols-outlined text-sm">
+                  {isSelected ? 'check_circle' : 'chevron_right'}
+                </span>
+              </span>
+            </div>
+          </button>
+        );
+      })}
+
       {selectedBranch && (
         <button
           onClick={onContinue}
-          className="w-full py-3.5 bg-starrs-sage text-starrs-cream-brand rounded-xl text-[15px] font-bold"
+          className="w-full bg-[#006b5e] text-[#e6fff5] rounded-full font-headline font-bold text-lg py-5 shadow-lg shadow-[#006b5e]/20 active:scale-95 transition-all flex items-center justify-center gap-2"
         >
-          Continue
+          Next Step
+          <span className="material-symbols-outlined">arrow_forward</span>
         </button>
       )}
     </div>

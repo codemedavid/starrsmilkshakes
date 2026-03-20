@@ -44,7 +44,10 @@ export default {
       },
       fontFamily: {
         'pretendard': ['Pretendard', 'system-ui', 'sans-serif'],
-        'noto-kr': ['Noto Serif KR', 'serif']
+        'noto-kr': ['Noto Serif KR', 'serif'],
+        'headline': ['Plus Jakarta Sans', 'system-ui', 'sans-serif'],
+        'body': ['Be Vietnam Pro', 'system-ui', 'sans-serif'],
+        'label': ['Be Vietnam Pro', 'system-ui', 'sans-serif'],
       },
       animation: {
         'fade-in': 'fadeIn 0.5s ease-in-out',
