@@ -70,7 +70,9 @@ async function handleTextMessage(psid: string, text: string, _session: Messenger
 }
 
 async function handlePostback(psid: string, payload: string, session: MessengerSession, pageToken: string): Promise<void> {
-  if (payload === 'GET_STARTED' || payload === 'MAIN_MENU') {
+  if (payload === 'GET_STARTED') {
+    await showWelcome(psid, pageToken);
+  } else if (payload === 'MAIN_MENU') {
     await showCategories(psid, pageToken);
   } else if (payload.startsWith('CATEGORY_')) {
     const categoryId = payload.replace('CATEGORY_', '');
@@ -111,6 +113,38 @@ async function handlePostback(psid: string, payload: string, session: MessengerS
   }
 }
 
+async function showWelcome(psid: string, pageToken: string): Promise<void> {
+  const siteUrl = getSiteUrl();
+
+  // Send welcome button template with Order Online link
+  await sendButtonTemplate(
+    psid,
+    "Welcome to Starr's Famous Shakes!\n\nOrder online at starrsmilkshake.com for the best experience, or browse our menu right here!\n\nHow can I help you today?",
+    [
+      { type: 'web_url', title: 'Order Online', url: siteUrl },
+      { type: 'postback', title: 'Browse Menu', payload: 'MAIN_MENU' },
+    ],
+    pageToken
+  );
+
+  // Send category quick replies with loyalty card option
+  const { data: categories } = await supabaseServer
+    .from('categories')
+    .select('id, name, icon')
+    .eq('active', true)
+    .order('sort_order');
+
+  if (categories && categories.length > 0) {
+    const quickReplies: QuickReply[] = [
+      ...buildCategoryQuickReplies(categories.slice(0, 12)),
+      { content_type: 'text', title: 'My Loyalty Card', payload: 'LOYALTY_CARD' },
+    ];
+    await sendQuickReplies(psid, 'Or browse by category:', quickReplies, pageToken);
+  }
+
+  await updateSession(psid, { state: 'browsing_categories', current_category: null, current_page: 0 } as any);
+}
+
 async function showCategories(psid: string, pageToken: string): Promise<void> {
   const { data: categories } = await supabaseServer
     .from('categories')
@@ -126,8 +160,11 @@ async function showCategories(psid: string, pageToken: string): Promise<void> {
   await updateSession(psid, { state: 'browsing_categories', current_category: null, current_page: 0 } as any);
 
   // Facebook limits quick replies to 13
-  const quickReplies = buildCategoryQuickReplies(categories.slice(0, 13));
-  await sendQuickReplies(psid, "Welcome to Starr's Famous Shakes! What are you craving?", quickReplies, pageToken);
+  const quickReplies: QuickReply[] = [
+    ...buildCategoryQuickReplies(categories.slice(0, 12)),
+    { content_type: 'text', title: 'My Loyalty Card', payload: 'LOYALTY_CARD' },
+  ];
+  await sendQuickReplies(psid, 'What are you craving?', quickReplies, pageToken);
 }
 
 async function showProducts(psid: string, categoryId: string, page: number, pageToken: string): Promise<void> {
