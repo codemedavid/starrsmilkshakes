@@ -40,6 +40,8 @@ import {
   shouldShowLoyaltyNudge,
 } from '@/lib/upsell-engine';
 
+import { itemNeedsCustomization, normalizeMenuItemWithRelations } from '@/lib/upsell-helpers';
+
 // ── Mock Supabase server ─────────────────────────────────────────────────────
 
 vi.mock('@/lib/supabase-server', () => {
@@ -777,12 +779,14 @@ describe('Server Action Supabase FK Hints', () => {
     expect(supabaseServer.from).toHaveBeenCalledWith('pair_rules');
 
     // The select must use explicit FK hints to disambiguate:
-    //   paired_item:menu_items!paired_item_id(*)
+    //   paired_item:menu_items!paired_item_id(...)
     //   paired_bundle:bundles!paired_bundle_id(*)
     // Without the !paired_item_id hint, PostgREST throws an ambiguous
     // relationship error when pair_rules has multiple FKs to menu_items.
+    // Note: the nested select may include additional fields (e.g. variations, add_ons)
+    // inside the paired_item join, so we check for the FK hint prefix only.
     const selectArg = selectSpy.mock.calls[0]?.[0] as string;
-    expect(selectArg).toContain('paired_item:menu_items!paired_item_id(*)');
+    expect(selectArg).toContain('paired_item:menu_items!paired_item_id(');
     expect(selectArg).toContain('paired_bundle:bundles!paired_bundle_id(*)');
 
     // Should filter for active rules
@@ -835,7 +839,7 @@ describe('Server Action Supabase FK Hints', () => {
     expect(result.data).toBeDefined();
     // The engine should have matched the rule and returned offers
     if (result.data && result.data.length > 0) {
-      expect(result.data[0].rule.offer_item).toEqual(fakeItem);
+      expect(result.data[0].rule.offer_item).toMatchObject(fakeItem);
     }
   });
 
@@ -859,7 +863,7 @@ describe('Server Action Supabase FK Hints', () => {
     expect(result.success).toBe(true);
     expect(result.data).toBeDefined();
     if (result.data && result.data.length > 0) {
-      expect(result.data[0].item).toEqual(fakeItem);
+      expect(result.data[0].item).toMatchObject(fakeItem);
     }
   });
 });
@@ -1061,6 +1065,103 @@ describe('Upsell Step Machine (full state transitions)', () => {
       expect.objectContaining({ id: 'bundle-1' }),
       [],
       250
+    );
+  });
+});
+
+// ═════════════════════════════════════════════════════════════════════════════
+// 7. PAIR MATCHING: SINGLE ITEM VS ENTIRE CART
+// ═════════════════════════════════════════════════════════════════════════════
+
+describe('pair matching: single item vs entire cart', () => {
+  it('single item matches only its own pair rules', () => {
+    const singleItem = [makeUpsellCartItem({ menu_item_id: 'shake-1', category: 'shakes' })];
+    const rules = [
+      makePairRule({ id: 'pair-for-shake', source_item_id: 'shake-1', paired_item_id: 'fries-1' }),
+      makePairRule({ id: 'pair-for-snack', source_item_id: 'snack-1', paired_item_id: 'drink-1' }),
+    ];
+    const offers = matchPairOffers(singleItem, rules);
+    expect(offers).toHaveLength(1);
+    expect(offers[0].rule.id).toBe('pair-for-shake');
+  });
+
+  it('entire cart matches pair rules for ALL items (old behavior)', () => {
+    const entireCart = [
+      makeUpsellCartItem({ menu_item_id: 'shake-1', category: 'shakes' }),
+      makeUpsellCartItem({ menu_item_id: 'snack-1', category: 'snacks' }),
+    ];
+    const rules = [
+      makePairRule({ id: 'pair-for-shake', source_item_id: 'shake-1', paired_item_id: 'fries-1' }),
+      makePairRule({ id: 'pair-for-snack', source_item_id: 'snack-1', paired_item_id: 'drink-1' }),
+    ];
+    const offers = matchPairOffers(entireCart, rules);
+    expect(offers).toHaveLength(2);
+  });
+
+  it('category-based pair rules only match the single item category', () => {
+    const singleItem = [makeUpsellCartItem({ menu_item_id: 'shake-1', category: 'shakes' })];
+    const rules = [
+      makePairRule({ id: 'pair-shakes', source_item_id: null, source_category_id: 'shakes', paired_item_id: 'fries-1' }),
+      makePairRule({ id: 'pair-snacks', source_item_id: null, source_category_id: 'snacks', paired_item_id: 'drink-1' }),
+    ];
+    const offers = matchPairOffers(singleItem, rules);
+    expect(offers).toHaveLength(1);
+    expect(offers[0].rule.id).toBe('pair-shakes');
+  });
+});
+
+// ═════════════════════════════════════════════════════════════════════════════
+// 8. PAIR ITEM CUSTOMIZATION DETECTION
+// ═════════════════════════════════════════════════════════════════════════════
+
+describe('pair item customization detection', () => {
+  it('item with variations needs customization', () => {
+    const raw = {
+      id: 'item-1', name: 'Test', base_price: 100, category: 'shakes',
+      variations: [{ id: 'v1', name: 'Large', price: 20 }],
+    };
+    const normalized = normalizeMenuItemWithRelations(raw);
+    expect(itemNeedsCustomization(normalized)).toBe(true);
+  });
+
+  it('item without variations/add-ons does not need customization', () => {
+    const raw = {
+      id: 'item-1', name: 'Test', base_price: 100, category: 'shakes',
+    };
+    const normalized = normalizeMenuItemWithRelations(raw);
+    expect(itemNeedsCustomization(normalized)).toBe(false);
+  });
+
+  it('normalizeMenuItemWithRelations maps add_ons for customization check', () => {
+    const raw = {
+      id: 'item-1', name: 'Test', base_price: 100, category: 'shakes',
+      add_ons: [{ id: 'a1', name: 'Whip', price: 15, category: 'toppings' }],
+    };
+    const normalized = normalizeMenuItemWithRelations(raw);
+    expect(itemNeedsCustomization(normalized)).toBe(true);
+  });
+});
+
+// ═════════════════════════════════════════════════════════════════════════════
+// 9. GET PAIR SUGGESTIONS QUERY INCLUDES RELATIONS
+// ═════════════════════════════════════════════════════════════════════════════
+
+describe('getPairSuggestions query includes relations', () => {
+  it('selects variations and add_ons on paired items', async () => {
+    const { getPairSuggestions } = await import('@/actions/upsell');
+
+    const selectMock = vi.fn().mockReturnValue({
+      eq: vi.fn().mockResolvedValue({ data: [], error: null }),
+    });
+    (supabaseServer.from as Mock).mockReturnValue({ select: selectMock });
+
+    await getPairSuggestions([makeUpsellCartItem()]);
+
+    expect(selectMock).toHaveBeenCalledWith(
+      expect.stringContaining('variations(*)'),
+    );
+    expect(selectMock).toHaveBeenCalledWith(
+      expect.stringContaining('add_ons(*)'),
     );
   });
 });
