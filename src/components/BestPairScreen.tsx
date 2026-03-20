@@ -8,11 +8,14 @@ import { Heart, Plus, ArrowRight } from 'lucide-react';
 import type { MenuItem } from '@/types';
 import type { Bundle } from '@/types/bundle';
 import type { PairOffer } from '@/types/upsell';
+import { itemNeedsCustomization } from '@/lib/upsell-helpers';
 
 interface BestPairScreenProps {
   offers: PairOffer[];
   onAddItem: (itemId: string) => void;
+  onNavigateToProduct: (itemId: string) => void;
   onSkip: () => void;
+  asModal?: boolean;
 }
 
 function getImage(target: MenuItem | Bundle): string | undefined {
@@ -25,7 +28,7 @@ function getPrice(target: MenuItem | Bundle): number {
   return target.basePrice;
 }
 
-export default function BestPairScreen({ offers, onAddItem, onSkip }: BestPairScreenProps) {
+export default function BestPairScreen({ offers, onAddItem, onNavigateToProduct, onSkip, asModal }: BestPairScreenProps) {
   const [mounted, setMounted] = useState(false);
   const [pressedId, setPressedId] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -69,13 +72,15 @@ export default function BestPairScreen({ offers, onAddItem, onSkip }: BestPairSc
   if (offers.length === 0) return null;
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#FAFAF8] to-white flex flex-col">
+    <div className={`${asModal ? '' : 'min-h-screen'} bg-gradient-to-b from-[#FAFAF8] to-white flex flex-col`}>
       {/* Step indicator — step 2 of 3 */}
-      <div className="flex items-center justify-center gap-2 pt-4 pb-1">
-        <div className="w-2 h-2 rounded-full bg-[#3D8A80]" />
-        <div className="w-2 h-2 rounded-full bg-[#3D8A80]" />
-        <div className="w-2 h-2 rounded-full bg-stone-200" />
-      </div>
+      {!asModal && (
+        <div className="flex items-center justify-center gap-2 pt-4 pb-1">
+          <div className="w-2 h-2 rounded-full bg-[#3D8A80]" />
+          <div className="w-2 h-2 rounded-full bg-[#3D8A80]" />
+          <div className="w-2 h-2 rounded-full bg-stone-200" />
+        </div>
+      )}
 
       {/* Header */}
       <div
@@ -148,7 +153,19 @@ export default function BestPairScreen({ offers, onAddItem, onSkip }: BestPairSc
                     <span className="font-nunito font-bold text-[#3D8A80]">{'\u20B1'}{price.toFixed(0)}</span>
                     <button
                       type="button"
-                      onClick={() => itemId && onAddItem(itemId)}
+                      onClick={() => {
+                        if (!itemId) return;
+                        const needsCustomization = offer.bundle
+                          ? true
+                          : offer.item
+                            ? itemNeedsCustomization(offer.item)
+                            : false;
+                        if (needsCustomization) {
+                          onNavigateToProduct(itemId);
+                        } else {
+                          onAddItem(itemId);
+                        }
+                      }}
                       onPointerDown={() => setPressedId(offer.rule.id)}
                       onPointerUp={() => setPressedId(null)}
                       onPointerLeave={() => setPressedId(null)}
@@ -186,8 +203,8 @@ export default function BestPairScreen({ offers, onAddItem, onSkip }: BestPairSc
           aria-label="Continue to checkout"
           className="w-full py-3.5 min-h-[48px] bg-[#3D8A80] text-white font-nunito font-bold text-base rounded-xl hover:bg-[#2E6E65] transition-colors shadow-lg shadow-[#3D8A80]/20 flex items-center justify-center gap-2"
         >
-          Continue to Checkout
-          <ArrowRight className="w-4 h-4" aria-hidden="true" />
+          {asModal ? 'No thanks' : 'Continue to Checkout'}
+          {!asModal && <ArrowRight className="w-4 h-4" aria-hidden="true" />}
         </button>
       </div>
     </div>
