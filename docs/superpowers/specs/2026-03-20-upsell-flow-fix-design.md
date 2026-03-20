@@ -100,7 +100,10 @@ onClick={async () => {
 }}
 ```
 
-Key change: `result === 'accepted'` → skip product detail, go to menu. The pair screen is triggered from UpsellOverlay's accept handler before resolving.
+Key changes:
+- `result === 'accepted'` → skip product detail, show pairs, go to menu
+- Destructure `showPair` from `useUpsell()`: `const { showUpgrade, showPair } = useUpsell()`
+- Note: `showPair` is called synchronously after `showUpgrade` resolves. The `isActive` ref is already `false` at this point (set by the resolver callback), so `showPair` proceeds correctly. React 18 batching handles the intermediate `setActiveUpsell(null)` → `setActiveUpsell({ type: 'pair', loading: true })` transition without a flash.
 
 ### 2B. `app/product/[id]/page.tsx`
 
@@ -122,7 +125,7 @@ const newItem: UpsellCartItem = {
 await showPair([newItem]);
 ```
 
-**Change 2**: Check `source=pair` query param. If present, skip pair screen after add-to-cart (prevents recursion).
+**Change 2**: Check `source=pair` query param. If present, skip pair screen after add-to-cart (prevents recursion). Note: `useSearchParams()` is safe here since the page is already a client component (`'use client'`). No additional `Suspense` boundary needed.
 
 ```typescript
 const searchParams = useSearchParams();
@@ -168,9 +171,13 @@ interface BestPairScreenProps {
 In the render for each offer card:
 ```typescript
 const target = offer.item || offer.bundle;
-const needsCustomization = offer.item
-  ? itemNeedsCustomization(offer.item)
-  : false; // bundles always need customization? Or add inline?
+// Bundles always need customization (slot selection).
+// Items need customization if they have variations or add-ons.
+const needsCustomization = offer.bundle
+  ? true
+  : offer.item
+    ? itemNeedsCustomization(offer.item)
+    : false;
 
 // Button onClick:
 if (needsCustomization) {
@@ -181,6 +188,8 @@ if (needsCustomization) {
 ```
 
 Important: When a simple item is added via `onAddItem`, the pair screen stays open. Only `onNavigateToProduct` and `onSkip` close it.
+
+For bundles, `onNavigateToProduct` routes to `/bundle/[bundleId]?source=pair` (the existing bundle customizer page). For items, it routes to `/product/[itemId]?source=pair`.
 
 ### 2D. `src/components/UpsellOverlay.tsx`
 
@@ -220,28 +229,56 @@ if (result === 'accepted') {
 
 This works because pair rules match on `source_category_id` or `source_item_id`, and the original item's category is the right context for pair matching.
 
-**Change 2 (Pair navigate to product)**: Handle `onNavigateToProduct` callback.
+**Change 2 (Pair navigate to product)**: Handle `onNavigateToProduct` callback. Track inline-added items to filter them from the display.
 
 ```typescript
+// Inside UpsellOverlay component:
+const router = useRouter();
+const [addedPairIds, setAddedPairIds] = useState<Set<string>>(new Set());
+
+// Reset addedPairIds when a new pair upsell is shown
+useEffect(() => {
+  if (activeUpsell?.type === 'pair') {
+    setAddedPairIds(new Set());
+  }
+}, [activeUpsell?.type]);
+
 // Pair modal
 if (activeUpsell.type === 'pair' && activeUpsell.pairOffers) {
+  const filteredOffers = activeUpsell.pairOffers.filter(
+    (o) => !addedPairIds.has(o.rule.id)
+  );
+
   return (
     <BestPairScreen
       asModal
-      offers={activeUpsell.pairOffers}
+      offers={filteredOffers}
       onAddItem={(itemId) => {
         // Simple item — add to cart, stay on pair screen
-        const offer = activeUpsell.pairOffers!.find(...);
+        const offer = activeUpsell.pairOffers!.find(
+          (o) => o.rule.paired_item_id === itemId || o.rule.paired_bundle_id === itemId,
+        );
         if (offer?.item) {
           cart.addToCart(offer.item as MenuItem);
         }
-        // DON'T resolve — stay on pair screen
-        // Remove this offer from the list so it doesn't show again
+        // Mark as added — BestPairScreen re-renders with filtered list.
+        // When filteredOffers becomes empty, BestPairScreen's useEffect
+        // triggers onSkip → resolves as 'skipped'. This is semantically
+        // fine because the items are already in the cart at this point.
+        setAddedPairIds((prev) => new Set(prev).add(offer!.rule.id));
       }}
       onNavigateToProduct={(itemId) => {
-        // Item needs customization — close pair screen, navigate
+        // Item/bundle needs customization — close pair screen, navigate
         resolveUpsell('accepted');
-        router.push(`/product/${itemId}?source=pair`);
+        // Route to product detail or bundle customizer
+        const offer = activeUpsell.pairOffers!.find(
+          (o) => o.rule.paired_item_id === itemId || o.rule.paired_bundle_id === itemId,
+        );
+        if (offer?.bundle) {
+          router.push(`/bundle/${itemId}?source=pair`);
+        } else {
+          router.push(`/product/${itemId}?source=pair`);
+        }
       }}
       onSkip={() => resolveUpsell('skipped')}
     />
@@ -249,11 +286,7 @@ if (activeUpsell.type === 'pair' && activeUpsell.pairOffers) {
 }
 ```
 
-**Important UX detail**: When `onAddItem` is called (simple item), the offer should be removed from the displayed list so the customer can see remaining options. This requires either:
-- Filtering the offers array in state (preferred)
-- Tracking "already added" IDs
-
-Approach: Track added IDs in local state within the overlay, filter them out of the offers passed to BestPairScreen. When all offers are added or only customization-needed items remain, the screen naturally shows what's left.
+**Note on auto-close semantics**: When all simple pair items are added inline, `filteredOffers` becomes empty, triggering `BestPairScreen`'s `useEffect(() => { if (offers.length === 0) onSkip(); })`. This resolves as `'skipped'` — semantically acceptable because all added items are already in the cart regardless of the resolve value. No downstream code depends on the `'accepted'` vs `'skipped'` distinction for pair results.
 
 ### 2E. `src/lib/upsell-helpers.ts`
 
@@ -301,14 +334,18 @@ const mapped = (rules || []).map((r: any) => ({
 
 ### 2H. `src/lib/upsell-helpers.ts` — `normalizeMenuItemWithRelations`
 
-Extend `normalizeMenuItem` to also handle nested variations and add-ons when present:
+Extend `normalizeMenuItem` to also handle nested variations and add-ons when present.
+
+**Type compatibility note**: The `Variation` type uses `{ id, name, price, image? }` and the `AddOn` type uses `{ id, name, price, category, quantity? }`. These field names match the Supabase column names directly (both are lowercase), so raw Supabase rows can be assigned without transformation. The Supabase join returns `add_ons` (snake_case table name) which maps to `addOns` (camelCase property name).
 
 ```typescript
 export function normalizeMenuItemWithRelations(raw: any): MenuItem {
   const base = normalizeMenuItem(raw);
   return {
     ...base,
+    // Variation fields (id, name, price) match Supabase columns directly — no transformation needed
     variations: Array.isArray(raw.variations) ? raw.variations : undefined,
+    // Supabase join key is "add_ons" (table name), maps to MenuItem.addOns
     addOns: Array.isArray(raw.add_ons) ? raw.add_ons : undefined,
   };
 }
@@ -318,11 +355,11 @@ export function normalizeMenuItemWithRelations(raw: any): MenuItem {
 
 ## 3. State Management for Inline Pair Adds
 
-When a simple item is added from the pair screen (no customization), the pair screen stays open. This requires:
+When a simple item is added from the pair screen (no customization), the pair screen stays open. Implementation details are in section 2D (`UpsellOverlay` code):
 
-1. **Track added pair IDs**: `UpsellOverlay` maintains local `addedPairIds` state
-2. **Filter displayed offers**: Pass `offers.filter(o => !addedPairIds.has(o.rule.id))` to `BestPairScreen`
-3. **Auto-close when empty**: `BestPairScreen` already has `useEffect` that calls `onSkip()` when `offers.length === 0`
+1. **Track added pair IDs**: `UpsellOverlay` maintains `addedPairIds` state (`Set<string>`, reset on new pair upsell)
+2. **Filter displayed offers**: Pass `activeUpsell.pairOffers.filter(o => !addedPairIds.has(o.rule.id))` to `BestPairScreen`
+3. **Auto-close when empty**: `BestPairScreen`'s existing `useEffect` calls `onSkip()` when `offers.length === 0` → resolves as `'skipped'` (acceptable — items are already in cart)
 
 This means when the customer adds all simple pair items, the screen auto-closes. If only customization-needed items remain, they can tap one (navigates to product detail) or skip.
 
@@ -337,7 +374,7 @@ This means when the customer adds all simple pair items, the screen auto-closes.
 | All pair items are simple | Items can be added inline; screen auto-closes when all added or user skips |
 | Mix of simple and complex pair items | Simple items add inline; complex items navigate; screen stays open until skip or all simple added |
 | Customer navigates back from pair product detail | They're on the product detail page with `?source=pair`; back button goes to previous page (pair screen is already closed) |
-| Pair item is a bundle | Bundles always need customization (slot selection), so they navigate to product detail or bundle customizer |
+| Pair item is a bundle | Bundles always need customization (slot selection) → `onNavigateToProduct` routes to `/bundle/[bundleId]?source=pair` |
 | source=pair product detail → "Buy Now" | Goes to checkout, no pair recursion |
 | Rapid clicks on MenuItemCard during upgrade | Protected by `navigating` state and `isActive` ref in UpsellContext |
 
@@ -392,7 +429,7 @@ tests/upsell-helpers.test.ts            — Add itemNeedsCustomization tests
 - Upsell engine matching logic (`matchPairOffers`, `matchUpgradeOffers`, `matchInterstitialOffers`) — all correct
 - Database schema — no changes
 - Admin UI — no changes
-- Checkout interstitial flow — already working correctly
+- Checkout interstitial flow — already working correctly at `app/cart/page.tsx:33-48` (`handleCheckout` calls `showInterstitial()` before `router.push('/checkout')`)
 - UpsellContext Promise/resolver pattern — stays the same
 - UpgradeScreen component — no changes
 - CheckoutInterstitial component — no changes
