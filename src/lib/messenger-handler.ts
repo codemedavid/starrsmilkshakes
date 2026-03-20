@@ -144,7 +144,7 @@ async function handleAiFallback(psid: string, text: string, _session: MessengerS
         break;
       case 'info':
       default:
-        await sendTextMessage(psid, parsed.data.message, pageToken);
+        await handleInfoIntent(psid, parsed, pageToken);
         break;
     }
 
@@ -170,11 +170,15 @@ async function handleOrderIntent(
   const siteUrl = getSiteUrl();
   const msg = parsed.data.message || "Let's get you ordering!";
 
-  // Send AI message + order buttons (website + browse menu)
+  // Send AI message + order buttons
   await sendButtonTemplate(psid, truncateResponse(msg), [
-    { type: 'web_url', title: 'Order Online', url: siteUrl },
-    { type: 'postback', title: 'Browse Menu', payload: 'MAIN_MENU' },
+    { type: 'web_url', title: '🛒 Order Online', url: siteUrl },
+    { type: 'postback', title: '📋 Browse Menu', payload: 'MAIN_MENU' },
+    { type: 'postback', title: '🛍️ View Cart', payload: 'VIEW_CART' },
   ], pageToken);
+
+  // Also show category quick replies so they can browse right away
+  await showCategories(psid, pageToken);
 }
 
 async function handleBrowseIntent(
@@ -202,10 +206,26 @@ async function handleBrowseIntent(
     }
   }
 
+  // Show message + categories for browsing
   if (parsed.data.message) {
     await sendTextMessage(psid, parsed.data.message, pageToken);
   }
   await showCategories(psid, pageToken);
+}
+
+async function handleInfoIntent(
+  psid: string,
+  parsed: ReturnType<typeof parseAiResponse>,
+  pageToken: string
+): Promise<void> {
+  const siteUrl = getSiteUrl();
+  const msg = parsed.data.message || "How can I help you?";
+
+  // Always show actionable buttons — never just plain text
+  await sendButtonTemplate(psid, truncateResponse(msg), [
+    { type: 'web_url', title: '🛒 Order Online', url: siteUrl },
+    { type: 'postback', title: '📋 Browse Menu', payload: 'MAIN_MENU' },
+  ], pageToken);
 }
 
 async function handlePostback(psid: string, payload: string, session: MessengerSession, pageToken: string): Promise<void> {
