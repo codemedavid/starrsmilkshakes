@@ -303,6 +303,64 @@ async function handleSelectAddon(psid: string, addonId: string, pageToken: strin
   ], pageToken);
 }
 
+interface CartDisplayItem {
+  name: string;
+  variation: string | null;
+  quantity: number;
+  unitPrice: number;
+  addOns: string[];
+}
+
+async function hydrateCartForDisplay(cart: MessengerCartItem[]): Promise<CartDisplayItem[]> {
+  const display: CartDisplayItem[] = [];
+
+  for (const item of cart) {
+    const { data: menuItem } = await supabaseServer
+      .from('menu_items')
+      .select('name, base_price')
+      .eq('id', item.menu_item_id)
+      .single();
+
+    let variationName: string | null = null;
+    let variationPrice = 0;
+    if (item.variation_id) {
+      const { data: variation } = await supabaseServer
+        .from('variations')
+        .select('name, price')
+        .eq('id', item.variation_id)
+        .single();
+      variationName = variation?.name || null;
+      variationPrice = variation?.price || 0;
+    }
+
+    let addOnTotal = 0;
+    const addOnNames: string[] = [];
+    if (item.add_on_ids.length > 0) {
+      const { data: addOns } = await supabaseServer
+        .from('add_ons')
+        .select('name, price')
+        .in('id', item.add_on_ids);
+      if (addOns) {
+        for (const addon of addOns) {
+          addOnTotal += addon.price;
+          addOnNames.push(addon.name);
+        }
+      }
+    }
+
+    const unitPrice = (menuItem?.base_price || 0) + variationPrice + addOnTotal;
+    display.push({
+      name: menuItem?.name || 'Unknown',
+      variation: variationName,
+      quantity: item.quantity,
+      unitPrice,
+      addOns: addOnNames,
+    });
+  }
+
+  return display;
+}
+
 async function finalizeCartItem(psid: string, pageToken: string): Promise<void> {
   const session = await getOrCreateSession(psid);
   if (!session.pending_item_id) return;
@@ -338,15 +396,29 @@ async function finalizeCartItem(psid: string, pageToken: string): Promise<void> 
     pending_add_ons: [],
   } as any);
 
-  // Get item name for confirmation
-  const { data: item } = await supabaseServer.from('menu_items').select('name').eq('id', session.pending_item_id).single();
-  const itemName = item?.name || 'Item';
-  const totalItems = cart.reduce((sum: number, c: MessengerCartItem) => sum + c.quantity, 0);
+  // Get added item name for confirmation header
+  const { data: addedItem } = await supabaseServer
+    .from('menu_items')
+    .select('name')
+    .eq('id', session.pending_item_id)
+    .single();
+  const addedName = addedItem?.name || 'Item';
 
-  await sendQuickReplies(psid, `${itemName} added! Cart: ${totalItems} item(s)`, [
-    { content_type: 'text', title: 'Continue Shopping', payload: 'CONTINUE_SHOPPING' },
-    { content_type: 'text', title: 'View Cart', payload: 'VIEW_CART' },
-    { content_type: 'text', title: 'Checkout', payload: 'CHECKOUT' },
+  // Hydrate full cart for summary using shared helper
+  const cartDisplay = await hydrateCartForDisplay(cart);
+  const summary = buildCartSummary(cartDisplay);
+
+  // Send confirmation + full cart summary
+  await sendTextMessage(
+    psid,
+    `${addedName} added!\n\nYour Cart:\n${summary}\n\nFor a smoother checkout, visit starrsmilkshake.com`,
+    pageToken
+  );
+
+  // Checkout + continue buttons
+  await sendButtonTemplate(psid, 'What would you like to do?', [
+    { type: 'postback', title: 'Checkout', payload: 'CHECKOUT' },
+    { type: 'postback', title: 'Continue Shopping', payload: 'MAIN_MENU' },
   ], pageToken);
 }
 
@@ -358,35 +430,7 @@ async function showCart(psid: string, pageToken: string): Promise<void> {
     return;
   }
 
-  // Hydrate cart items for display
-  const cartDisplay = [];
-  for (const item of session.cart) {
-    const { data: menuItem } = await supabaseServer
-      .from('menu_items')
-      .select('name, base_price')
-      .eq('id', item.menu_item_id)
-      .single();
-
-    let variationName = null;
-    let variationPrice = 0;
-    if (item.variation_id) {
-      const { data: variation } = await supabaseServer
-        .from('variations')
-        .select('name, price')
-        .eq('id', item.variation_id)
-        .single();
-      variationName = variation?.name || null;
-      variationPrice = variation?.price || 0;
-    }
-
-    const unitPrice = (menuItem?.base_price || 0) + variationPrice;
-    cartDisplay.push({
-      name: menuItem?.name || 'Unknown',
-      variation: variationName,
-      quantity: item.quantity,
-      unitPrice,
-    });
-  }
+  const cartDisplay = await hydrateCartForDisplay(session.cart);
 
   const summary = buildCartSummary(cartDisplay);
   await updateSession(psid, { state: 'viewing_cart' } as any);

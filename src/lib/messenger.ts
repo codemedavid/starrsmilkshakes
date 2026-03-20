@@ -143,7 +143,7 @@ export function buildProductCards(
 }
 
 export function buildCartSummary(
-  cart: Array<{ name: string; variation: string | null; quantity: number; unitPrice: number }>
+  cart: Array<{ name: string; variation: string | null; quantity: number; unitPrice: number; addOns?: string[] }>
 ): string {
   if (cart.length === 0) return 'Your cart is empty.';
 
@@ -152,7 +152,8 @@ export function buildCartSummary(
     const itemTotal = item.unitPrice * item.quantity;
     total += itemTotal;
     const variationStr = item.variation ? ` (${item.variation})` : '';
-    return `${i + 1}. ${item.name}${variationStr} x${item.quantity} — ₱${itemTotal}`;
+    const addOnStr = item.addOns && item.addOns.length > 0 ? ` + ${item.addOns.join(', ')}` : '';
+    return `${i + 1}. ${item.name}${variationStr}${addOnStr} x${item.quantity} — ₱${itemTotal}`;
   });
 
   lines.push(`\nTotal: ₱${total}`);
