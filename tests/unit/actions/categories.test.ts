@@ -9,6 +9,14 @@ vi.mock('@/lib/admin-guard', () => ({
 
 vi.mock('next/cache', () => ({
   revalidatePath: vi.fn(),
+  revalidateTag: vi.fn(),
+}));
+
+// Mock rag-sync (fire-and-forget — tests must not hit real embedding API)
+vi.mock('@/lib/rag-sync', () => ({
+  syncEmbedding: vi.fn().mockResolvedValue(undefined),
+  removeEmbedding: vi.fn().mockResolvedValue(undefined),
+  buildCategoryContent: vi.fn().mockReturnValue('mocked content'),
 }));
 
 // Build a chainable Supabase query mock

@@ -4,6 +4,7 @@ import { revalidatePath, revalidateTag } from 'next/cache';
 import { requireAdmin, checkActionRateLimit } from '@/lib/admin-guard';
 import { supabaseServer } from '@/lib/supabase-server';
 import { menuItemSchema, uuidSchema } from '@/lib/validation';
+import { syncEmbedding, removeEmbedding, buildMenuItemContent } from '@/lib/rag-sync';
 import { z } from 'zod';
 
 type ActionResult = { success: boolean; error?: string; data?: any };
@@ -121,6 +122,10 @@ export async function addMenuItem(input: unknown): Promise<ActionResult> {
 
   revalidateTag('menu');
   revalidatePath('/admin/menu');
+
+  // Fire-and-forget RAG sync
+  syncEmbedding('menu_items', menuItem.id, buildMenuItemContent(menuItem), { category: menuItem.category, price: menuItem.base_price }).catch((err) => console.error('[rag-sync] menu add:', err));
+
   return { success: true, data: menuItem };
 }
 
@@ -174,6 +179,13 @@ export async function updateMenuItem(id: unknown, input: unknown): Promise<Actio
 
   revalidateTag('menu');
   revalidatePath('/admin/menu');
+
+  // Fire-and-forget RAG sync
+  const { data: updated } = await (supabaseServer.from('menu_items') as any).select('*').eq('id', idResult.data).single();
+  if (updated) {
+    syncEmbedding('menu_items', updated.id, buildMenuItemContent(updated), { category: updated.category, price: updated.base_price }).catch((err) => console.error('[rag-sync] menu update:', err));
+  }
+
   return { success: true };
 }
 
@@ -204,6 +216,10 @@ export async function deleteMenuItem(id: unknown): Promise<ActionResult> {
 
   revalidateTag('menu');
   revalidatePath('/admin/menu');
+
+  // Fire-and-forget RAG sync
+  removeEmbedding('menu_items', idResult.data).catch((err) => console.error('[rag-sync] menu delete:', err));
+
   return { success: true };
 }
 

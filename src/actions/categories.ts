@@ -4,6 +4,7 @@ import { revalidatePath, revalidateTag } from 'next/cache';
 import { requireAdmin, checkActionRateLimit } from '@/lib/admin-guard';
 import { supabaseServer } from '@/lib/supabase-server';
 import { categorySchema, reorderSchema, uuidSchema } from '@/lib/validation';
+import { syncEmbedding, removeEmbedding, buildCategoryContent } from '@/lib/rag-sync';
 
 type ActionResult = { success: boolean; error?: string; data?: any };
 
@@ -39,6 +40,10 @@ export async function addCategory(input: unknown): Promise<ActionResult> {
 
   revalidateTag('categories');
   revalidatePath('/admin/categories');
+
+  // Fire-and-forget RAG sync
+  syncEmbedding('categories', data.id, buildCategoryContent(data), { name: data.name }).catch((err) => console.error('[rag-sync] category add:', err));
+
   return { success: true, data };
 }
 
@@ -74,6 +79,10 @@ export async function updateCategory(id: unknown, input: unknown): Promise<Actio
 
   revalidateTag('categories');
   revalidatePath('/admin/categories');
+
+  // Fire-and-forget RAG sync
+  syncEmbedding('categories', data.id, buildCategoryContent(data), { name: data.name }).catch((err) => console.error('[rag-sync] category update:', err));
+
   return { success: true, data };
 }
 
@@ -115,6 +124,10 @@ export async function deleteCategory(id: unknown): Promise<ActionResult> {
 
   revalidateTag('categories');
   revalidatePath('/admin/categories');
+
+  // Fire-and-forget RAG sync
+  removeEmbedding('categories', idResult.data).catch((err) => console.error('[rag-sync] category delete:', err));
+
   return { success: true };
 }
 

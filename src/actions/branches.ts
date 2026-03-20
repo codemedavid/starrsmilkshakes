@@ -4,6 +4,7 @@ import { revalidatePath, revalidateTag } from 'next/cache';
 import { requireAdmin, checkActionRateLimit } from '@/lib/admin-guard';
 import { supabaseServer } from '@/lib/supabase-server';
 import { branchSchema, uuidSchema } from '@/lib/validation';
+import { syncEmbedding, removeEmbedding, buildBranchContent } from '@/lib/rag-sync';
 
 type ActionResult = { success: boolean; error?: string; data?: any };
 
@@ -30,6 +31,10 @@ export async function addBranch(input: unknown): Promise<ActionResult> {
 
   revalidateTag('branches');
   revalidatePath('/admin/branches');
+
+  // Fire-and-forget RAG sync
+  syncEmbedding('branches', data.id, buildBranchContent(data), { name: data.name }).catch((err) => console.error('[rag-sync] branch add:', err));
+
   return { success: true, data };
 }
 
@@ -60,6 +65,10 @@ export async function updateBranch(id: unknown, input: unknown): Promise<ActionR
 
   revalidateTag('branches');
   revalidatePath('/admin/branches');
+
+  // Fire-and-forget RAG sync
+  syncEmbedding('branches', data.id, buildBranchContent(data), { name: data.name }).catch((err) => console.error('[rag-sync] branch update:', err));
+
   return { success: true, data };
 }
 
@@ -85,5 +94,9 @@ export async function deleteBranch(id: unknown): Promise<ActionResult> {
 
   revalidateTag('branches');
   revalidatePath('/admin/branches');
+
+  // Fire-and-forget RAG sync
+  removeEmbedding('branches', idResult.data).catch((err) => console.error('[rag-sync] branch delete:', err));
+
   return { success: true };
 }
