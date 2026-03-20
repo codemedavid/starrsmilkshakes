@@ -7,7 +7,7 @@ import {
   matchPairOffers,
   matchInterstitialOffers,
 } from '@/lib/upsell-engine';
-import { normalizeMenuItem } from '@/lib/upsell-helpers';
+import { normalizeMenuItem, normalizeMenuItemWithRelations } from '@/lib/upsell-helpers';
 import type { UpsellCartItem, UpsellCart } from '@/types/upsell';
 
 type ActionResult = { success: boolean; error?: string; data?: any };
@@ -59,7 +59,7 @@ export async function getAddonSuggestions(menuItemId: string): Promise<ActionRes
 export async function getPairSuggestions(cartItems: UpsellCartItem[]): Promise<ActionResult> {
   try {
     const { data: rules, error } = await (supabaseServer.from('pair_rules') as any)
-      .select('*, paired_item:menu_items!paired_item_id(*), paired_bundle:bundles!paired_bundle_id(*)')
+      .select('*, paired_item:menu_items!paired_item_id(*, variations(*), add_ons(*)), paired_bundle:bundles!paired_bundle_id(*)')
       .eq('is_active', true);
 
     if (error) return { success: false, error: 'Failed to fetch pair rules' };
@@ -67,7 +67,7 @@ export async function getPairSuggestions(cartItems: UpsellCartItem[]): Promise<A
     // Normalize joined data
     const mapped = (rules || []).map((r: any) => ({
       ...r,
-      paired_item: r.paired_item ? normalizeMenuItem(r.paired_item) : null,
+      paired_item: r.paired_item ? normalizeMenuItemWithRelations(r.paired_item) : null,
       paired_bundle: r.paired_bundle ?? null,
     }));
 
