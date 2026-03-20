@@ -1,7 +1,11 @@
 // app/api/messenger/webhook/route.ts
 import { NextRequest, NextResponse } from 'next/server';
+import { after } from 'next/server';
 import { supabaseServer } from '@/lib/supabase-server';
 import { verifyWebhookSignature } from '@/lib/messenger-session';
+
+// Allow up to 60s for AI model responses
+export const maxDuration = 60;
 
 // Webhook verification (Facebook sends this during setup)
 export async function GET(request: NextRequest): Promise<NextResponse> {
@@ -51,9 +55,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       for (const event of entry.messaging || []) {
         // Import dynamically to avoid circular deps
         const { handleMessengerEvent } = await import('@/lib/messenger-handler');
-        // Process asynchronously — respond to Facebook quickly
-        handleMessengerEvent(event, config.page_access_token).catch((err) =>
-          console.error('Messenger event handler error:', err)
+        // Process after responding to Facebook — `after()` keeps the function alive
+        after(
+          handleMessengerEvent(event, config.page_access_token).catch((err) =>
+            console.error('Messenger event handler error:', err)
+          )
         );
       }
     }
