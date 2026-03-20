@@ -24,7 +24,7 @@ export async function syncEmbedding(
 
   if (existing?.content_hash === contentHash) return; // No change
 
-  const embedding = await generateEmbedding(content);
+  const embedding = await generateEmbedding(content, 'passage');
 
   await supabaseServer.from('rag_embeddings').upsert(
     {

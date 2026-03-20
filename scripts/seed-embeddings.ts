@@ -19,9 +19,12 @@ async function embed(text: string): Promise<number[]> {
       Authorization: `Bearer ${NVIDIA_API_KEY}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ model: 'nvidia/nv-embedqa-e5-v5', input: [text] }),
+    body: JSON.stringify({ model: 'nvidia/nv-embedqa-e5-v5', input: [text], input_type: 'passage' }),
   });
-  if (!res.ok) throw new Error(`Embedding API error: ${res.status}`);
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`Embedding API error ${res.status}: ${body}`);
+  }
   const data = await res.json();
   return data.data[0].embedding;
 }

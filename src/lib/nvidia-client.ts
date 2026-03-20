@@ -61,11 +61,11 @@ async function fetchWithTimeout(url: string, options: RequestInit): Promise<Resp
   }
 }
 
-export async function generateEmbedding(text: string): Promise<number[]> {
+export async function generateEmbedding(text: string, inputType: 'query' | 'passage' = 'query'): Promise<number[]> {
   const response = await fetchWithTimeout(`${NVIDIA_BASE_URL}/embeddings`, {
     method: 'POST',
     headers: getHeaders(),
-    body: JSON.stringify({ model: EMBEDDING_MODEL, input: [text] }),
+    body: JSON.stringify({ model: EMBEDDING_MODEL, input: [text], input_type: inputType }),
   });
   const data = await response.json();
   return data.data[0].embedding;
