@@ -13,6 +13,7 @@ import {
 import { generateCheckoutHash, getCheckoutExpiresAt } from '@/lib/messenger-session';
 import { generateLoyaltyToken, getLoyaltySessionExpiry } from '@/lib/loyalty-hash';
 import type { MessengerSession, MessengerCartItem } from '@/types';
+import { matchFaq, buildFaqResponse } from '@/lib/faq-service';
 
 const PRODUCTS_PER_PAGE = 10;
 
@@ -62,11 +63,30 @@ async function updateSession(psid: string, updates: Partial<MessengerSession>): 
 
 async function handleTextMessage(psid: string, text: string, _session: MessengerSession, pageToken: string): Promise<void> {
   const lower = text.toLowerCase().trim();
+
+  // 1. Loyalty triggers
   if (lower === 'loyalty' || lower === 'loyalty card' || lower === 'starr card' || lower === 'my card') {
     await handleLoyaltyCard(psid, pageToken);
-  } else {
-    await showCategories(psid, pageToken);
+    return;
   }
+
+  // 2. FAQ matching (graceful degradation — fall through on error)
+  try {
+    const faqMatch = await matchFaq(text);
+    if (faqMatch) {
+      if (faqMatch.action_type === 'send_menu') {
+        await showCategories(psid, pageToken);
+      } else {
+        await buildFaqResponse(faqMatch, psid, pageToken, getSiteUrl());
+      }
+      return;
+    }
+  } catch (err) {
+    console.error('FAQ matching failed, falling through to menu:', err);
+  }
+
+  // 3. Default fallback — show categories
+  await showCategories(psid, pageToken);
 }
 
 async function handlePostback(psid: string, payload: string, session: MessengerSession, pageToken: string): Promise<void> {
