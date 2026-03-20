@@ -336,6 +336,27 @@ export default function SettingsForm({ settings }: SettingsFormProps) {
         </Field>
       </Section>
 
+      {/* ── AI Chatbot ─────────────────────────────────────────────────────── */}
+      <div className="bg-white rounded-xl border border-[#E8E3DA] p-6 mt-6">
+        <h3 className="font-playfair text-lg font-semibold text-stone-900 mb-4">
+          AI Chatbot
+        </h3>
+        <p className="font-nunito text-sm text-stone-500 mb-4">
+          When enabled, the Messenger bot will use AI to answer questions that don&apos;t match any FAQ keywords.
+        </p>
+        <label className="flex items-center gap-3 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={form.ai_faq_enabled === 'true'}
+            onChange={(e) => setForm({ ...form, ai_faq_enabled: e.target.checked ? 'true' : 'false' })}
+            className="w-5 h-5 rounded border-stone-300 text-[#3D8A80] focus:ring-[#3D8A80]"
+          />
+          <span className="font-nunito text-sm font-medium text-stone-700">
+            Enable AI-powered FAQ responses
+          </span>
+        </label>
+      </div>
+
       {/* ── Save ─────────────────────────────────────────────────────────────── */}
       <div className="flex justify-end pt-2">
         <button
