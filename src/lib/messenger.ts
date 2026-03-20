@@ -191,3 +191,38 @@ export function buildStatusMessage(
   };
   return messages[status] || `Your order #${orderNumber} status has been updated to: ${status}`;
 }
+
+export async function setupMessengerProfile(pageToken: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    // Set persistent menu
+    const menuResponse = await fetch(`${GRAPH_API_BASE}/me/messenger_profile`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${pageToken}`,
+      },
+      body: JSON.stringify({
+        persistent_menu: [
+          {
+            locale: 'default',
+            composer_input_disabled: false,
+            call_to_actions: [
+              { type: 'web_url', title: 'Order Online', url: 'https://starrsmilkshake.com' },
+              { type: 'postback', title: 'Browse Menu', payload: 'MAIN_MENU' },
+              { type: 'postback', title: 'My Loyalty Card', payload: 'LOYALTY_CARD' },
+            ],
+          },
+        ],
+      }),
+    });
+
+    if (!menuResponse.ok) {
+      const error = await menuResponse.json().catch(() => ({}));
+      return { success: false, error: `Persistent menu failed: ${JSON.stringify(error)}` };
+    }
+
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: String(err) };
+  }
+}
