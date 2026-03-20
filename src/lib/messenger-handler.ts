@@ -16,7 +16,6 @@ import type { MessengerSession, MessengerCartItem } from '@/types';
 import { sanitizeInput, truncateResponse, chatCompletion, type ChatMessage } from '@/lib/nvidia-client';
 import { searchRagContext, buildSystemPrompt } from '@/lib/rag-engine';
 import { parseAiResponse } from '@/lib/ai-intent-parser';
-import { fuzzyMatchMenuItems, type MenuItemRow } from '@/lib/ai-menu-matcher';
 import { getOrCreateSessionId, getSessionHistory, logConversation, cleanupOldConversations } from '@/lib/ai-conversation';
 import { checkAiRateLimit } from '@/lib/ai-rate-limiter';
 
@@ -164,76 +163,14 @@ async function handleOrderIntent(
   parsed: ReturnType<typeof parseAiResponse>,
   pageToken: string
 ): Promise<void> {
-  if (!parsed.data.items || parsed.data.items.length === 0) {
-    await sendTextMessage(psid, parsed.data.message || "I'd love to help you order! What would you like?", pageToken);
-    return;
-  }
+  const siteUrl = getSiteUrl();
+  const msg = parsed.data.message || "Let's get you ordering!";
 
-  const { data: allItems } = await supabaseServer
-    .from('menu_items')
-    .select('id, name, base_price')
-    .eq('available', true);
-
-  if (!allItems) {
-    await sendTextMessage(psid, "Sorry, I couldn't load the menu right now. Try browsing instead!", pageToken);
-    await showCategories(psid, pageToken);
-    return;
-  }
-
-  const { matched, unmatched } = fuzzyMatchMenuItems(
-    parsed.data.items,
-    allItems as MenuItemRow[]
-  );
-
-  if (parsed.data.message) {
-    await sendTextMessage(psid, truncateResponse(parsed.data.message), pageToken);
-  }
-
-  // Process ONLY the first matched item to avoid session state clobbering
-  if (matched.length > 0) {
-    const first = matched[0];
-    const { data: variations } = await supabaseServer
-      .from('variations')
-      .select('id, name, price')
-      .eq('menu_item_id', first.item.id);
-
-    if (variations && variations.length > 0) {
-      if (first.size) {
-        const sizeMatch = variations.find(
-          (v: any) => v.name.toLowerCase().includes(first.size!.toLowerCase())
-        );
-        if (sizeMatch) {
-          await updateSession(psid, {
-            pending_item_id: first.item.id,
-            pending_variation_id: sizeMatch.id,
-            pending_add_ons: [],
-          } as any);
-          await checkAndShowAddOns(psid, first.item.id, pageToken);
-        } else {
-          await handleAddToCart(psid, first.item.id, pageToken);
-        }
-      } else {
-        await handleAddToCart(psid, first.item.id, pageToken);
-      }
-    } else {
-      await updateSession(psid, {
-        pending_item_id: first.item.id,
-        pending_variation_id: null,
-        pending_add_ons: [],
-      } as any);
-      await finalizeCartItem(psid, pageToken);
-    }
-
-    if (matched.length > 1) {
-      const remaining = matched.slice(1).map((m) => m.item.name).join(', ');
-      await sendTextMessage(psid, `I'll help you add ${remaining} next — just finish this one first!`, pageToken);
-    }
-  }
-
-  if (unmatched.length > 0) {
-    const unmatchedMsg = `I couldn't find: ${unmatched.join(', ')}. Try browsing the menu!`;
-    await sendTextMessage(psid, unmatchedMsg, pageToken);
-  }
+  // Send AI message + order buttons (website + browse menu)
+  await sendButtonTemplate(psid, truncateResponse(msg), [
+    { type: 'web_url', title: 'Order Online', url: siteUrl },
+    { type: 'postback', title: 'Browse Menu', payload: 'MAIN_MENU' },
+  ], pageToken);
 }
 
 async function handleBrowseIntent(
