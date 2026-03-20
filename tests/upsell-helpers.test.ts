@@ -2,7 +2,7 @@
 // Unit tests for the shared upsell mapping utility.
 
 import { describe, it, expect } from 'vitest';
-import { mapCartItemsToUpsell, mapCartToUpsellCart, normalizeMenuItem, itemNeedsCustomization } from '@/lib/upsell-helpers';
+import { mapCartItemsToUpsell, mapCartToUpsellCart, normalizeMenuItem, normalizeMenuItemWithRelations, itemNeedsCustomization } from '@/lib/upsell-helpers';
 import { matchUpgradeOffers, matchPairOffers } from '@/lib/upsell-engine';
 import type { CartItem, MenuItem } from '@/types';
 import type { BundleCartItem, Bundle } from '@/types/bundle';
@@ -350,5 +350,76 @@ describe('itemNeedsCustomization', () => {
   it('returns false when variations and addOns are undefined', () => {
     const item = makeMenuItem({ variations: undefined, addOns: undefined });
     expect(itemNeedsCustomization(item)).toBe(false);
+  });
+});
+
+// ─── normalizeMenuItemWithRelations ─────────────────────────────────────────
+
+describe('normalizeMenuItemWithRelations', () => {
+  it('normalizes base fields like normalizeMenuItem', () => {
+    const raw = {
+      id: 'item-1',
+      name: 'Chocolate Shake',
+      description: 'Rich chocolate',
+      base_price: 150,
+      image_url: 'https://example.com/img.jpg',
+      category: 'shakes',
+      popular: true,
+      available: true,
+      cost_price: 50,
+    };
+    const result = normalizeMenuItemWithRelations(raw);
+    expect(result.basePrice).toBe(150);
+    expect(result.image).toBe('https://example.com/img.jpg');
+    expect(result.costPrice).toBe(50);
+  });
+
+  it('maps nested variations array', () => {
+    const raw = {
+      id: 'item-1',
+      name: 'Test',
+      base_price: 100,
+      category: 'shakes',
+      variations: [
+        { id: 'v1', name: 'Large', price: 20 },
+        { id: 'v2', name: 'Small', price: 0 },
+      ],
+    };
+    const result = normalizeMenuItemWithRelations(raw);
+    expect(result.variations).toHaveLength(2);
+    expect(result.variations![0].name).toBe('Large');
+    expect(result.variations![0].price).toBe(20);
+  });
+
+  it('maps nested add_ons (snake_case) to addOns (camelCase)', () => {
+    const raw = {
+      id: 'item-1',
+      name: 'Test',
+      base_price: 100,
+      category: 'shakes',
+      add_ons: [
+        { id: 'a1', name: 'Whip', price: 15, category: 'toppings' },
+      ],
+    };
+    const result = normalizeMenuItemWithRelations(raw);
+    expect(result.addOns).toHaveLength(1);
+    expect(result.addOns![0].name).toBe('Whip');
+    expect(result.addOns![0].category).toBe('toppings');
+  });
+
+  it('returns undefined for variations/addOns when not present', () => {
+    const raw = {
+      id: 'item-1',
+      name: 'Test',
+      base_price: 100,
+      category: 'shakes',
+    };
+    const result = normalizeMenuItemWithRelations(raw);
+    expect(result.variations).toBeUndefined();
+    expect(result.addOns).toBeUndefined();
+  });
+
+  it('returns null for null input', () => {
+    expect(normalizeMenuItemWithRelations(null)).toBeNull();
   });
 });

@@ -49,6 +49,24 @@ export function normalizeMenuItem(raw: any): MenuItem {
 }
 
 /**
+ * Like normalizeMenuItem but also maps nested variations and add_ons.
+ * Used by getPairSuggestions where paired items need variation/add-on data
+ * so BestPairScreen can determine if customization is needed.
+ *
+ * Variation fields (id, name, price) and AddOn fields (id, name, price, category)
+ * match Supabase columns directly — no nested transformation needed.
+ */
+export function normalizeMenuItemWithRelations(raw: any): MenuItem {
+  if (!raw) return raw;
+  const base = normalizeMenuItem(raw);
+  return {
+    ...base,
+    variations: Array.isArray(raw.variations) ? raw.variations : undefined,
+    addOns: Array.isArray(raw.add_ons) ? raw.add_ons : undefined,
+  };
+}
+
+/**
  * Check if a menu item requires customization (has variations or add-ons).
  * Items with variations/add-ons should navigate to product detail for customization
  * rather than being added to cart directly from the pair screen.
