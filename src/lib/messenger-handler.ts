@@ -16,7 +16,7 @@ import { generateLoyaltyToken, getLoyaltySessionExpiry } from '@/lib/loyalty-has
 import type { MessengerSession, MessengerCartItem } from '@/types';
 import { sanitizeInput, truncateResponse, chatCompletion, type ChatMessage } from '@/lib/nvidia-client';
 import { searchRagContext, buildSystemPrompt } from '@/lib/rag-engine';
-import { parseAiResponse } from '@/lib/ai-intent-parser';
+import { parseAiResponse, cleanAiMessage } from '@/lib/ai-intent-parser';
 import { getOrCreateSessionId, getSessionHistory, logConversation, cleanupOldConversations } from '@/lib/ai-conversation';
 import { checkAiRateLimit } from '@/lib/ai-rate-limiter';
 
@@ -131,9 +131,10 @@ async function handleAiFallback(psid: string, text: string, _session: MessengerS
       latency_ms: latencyMs,
     });
 
-    if (parsed.data.message) {
-      parsed.data.message = truncateResponse(parsed.data.message);
-    }
+    // Clean the AI message: strip instructional text, truncate for Messenger
+    parsed.data.message = truncateResponse(
+      cleanAiMessage(parsed.data.message, parsed.intent)
+    );
 
     switch (parsed.intent) {
       case 'order':

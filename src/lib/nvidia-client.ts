@@ -78,7 +78,7 @@ export async function chatCompletion(messages: ChatMessage[]): Promise<ChatResul
     body: JSON.stringify({
       model: CHAT_MODEL,
       messages,
-      max_tokens: 512,  // Messenger messages are short
+      max_tokens: 150,  // AI only needs a short friendly reply
       temperature: 0.2,
       top_p: 0.7,
       stream: false,

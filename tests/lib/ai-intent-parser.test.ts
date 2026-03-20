@@ -50,3 +50,34 @@ describe('ai-intent-parser', () => {
     expect(result.data.items![0].name).toBe('Chocolate Shake');
   });
 });
+
+describe('cleanAiMessage', () => {
+  it('strips Filipino instructional text', async () => {
+    const { cleanAiMessage } = await import('../../src/lib/ai-intent-parser');
+    const msg = "Madali lang po! Sabihin niyo lang kung anong shake gusto niyo";
+    expect(cleanAiMessage(msg, 'order')).toBe("Sure! Let me show you our menu 😊");
+  });
+
+  it('strips English instructional text', async () => {
+    const { cleanAiMessage } = await import('../../src/lib/ai-intent-parser');
+    const msg = "Just type what you want to order!";
+    expect(cleanAiMessage(msg, 'order')).toBe("Sure! Let me show you our menu 😊");
+  });
+
+  it('strips example patterns', async () => {
+    const { cleanAiMessage } = await import('../../src/lib/ai-intent-parser');
+    const msg = "Halimbawa: 'Order ako ng isang large Ube Shake'";
+    expect(cleanAiMessage(msg, 'order')).toBe("Sure! Let me show you our menu 😊");
+  });
+
+  it('keeps clean messages untouched', async () => {
+    const { cleanAiMessage } = await import('../../src/lib/ai-intent-parser');
+    const msg = "We're open 10am to 9pm daily!";
+    expect(cleanAiMessage(msg, 'info')).toBe("We're open 10am to 9pm daily!");
+  });
+
+  it('returns fallback for empty message', async () => {
+    const { cleanAiMessage } = await import('../../src/lib/ai-intent-parser');
+    expect(cleanAiMessage('', 'browse')).toBe("Here's what we have! 😊");
+  });
+});

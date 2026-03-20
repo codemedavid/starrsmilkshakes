@@ -83,3 +83,41 @@ function isValidAiResponse(obj: any): boolean {
     typeof obj.data === 'object'
   );
 }
+
+// Patterns that indicate the AI is giving ordering instructions instead of a friendly reply
+const INSTRUCTION_PATTERNS = [
+  /sabihin\s+(niyo|mo|nyo)/i,
+  /type\s+(lang|mo|niyo|the)/i,
+  /send\s+(lang|mo|niyo|the|us|me)/i,
+  /halimbawa:?\s/i,
+  /for example:?\s/i,
+  /example:?\s/i,
+  /you can (say|type|order|send)/i,
+  /just (say|type|tell|send)/i,
+  /order\s+(ako|ka|po)\s+ng/i,
+  /like\s+['"].*['"]/i,
+  /gusto\s+(niyo|mo).*sabihin/i,
+  /anong\s+(shake|size|flavor).*gusto/i,
+];
+
+const FALLBACK_MESSAGES: Record<string, string> = {
+  order: "Sure! Let me show you our menu 😊",
+  browse: "Here's what we have! 😊",
+  info: "Let me help you with that! 😊",
+};
+
+/**
+ * Strip instructional text from AI responses.
+ * If the message contains ordering instructions, replace with a clean fallback.
+ */
+export function cleanAiMessage(message: string, intent: string): string {
+  if (!message) return FALLBACK_MESSAGES[intent] || FALLBACK_MESSAGES.info;
+
+  for (const pattern of INSTRUCTION_PATTERNS) {
+    if (pattern.test(message)) {
+      return FALLBACK_MESSAGES[intent] || FALLBACK_MESSAGES.info;
+    }
+  }
+
+  return message;
+}
