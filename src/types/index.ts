@@ -91,6 +91,7 @@ export interface SiteSettings {
   meta_access_token?: string;
   meta_test_event_code?: string;
   header_scripts?: string;
+  ai_faq_enabled?: string;
 }
 
 // Order Management Types

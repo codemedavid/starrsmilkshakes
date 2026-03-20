@@ -116,6 +116,7 @@ export const siteSettingsSchema = z
     meta_access_token: z.string(),
     meta_test_event_code: z.string(),
     header_scripts: z.string(),
+    ai_faq_enabled: z.string().optional(),
   })
   .partial();
 

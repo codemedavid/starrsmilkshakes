@@ -44,6 +44,7 @@ export const mapSiteSettingsRows = (rows: SiteSettingRow[] | null | undefined): 
     meta_access_token: getValue('meta_access_token', ''),
     meta_test_event_code: getValue('meta_test_event_code', ''),
     header_scripts: getValue('header_scripts', ''),
+    ai_faq_enabled: getValue('ai_faq_enabled', 'false'),
   };
 };
 
