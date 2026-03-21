@@ -273,3 +273,202 @@ export async function deleteKnowledgeEntry(id: string): Promise<ActionResult> {
 
   return { success: true };
 }
+
+// ─── FAQ Entries ──────────────────────────────────────────────────────────────
+
+export async function getFaqEntries(
+  page: number = 0,
+  filters?: { category?: string; search?: string }
+): Promise<ActionResult> {
+  await requireAdmin();
+
+  let query = (supabaseServer.from('faq_entries') as any).select('*');
+
+  if (filters?.category) {
+    query = query.eq('category', filters.category);
+  }
+  if (filters?.search) {
+    query = query.or(`question.ilike.%${filters.search}%,answer.ilike.%${filters.search}%`);
+  }
+
+  const { data, error } = await query.order('created_at', { ascending: false });
+
+  if (error) return { success: false, error: 'Failed to fetch FAQs' };
+
+  const total = (data || []).length;
+  const paged = (data || []).slice(page * ADMIN_PAGE_SIZE, (page + 1) * ADMIN_PAGE_SIZE);
+
+  return { success: true, data: { faqs: paged, total, page, pageSize: ADMIN_PAGE_SIZE } };
+}
+
+export async function addFaqEntry(input: FaqEntryInput): Promise<ActionResult> {
+  await requireAdmin();
+
+  const parsed = faqEntrySchema.safeParse(input);
+  if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message || 'Validation failed' };
+
+  const { data: faq, error } = await (supabaseServer.from('faq_entries') as any)
+    .insert({
+      question: parsed.data.question,
+      answer: parsed.data.answer,
+      category: parsed.data.category || null,
+      is_active: true,
+    })
+    .select()
+    .single();
+
+  if (error || !faq) return { success: false, error: 'Failed to create FAQ' };
+
+  syncEmbedding(
+    'faq_entries',
+    faq.id,
+    buildFaqContent({ question: faq.question, answer: faq.answer }),
+    { category: faq.category }
+  ).catch((err) => console.error('[rag-sync] faq:', err));
+
+  return { success: true, data: faq };
+}
+
+export async function updateFaqEntry(id: string, input: FaqEntryInput): Promise<ActionResult> {
+  await requireAdmin();
+
+  const parsed = faqEntrySchema.safeParse(input);
+  if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message || 'Validation failed' };
+
+  const { data: faq, error } = await (supabaseServer.from('faq_entries') as any)
+    .update({
+      question: parsed.data.question,
+      answer: parsed.data.answer,
+      category: parsed.data.category || null,
+    })
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error || !faq) return { success: false, error: 'Failed to update FAQ' };
+
+  syncEmbedding(
+    'faq_entries',
+    faq.id,
+    buildFaqContent({ question: faq.question, answer: faq.answer }),
+    { category: faq.category }
+  ).catch((err) => console.error('[rag-sync] faq:', err));
+
+  return { success: true, data: faq };
+}
+
+export async function deleteFaqEntry(id: string): Promise<ActionResult> {
+  await requireAdmin();
+
+  const { error } = await (supabaseServer.from('faq_entries') as any).delete().eq('id', id);
+  if (error) return { success: false, error: 'Failed to delete FAQ' };
+
+  removeEmbedding('faq_entries', id).catch((err) =>
+    console.error('[rag-sync] remove faq:', err)
+  );
+
+  return { success: true };
+}
+
+// ─── Chat Triggers ────────────────────────────────────────────────────────────
+
+export async function getTriggers(
+  page: number = 0,
+  filters?: { search?: string }
+): Promise<ActionResult> {
+  await requireAdmin();
+
+  let query = (supabaseServer.from('chat_triggers') as any)
+    .select('*')
+    .order('priority', { ascending: false })
+    .order('name', { ascending: true });
+
+  if (filters?.search) {
+    query = query.ilike('name', `%${filters.search}%`);
+  }
+
+  const { data, error } = await query;
+
+  if (error) return { success: false, error: 'Failed to fetch triggers' };
+
+  const total = (data || []).length;
+  const paged = (data || []).slice(page * ADMIN_PAGE_SIZE, (page + 1) * ADMIN_PAGE_SIZE);
+
+  return { success: true, data: { triggers: paged, total, page, pageSize: ADMIN_PAGE_SIZE } };
+}
+
+export async function addTrigger(input: TriggerInput): Promise<ActionResult> {
+  await requireAdmin();
+
+  const parsed = triggerSchema.safeParse(input);
+  if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message || 'Validation failed' };
+
+  // Validate regex patterns if match_type is 'regex'
+  if (parsed.data.match_type === 'regex') {
+    for (const pattern of parsed.data.patterns) {
+      const validation = validateRegexPattern(pattern);
+      if (!validation.valid) {
+        return { success: false, error: `Pattern "${pattern}": ${(validation as { valid: false; error: string }).error}` };
+      }
+    }
+  }
+
+  const { data: trigger, error } = await (supabaseServer.from('chat_triggers') as any)
+    .insert({
+      name: parsed.data.name,
+      patterns: parsed.data.patterns,
+      match_type: parsed.data.match_type,
+      response: parsed.data.response,
+      priority: parsed.data.priority ?? 0,
+      is_active: parsed.data.is_active ?? true,
+    })
+    .select()
+    .single();
+
+  if (error || !trigger) return { success: false, error: 'Failed to create trigger' };
+
+  return { success: true, data: trigger };
+}
+
+export async function updateTrigger(id: string, input: TriggerInput): Promise<ActionResult> {
+  await requireAdmin();
+
+  const parsed = triggerSchema.safeParse(input);
+  if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message || 'Validation failed' };
+
+  if (parsed.data.match_type === 'regex') {
+    for (const pattern of parsed.data.patterns) {
+      const validation = validateRegexPattern(pattern);
+      if (!validation.valid) {
+        return { success: false, error: `Pattern "${pattern}": ${(validation as { valid: false; error: string }).error}` };
+      }
+    }
+  }
+
+  const { data: trigger, error } = await (supabaseServer.from('chat_triggers') as any)
+    .update({
+      name: parsed.data.name,
+      patterns: parsed.data.patterns,
+      match_type: parsed.data.match_type,
+      response: parsed.data.response,
+      priority: parsed.data.priority ?? 0,
+      is_active: parsed.data.is_active ?? true,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error || !trigger) return { success: false, error: 'Failed to update trigger' };
+
+  return { success: true, data: trigger };
+}
+
+export async function deleteTrigger(id: string): Promise<ActionResult> {
+  await requireAdmin();
+
+  const { error } = await (supabaseServer.from('chat_triggers') as any).delete().eq('id', id);
+  if (error) return { success: false, error: 'Failed to delete trigger' };
+
+  return { success: true };
+}
