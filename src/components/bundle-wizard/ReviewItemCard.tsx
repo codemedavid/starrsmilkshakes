@@ -1,7 +1,6 @@
 'use client';
 
-import type { SlotState } from '@/types/bundle';
-import type { BundleSlot } from '@/types/bundle';
+import type { SlotState, BundleSlot } from '@/types/bundle';
 
 interface ReviewItemCardProps {
   slot: BundleSlot;

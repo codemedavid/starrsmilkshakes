@@ -1,7 +1,6 @@
 'use client';
 
-import type { BundleSlot } from '@/types/bundle';
-import type { SlotState } from '@/types/bundle';
+import type { BundleSlot, SlotState } from '@/types/bundle';
 import type { MenuItem, Variation, AddOn } from '@/types';
 import ItemCard from './ItemCard';
 import ItemCustomizer from './ItemCustomizer';

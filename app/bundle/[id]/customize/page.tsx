@@ -44,6 +44,7 @@ export default function BundleWizardPage({ params }: PageProps) {
   const [slotStates, setSlotStates] = useState<SlotState[]>([]);
   const [editingFromReview, setEditingFromReview] = useState(false);
   const [quantity, setQuantity] = useState(1);
+  const [submitting, setSubmitting] = useState(false);
 
   // Upsell state
   const [pairOffers, setPairOffers] = useState<PairOffer[] | null>(null);
@@ -309,7 +310,8 @@ export default function BundleWizardPage({ params }: PageProps) {
   }, [addBundleToCart, router]);
 
   const handleConfirmReview = useCallback(async () => {
-    if (!bundle) return;
+    if (!bundle || submitting) return;
+    setSubmitting(true);
 
     // Build upsell cart items from selections
     const upsellCartItems: UpsellCartItem[] = selections.flatMap(sel =>
@@ -346,9 +348,10 @@ export default function BundleWizardPage({ params }: PageProps) {
       }
     } catch {
       // Upsell fetch failed — skip and add to cart
+      setSubmitting(false);
       addToCartAndFinish();
     }
-  }, [bundle, selections, quantity, priceInfo.total, addToCartAndFinish]);
+  }, [bundle, selections, quantity, priceInfo.total, addToCartAndFinish, submitting]);
 
   const handlePairSkip = useCallback(() => {
     if (interstitialOffer) {
@@ -519,8 +522,8 @@ export default function BundleWizardPage({ params }: PageProps) {
         <WizardBottomBar
           onBack={handleBack}
           onNext={handleConfirmReview}
-          nextLabel={`Confirm · ₱${(priceInfo.total * quantity).toFixed(0)}`}
-          nextDisabled={!allSlotsValid}
+          nextLabel={submitting ? 'Loading...' : `Confirm · ₱${(priceInfo.total * quantity).toFixed(0)}`}
+          nextDisabled={!allSlotsValid || submitting}
           totalPrice={0}
           showBack={true}
         />
