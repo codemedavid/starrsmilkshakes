@@ -4,8 +4,8 @@ import React, { use, useEffect, useState, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeft, Minus, Plus, Share2, ShoppingCart, Check, ChevronDown, ChevronUp, AlertCircle } from 'lucide-react';
 import { useCartContext } from '@/contexts/CartContext';
-import { supabase } from '@/lib/supabase';
-import type { Bundle, BundleSlot, SlotSelection } from '@/types/bundle';
+import { fetchBundleById } from '@/lib/bundle-fetcher';
+import type { Bundle, BundleSlot, SlotSelection, SlotState } from '@/types/bundle';
 import type { MenuItem, Variation, AddOn } from '@/types';
 import { calculateBundlePrice, validateBundleSelections, calculateBundleSavings, getBundleEffectivePrice } from '@/lib/bundle-engine';
 
@@ -13,40 +13,6 @@ interface BundlePageProps {
     params: Promise<{ id: string }>;
 }
 
-// Map raw Supabase menu_item row to the camelCase shape the bundle engine expects
-function mapSlotMenuItem(raw: any): MenuItem {
-    return {
-        id: raw.id,
-        name: raw.name,
-        description: raw.description ?? '',
-        basePrice: Number(raw.base_price),
-        category: raw.category,
-        image: raw.image_url || undefined,
-        popular: Boolean(raw.popular),
-        available: raw.available ?? true,
-        variations: raw.variations?.map((v: any) => ({
-            id: v.id,
-            name: v.name,
-            price: Number(v.price),
-        })) || [],
-        addOns: raw.add_ons?.map((a: any) => ({
-            id: a.id,
-            name: a.name,
-            price: Number(a.price),
-            category: a.category,
-        })) || [],
-    };
-}
-
-interface SlotState {
-    slot_id: string;
-    selected_items: {
-        menu_item_id: string;
-        menu_item: MenuItem;
-        selected_variation: Variation | null;
-        selected_add_ons: AddOn[];
-    }[];
-}
 
 export default function BundlePage({ params }: BundlePageProps) {
     const { id } = use(params);
@@ -64,45 +30,16 @@ export default function BundlePage({ params }: BundlePageProps) {
 
     // Fetch bundle data
     useEffect(() => {
-        async function fetchBundle() {
-            const { data } = await (supabase.from('bundles') as any)
-                .select(`
-                    *,
-                    slots:bundle_slots (
-                        *,
-                        items:bundle_slot_items (
-                            *,
-                            menu_item:menu_items (
-                                *,
-                                variations (*),
-                                add_ons (*)
-                            )
-                        )
-                    )
-                `)
-                .eq('id', id)
-                .single();
-
-            if (data) {
-                // Map nested menu_item rows to camelCase MenuItem
-                const mapped = {
-                    ...data,
-                    slots: data.slots.map((slot: any) => ({
-                        ...slot,
-                        items: slot.items.map((si: any) => ({
-                            ...si,
-                            menu_item: si.menu_item ? mapSlotMenuItem(si.menu_item) : undefined,
-                        })),
-                    })),
-                } as Bundle;
-
+        async function load() {
+            const mapped = await fetchBundleById(id);
+            if (mapped) {
                 setBundle(mapped);
                 setSlotStates(mapped.slots.map(slot => ({ slot_id: slot.id, selected_items: [] })));
                 setExpandedSlot(mapped.slots[0]?.id ?? '');
             }
             setLoading(false);
         }
-        void fetchBundle();
+        void load();
     }, [id]);
 
     // Build selections for the engine

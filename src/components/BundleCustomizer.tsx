@@ -5,7 +5,7 @@
 
 import { useState, useMemo } from 'react';
 import { X, Check, ChevronDown, ChevronUp, AlertCircle } from 'lucide-react';
-import type { Bundle, BundleSlot, SlotSelection } from '@/types/bundle';
+import type { Bundle, BundleSlot, SlotSelection, SlotState } from '@/types/bundle';
 import type { MenuItem, Variation, AddOn } from '@/types';
 import { calculateBundlePrice, validateBundleSelections, calculateBundleSavings } from '@/lib/bundle-engine';
 
@@ -15,15 +15,6 @@ interface BundleCustomizerProps {
   onClose: () => void;
 }
 
-interface SlotState {
-  slot_id: string;
-  selected_items: {
-    menu_item_id: string;
-    menu_item: MenuItem;
-    selected_variation: Variation | null;
-    selected_add_ons: AddOn[];
-  }[];
-}
 
 export default function BundleCustomizer({ bundle, onAddToCart, onClose }: BundleCustomizerProps) {
   const [slotStates, setSlotStates] = useState<SlotState[]>(

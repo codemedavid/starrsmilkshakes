@@ -50,6 +50,16 @@ export interface SlotSelection {
   }[];
 }
 
+export interface SlotState {
+  slot_id: string;
+  selected_items: {
+    menu_item_id: string;
+    menu_item: MenuItem;
+    selected_variation: Variation | null;
+    selected_add_ons: AddOn[];
+  }[];
+}
+
 export interface BundleCartItem {
   bundle_id: string;
   bundle: Bundle;
