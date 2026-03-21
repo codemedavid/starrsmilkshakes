@@ -288,6 +288,7 @@ export interface AdminPaymentMethod {
   qr_code_url: string;
   active: boolean;
   sort_order: number;
+  branch_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -317,4 +318,63 @@ export interface FaqInput {
   category?: string;
   action_type?: FaqActionType;
   sort_order?: number;
+}
+
+// AI Admin Dashboard types
+
+export interface KnowledgeEntry {
+  id: string;
+  title: string;
+  content: string;
+  category?: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface KnowledgeDocument {
+  id: string;
+  filename: string;
+  file_url: string;
+  storage_path: string;
+  file_type: 'pdf' | 'txt' | 'md';
+  file_size: number;
+  chunk_count: number;
+  status: 'processing' | 'review' | 'approved' | 'error';
+  error_message?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface KnowledgeChunk {
+  id: string;
+  document_id: string;
+  chunk_index: number;
+  content: string;
+  section_header?: string;
+  is_approved: boolean;
+  created_at: string;
+}
+
+export interface ChatTrigger {
+  id: string;
+  name: string;
+  patterns: string[];
+  match_type: 'exact' | 'contains' | 'regex';
+  response: string;
+  priority: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface KnowledgeRow {
+  id: string;
+  title: string;
+  content: string;
+  source_table: string;
+  source_id: string;
+  category?: string;
+  status: 'active' | 'synced' | 'inactive' | 'review';
+  updated_at: string;
 }

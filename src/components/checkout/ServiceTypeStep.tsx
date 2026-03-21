@@ -61,7 +61,10 @@ export default function ServiceTypeStep({
           return (
             <button
               key={option.value}
-              onClick={() => onSelect(option.value)}
+              onClick={() => {
+                onSelect(option.value);
+                onContinue();
+              }}
               className={`w-full text-left rounded-[1rem] p-8 transition-all duration-300 active:scale-[0.98] relative overflow-hidden group ${
                 isActive ? option.selectedBg : `${option.bg} hover:opacity-90`
               }`}
@@ -102,14 +105,6 @@ export default function ServiceTypeStep({
         })}
       </div>
 
-      {/* CTA */}
-      <button
-        onClick={onContinue}
-        className="w-full bg-[#006b5e] text-[#e6fff5] rounded-full font-headline font-bold text-lg py-5 shadow-lg shadow-[#006b5e]/20 active:scale-95 transition-all flex items-center justify-center gap-2"
-      >
-        Next Step
-        <span className="material-symbols-outlined">arrow_forward</span>
-      </button>
     </div>
   );
 }

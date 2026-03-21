@@ -50,6 +50,7 @@ export default function BranchStep({ selectedBranch, onSelect, onContinue }: Bra
   const handleSelect = (branch: Branch) => {
     onSelect(branch);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(branch));
+    onContinue();
   };
 
   if (loading) {
@@ -114,15 +115,6 @@ export default function BranchStep({ selectedBranch, onSelect, onContinue }: Bra
         );
       })}
 
-      {selectedBranch && (
-        <button
-          onClick={onContinue}
-          className="w-full bg-[#006b5e] text-[#e6fff5] rounded-full font-headline font-bold text-lg py-5 shadow-lg shadow-[#006b5e]/20 active:scale-95 transition-all flex items-center justify-center gap-2"
-        >
-          Next Step
-          <span className="material-symbols-outlined">arrow_forward</span>
-        </button>
-      )}
     </div>
   );
 }
