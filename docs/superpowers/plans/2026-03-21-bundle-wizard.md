@@ -1107,7 +1107,8 @@ export default function BundleWizardPage({ params }: PageProps) {
   const isPopStateNav = useRef(false);
   // Ref to track slide direction for step transitions
   const slideDirection = useRef<'left' | 'right'>('left');
-  const [isTransitioning, setIsTransitioning] = useState(false);
+  // Ref for step content container to manage focus on transition
+  const stepContentRef = useRef<HTMLDivElement>(null);
 
   // Sorted slots for consistent ordering
   const sortedSlots = useMemo(
@@ -1216,6 +1217,18 @@ export default function BundleWizardPage({ params }: PageProps) {
     }
     window.history.pushState({ step: currentSlotIndex, phase }, '');
   }, [currentSlotIndex, phase, bundle]);
+
+  // Focus management: auto-focus first interactive element on step transition
+  useEffect(() => {
+    if (!stepContentRef.current) return;
+    const timer = setTimeout(() => {
+      const focusable = stepContentRef.current?.querySelector<HTMLElement>(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+      );
+      focusable?.focus({ preventScroll: true });
+    }, 300); // after slide animation completes
+    return () => clearTimeout(timer);
+  }, [currentSlotIndex, phase]);
 
   // --- Handlers ---
 
@@ -1373,7 +1386,7 @@ export default function BundleWizardPage({ params }: PageProps) {
       // Upsell fetch failed — skip and add to cart
       addToCartAndFinish();
     }
-  }, [bundle, selections, quantity, priceInfo.total]);
+  }, [bundle, selections, quantity, priceInfo.total, addToCartAndFinish]);
 
   const addBundleToCart = useCallback(() => {
     if (!bundle) return;
@@ -1413,12 +1426,7 @@ export default function BundleWizardPage({ params }: PageProps) {
     }
     // Add the upsell offer item to regular cart, then add bundle and finish
     if (interstitialOffer?.item) {
-      const offerItem = interstitialOffer.item;
-      const offerPrice = interstitialOffer.discounted_price
-        ?? (offerItem as any).basePrice
-        ?? (offerItem as any).base_price
-        ?? 0;
-      cart.addToCart(offerItem as any, 1, undefined, []);
+      cart.addToCart(interstitialOffer.item as any, 1, undefined, []);
     }
     addToCartAndFinish();
   }, [interstitialOffer, addToCartAndFinish, cart]);
@@ -1499,6 +1507,7 @@ export default function BundleWizardPage({ params }: PageProps) {
 
       {/* Step content with slide transition */}
       <div
+        ref={stepContentRef}
         className="pt-2 transition-transform duration-300 ease-out"
         key={`${phase}-${currentSlotIndex}`}
         style={{
