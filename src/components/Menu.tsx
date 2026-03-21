@@ -1,12 +1,12 @@
 'use client';
 
 import React from 'react';
+import { useRouter } from 'next/navigation';
 import { MenuItem, CartItem } from '../types';
 import type { Bundle, SlotSelection } from '../types/bundle';
 import { useCategories } from '../hooks/useCategories';
 import MenuItemCard from './MenuItemCard';
 import MobileNav from './MobileNav';
-import BundleCustomizer from './BundleCustomizer';
 
 // Preload images for better performance
 const preloadImages = (items: MenuItem[]) => {
@@ -29,8 +29,8 @@ interface MenuProps {
 
 const Menu: React.FC<MenuProps> = ({ menuItems, bundles = [], addToCart, addBundleToCart, cartItems, updateQuantity }) => {
   const { categories } = useCategories();
+  const router = useRouter();
   const [activeCategory, setActiveCategory] = React.useState('hot-coffee');
-  const [selectedBundle, setSelectedBundle] = React.useState<Bundle | null>(null);
 
   // Preload images when menu items change
   React.useEffect(() => {
@@ -91,12 +91,6 @@ const Menu: React.FC<MenuProps> = ({ menuItems, bundles = [], addToCart, addBund
     return () => window.removeEventListener('scroll', handleScroll);
   }, [categories]);
 
-  const handleBundleAddToCart = (selections: SlotSelection[], totalPrice: number) => {
-    if (!selectedBundle) return;
-    addBundleToCart(selectedBundle, selections, totalPrice);
-    setSelectedBundle(null);
-  };
-
   return (
     <>
       <MobileNav
@@ -123,7 +117,7 @@ const Menu: React.FC<MenuProps> = ({ menuItems, bundles = [], addToCart, addBund
             {bundles.filter(b => b.available).map(bundle => (
               <button
                 key={bundle.id}
-                onClick={() => setSelectedBundle(bundle)}
+                onClick={() => router.push(`/bundle/${bundle.id}/customize`)}
                 className="relative flex flex-col bg-white rounded-2xl overflow-hidden shadow-sm border border-stone-100 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 text-left"
               >
                 {/* Combo badge */}
@@ -195,14 +189,6 @@ const Menu: React.FC<MenuProps> = ({ menuItems, bundles = [], addToCart, addBund
       })}
       </main>
 
-      {/* Bundle Customizer modal */}
-      {selectedBundle && (
-        <BundleCustomizer
-          bundle={selectedBundle}
-          onAddToCart={handleBundleAddToCart}
-          onClose={() => setSelectedBundle(null)}
-        />
-      )}
     </>
   );
 };
