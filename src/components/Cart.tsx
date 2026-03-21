@@ -183,10 +183,14 @@ export default function Cart({
           >
             <div className="flex gap-3">
               <div className="w-[76px] h-[76px] rounded-xl overflow-hidden bg-gradient-to-br from-[#8FB8A8]/15 to-[#8FB8A8]/5 flex items-center justify-center flex-shrink-0">
-                <div className="text-center">
-                  <div className="text-2xl leading-none mb-0.5">🎁</div>
-                  <span className="text-[9px] font-semibold text-[#8FB8A8] uppercase tracking-wider">Bundle</span>
-                </div>
+                {item.bundle.image_url ? (
+                  <img src={item.bundle.image_url} alt={item.bundle.name} className="w-full h-full object-cover" />
+                ) : (
+                  <div className="text-center">
+                    <div className="text-2xl leading-none mb-0.5">🎁</div>
+                    <span className="text-[9px] font-semibold text-[#8FB8A8] uppercase tracking-wider">Bundle</span>
+                  </div>
+                )}
               </div>
               <div className="flex-1 min-w-0 flex flex-col justify-between py-0.5">
                 <div>

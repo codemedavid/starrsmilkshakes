@@ -51,7 +51,7 @@ export async function fetchBundleById(id: string): Promise<Bundle | null> {
 
   return {
     ...data,
-    slots: data.slots.map((slot: any) => ({
+    slots: (data.slots || []).map((slot: any) => ({
       ...slot,
       items: slot.items.map((si: any) => ({
         ...si,
