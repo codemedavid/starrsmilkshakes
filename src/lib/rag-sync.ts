@@ -113,3 +113,19 @@ export function buildLoyaltyContent(config: Record<string, unknown>, goals: { na
 export function buildPaymentMethodsContent(methods: { name: string; account_name: string; account_number: string }[]): string {
   return `Payment methods: ${methods.map((m) => `${m.name}: ${m.account_name} (${m.account_number})`).join('. ')}`;
 }
+
+export function buildKnowledgeEntryContent(entry: {
+  title: string;
+  content: string;
+}): string {
+  return `${entry.title}: ${entry.content}`;
+}
+
+export function buildChunkContent(chunk: {
+  section_header?: string | null;
+  content: string;
+}): string {
+  return chunk.section_header
+    ? `${chunk.section_header}\n${chunk.content}`
+    : chunk.content;
+}
