@@ -87,6 +87,8 @@ const formatOrder = (order: any): Order => ({
       selected_variation: item.selected_variation,
       selected_add_ons: item.selected_add_ons,
       created_at: item.created_at,
+      bundle_id: item.bundle_id ?? null,
+      bundle_selections: item.bundle_selections ?? null,
     })) || [],
 });
 
