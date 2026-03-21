@@ -40,7 +40,7 @@ const navItems = [
   { label: 'Branches', href: '/admin/branches', icon: MapPin },
   { label: 'Payments', href: '/admin/payments', icon: CreditCard },
   { label: 'Settings', href: '/admin/settings', icon: Settings },
-  { label: 'AI Logs', href: '/admin/ai-logs', icon: Bot },
+  { label: 'AI Management', href: '/admin/ai', icon: Bot },
 ];
 
 const superAdminItems = [
