@@ -19,6 +19,7 @@ import { searchRagContext, buildSystemPrompt } from '@/lib/rag-engine';
 import { parseAiResponse, cleanAiMessage } from '@/lib/ai-intent-parser';
 import { getOrCreateSessionId, getSessionHistory, logConversation, cleanupOldConversations } from '@/lib/ai-conversation';
 import { checkAiRateLimit } from '@/lib/ai-rate-limiter';
+import { checkTriggers } from '@/lib/trigger-matcher';
 
 const PRODUCTS_PER_PAGE = 10;
 
@@ -81,6 +82,13 @@ async function handleTextMessage(psid: string, text: string, _session: Messenger
   // 1. Loyalty triggers
   if (lower === 'loyalty' || lower === 'loyalty card' || lower === 'starr card' || lower === 'my card') {
     await handleLoyaltyCard(psid, pageToken);
+    return;
+  }
+
+  // 2. Check triggers first (instant response, bypasses AI)
+  const triggerResult = await checkTriggers(text);
+  if (triggerResult.matched && triggerResult.response) {
+    await sendTextMessage(psid, triggerResult.response, pageToken);
     return;
   }
 
