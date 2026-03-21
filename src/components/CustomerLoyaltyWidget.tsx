@@ -53,7 +53,7 @@ export default function CustomerLoyaltyWidget({ customerId }: Props) {
     );
   }
 
-  const goalReward = card.loyalty_rewards ?? null;
+  const goalReward = card.loyalty_goals ?? null;
   const stampsRequired: number = goalReward?.stamps_required ?? 10;
   const currentStamps: number = card.current_stamps ?? 0;
   const currentPoints: number = card.current_points ?? 0;

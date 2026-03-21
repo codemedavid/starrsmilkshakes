@@ -47,6 +47,7 @@ function toDbPayload(parsed: z.infer<typeof menuItemSchema>) {
     discount_start_date: parsed.discountStartDate ?? null,
     discount_end_date: parsed.discountEndDate ?? null,
     discount_active: parsed.discountActive,
+    cost_price: parsed.costPrice ?? null,
   };
 }
 

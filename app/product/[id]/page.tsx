@@ -1,11 +1,13 @@
 'use client';
 
 import React, { use, useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeft, Minus, Plus, Share2, Star, ShoppingCart } from 'lucide-react';
 import { useMenu } from '@/hooks/useMenu';
 import { useCartContext } from '@/contexts/CartContext';
+import { useUpsell } from '@/contexts/UpsellContext';
 import { Variation, AddOn, MenuItem } from '@/types';
+import type { UpsellCartItem } from '@/types/upsell';
 
 interface ProductPageProps {
     params: Promise<{
@@ -18,6 +20,9 @@ export default function ProductPage({ params }: ProductPageProps) {
     const router = useRouter();
     const { menuItems, loading } = useMenu();
     const cart = useCartContext();
+    const { showPair } = useUpsell();
+    const searchParams = useSearchParams();
+    const fromPair = searchParams.get('source') === 'pair';
     const [product, setProduct] = useState<MenuItem | null>(null);
 
     // Customization State
@@ -117,6 +122,7 @@ export default function ProductPage({ params }: ProductPageProps) {
 
     const [showToast, setShowToast] = useState(false);
     const [showShareToast, setShowShareToast] = useState(false);
+    const [checkingPairs, setCheckingPairs] = useState(false);
 
     const handleShare = async () => {
         const shareUrl = window.location.href;
@@ -151,7 +157,7 @@ export default function ProductPage({ params }: ProductPageProps) {
         }
     };
 
-    const handleAddToCart = (buyNow = false) => {
+    const handleAddToCart = async (buyNow = false) => {
         if (!product) return;
 
         const addOnsForCart: AddOn[] = selectedAddOns.flatMap(addOn =>
@@ -162,13 +168,31 @@ export default function ProductPage({ params }: ProductPageProps) {
 
         if (buyNow) {
             router.push('/checkout');
-        } else {
-            // Show toast and reset quantities
-            setShowToast(true);
-            setTimeout(() => setShowToast(false), 3000);
-            setQuantity(1);
-            setSelectedAddOns([]);
+            return;
         }
+
+        if (fromPair) {
+            // Came from pair screen — go back to menu, no pair recursion
+            router.push('/');
+            return;
+        }
+
+        // Show pair suggestions for just the newly added item (not entire cart)
+        setCheckingPairs(true);
+        try {
+            const newItem: UpsellCartItem = {
+                menu_item_id: product.id,
+                category: product.category,
+                quantity: quantity,
+                unit_price: calculatePrice(),
+            };
+            await showPair([newItem]);
+        } catch {
+            // Ignore pair errors
+        }
+
+        setCheckingPairs(false);
+        router.push('/');
     };
 
     if (loading) {
@@ -447,16 +471,27 @@ export default function ProductPage({ params }: ProductPageProps) {
                     <div className="flex gap-3 h-14">
                         <button
                             onClick={() => handleAddToCart(true)}
-                            className="flex-1 rounded-2xl border-2 border-starrs-teal text-starrs-teal font-extrabold text-lg hover:bg-starrs-teal hover:text-white transition-all duration-300 active:scale-95"
+                            disabled={checkingPairs}
+                            className="flex-1 rounded-2xl border-2 border-starrs-teal text-starrs-teal font-extrabold text-lg hover:bg-starrs-teal hover:text-white transition-all duration-300 active:scale-95 disabled:opacity-50"
                         >
                             Buy Now
                         </button>
                         <button
                             onClick={() => handleAddToCart(false)}
-                            className="flex-1 rounded-2xl bg-gradient-to-r from-starrs-teal to-starrs-teal-dark text-white font-extrabold text-lg shadow-lg shadow-starrs-teal/30 hover:shadow-starrs-teal/50 transition-all duration-300 active:scale-95 flex items-center justify-center gap-2"
+                            disabled={checkingPairs}
+                            className="flex-1 rounded-2xl bg-gradient-to-r from-starrs-teal to-starrs-teal-dark text-white font-extrabold text-lg shadow-lg shadow-starrs-teal/30 hover:shadow-starrs-teal/50 transition-all duration-300 active:scale-95 flex items-center justify-center gap-2 disabled:opacity-70"
                         >
-                            <ShoppingCart className="w-5 h-5 fill-current" />
-                            Add to Cart
+                            {checkingPairs ? (
+                                <>
+                                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                    Adding...
+                                </>
+                            ) : (
+                                <>
+                                    <ShoppingCart className="w-5 h-5 fill-current" />
+                                    Add to Cart
+                                </>
+                            )}
                         </button>
                     </div>
                 </div>

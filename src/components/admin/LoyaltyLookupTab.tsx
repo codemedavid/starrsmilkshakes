@@ -1,8 +1,47 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
-import { AlertTriangle, Search, X } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { AlertTriangle, CheckCircle, CreditCard, Gift, MapPin, Search, X } from 'lucide-react';
 import { useLoyaltyLookup } from '@/hooks/useLoyaltyLookup';
+import { supabase } from '@/lib/supabase';
+
+// ─── Skeleton ──────────────────────────────────────────────────────────────────
+
+function LookupSkeleton() {
+  return (
+    <div className="space-y-3">
+      {[1, 2].map(i => (
+        <div key={i} className="bg-white border border-[#E8E3DA] rounded-xl p-4 animate-pulse space-y-3">
+          <div className="flex items-center gap-3">
+            <div className="w-11 h-11 bg-stone-200 rounded-full" />
+            <div className="flex-1 space-y-2">
+              <div className="h-4 bg-stone-200 rounded w-36" />
+              <div className="h-3 bg-stone-100 rounded w-48" />
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <div className="h-6 w-20 bg-stone-100 rounded-full" />
+            <div className="h-6 w-20 bg-stone-100 rounded-full" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─── Progress Bar ──────────────────────────────────────────────────────────────
+
+function ProgressBar({ current, goal, color }: { current: number; goal: number; color: string }) {
+  const pct = Math.min((current / goal) * 100, 100);
+  return (
+    <div className="relative h-2 bg-stone-100 rounded-full overflow-hidden">
+      <div
+        className={`absolute inset-y-0 left-0 rounded-full transition-all duration-500 ${color}`}
+        style={{ width: `${pct}%` }}
+      />
+    </div>
+  );
+}
 
 // ─── Customer Card ─────────────────────────────────────────────────────────────
 
@@ -23,13 +62,26 @@ function initials(name: string | null | undefined): string {
 
 function LookupCard({ card, onRedeem, onCreditOrder }: LookupCardProps) {
   const [branchId, setBranchId] = useState('');
+  const [branches, setBranches] = useState<{ id: string; name: string }[]>([]);
   const [orderId, setOrderId] = useState('');
+
+  useEffect(() => {
+    supabase
+      .from('branches')
+      .select('id, name')
+      .eq('is_active', true)
+      .order('is_main', { ascending: false })
+      .order('name', { ascending: true })
+      .then(({ data }) => setBranches(data || []));
+  }, []);
   const [redeemError, setRedeemError] = useState<string | null>(null);
   const [orderError, setOrderError] = useState<string | null>(null);
   const [redeemLoading, setRedeemLoading] = useState(false);
   const [orderLoading, setOrderLoading] = useState(false);
+  const [redeemSuccess, setRedeemSuccess] = useState(false);
+  const [orderSuccess, setOrderSuccess] = useState(false);
 
-  const goal = card.goal_reward as any | null;
+  const goal = card.goal as any | null;
   const stampsGoal = goal?.stamps_required ?? null;
   const pointsGoal = goal?.points_required ?? null;
   const currentStamps: number = card.current_stamps ?? 0;
@@ -39,7 +91,7 @@ function LookupCard({ card, onRedeem, onCreditOrder }: LookupCardProps) {
 
   const handleRedeem = async (redemptionId: string) => {
     if (!branchId.trim()) {
-      setRedeemError('Please enter a Branch ID.');
+      setRedeemError('Please select a branch.');
       return;
     }
     setRedeemLoading(true);
@@ -49,6 +101,8 @@ function LookupCard({ card, onRedeem, onCreditOrder }: LookupCardProps) {
       setRedeemError(result.error || 'Failed to redeem');
     } else {
       setBranchId('');
+      setRedeemSuccess(true);
+      setTimeout(() => setRedeemSuccess(false), 3000);
     }
     setRedeemLoading(false);
   };
@@ -65,87 +119,117 @@ function LookupCard({ card, onRedeem, onCreditOrder }: LookupCardProps) {
       setOrderError(result.error || 'Failed to credit order');
     } else {
       setOrderId('');
+      setOrderSuccess(true);
+      setTimeout(() => setOrderSuccess(false), 3000);
     }
     setOrderLoading(false);
   };
 
   return (
-    <div className="bg-white border-2 border-[#7BBFB5] rounded-xl p-4 space-y-4">
+    <div className="bg-white border-2 border-[#7BBFB5] rounded-xl overflow-hidden shadow-sm">
       {/* Customer header */}
-      <div className="flex items-center gap-3">
-        <div className="w-11 h-11 bg-[#3D8A80] rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0">
-          {initials(card.customer_name)}
+      <div className="p-4 pb-0">
+        <div className="flex items-center gap-3">
+          <div className="w-11 h-11 bg-[#3D8A80] rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0 font-nunito">
+            {initials(card.customer_name)}
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-medium text-stone-800 truncate font-nunito">
+              {card.customer_name ?? 'Unknown Customer'}
+            </p>
+            {card.customer_email && (
+              <p className="text-xs text-stone-500 truncate font-nunito">{card.customer_email}</p>
+            )}
+          </div>
+          <span className="text-xs font-mono text-stone-400 shrink-0 bg-stone-50 px-2 py-1 rounded-lg">{card.card_code}</span>
         </div>
-        <div className="min-w-0 flex-1">
-          <p className="text-sm font-medium text-stone-800 truncate">
-            {card.customer_name ?? 'Unknown Customer'}
-          </p>
-          {card.customer_email && (
-            <p className="text-xs text-stone-500 truncate">{card.customer_email}</p>
-          )}
-        </div>
-        <span className="text-xs font-mono text-stone-400 shrink-0">{card.card_code}</span>
       </div>
 
-      {/* Progress */}
-      <div className="flex items-center gap-2 flex-wrap">
-        {stampsGoal != null ? (
-          <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200 whitespace-nowrap">
-            {currentStamps}/{stampsGoal} ⭐
-          </span>
-        ) : (
-          <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200 whitespace-nowrap">
-            {currentStamps} ⭐
-          </span>
-        )}
-        {pointsGoal != null ? (
-          <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-purple-50 text-purple-700 border border-purple-200 whitespace-nowrap">
-            {currentPoints}/{pointsGoal} pts
-          </span>
-        ) : (
-          <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-purple-50 text-purple-700 border border-purple-200 whitespace-nowrap">
-            {currentPoints} pts
-          </span>
-        )}
+      {/* Progress section */}
+      <div className="p-4 space-y-3">
+        {/* Stamps progress */}
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium font-nunito text-amber-700">Stamps</span>
+            <span className="text-xs font-medium font-nunito text-stone-600">
+              {currentStamps}{stampsGoal != null ? `/${stampsGoal}` : ''}
+            </span>
+          </div>
+          {stampsGoal != null && (
+            <ProgressBar current={currentStamps} goal={stampsGoal} color="bg-amber-400" />
+          )}
+        </div>
+
+        {/* Points progress */}
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium font-nunito text-purple-700">Points</span>
+            <span className="text-xs font-medium font-nunito text-stone-600">
+              {currentPoints}{pointsGoal != null ? `/${pointsGoal}` : ''}
+            </span>
+          </div>
+          {pointsGoal != null && (
+            <ProgressBar current={currentPoints} goal={pointsGoal} color="bg-purple-400" />
+          )}
+        </div>
+
         {goal && (
-          <span className="text-xs text-stone-500 truncate">
-            Goal: {goal.name}
-          </span>
+          <p className="text-xs text-stone-500 font-nunito flex items-center gap-1.5">
+            <Gift className="h-3 w-3 text-[#3D8A80]" />
+            Goal: <span className="font-medium text-stone-700">{goal.name}</span>
+          </p>
         )}
       </div>
 
       {/* Pending redemptions */}
       {pendingRedemptions.length > 0 && (
-        <div className="bg-[#7BBFB5]/10 border border-[#7BBFB5]/30 rounded-lg p-3 space-y-3">
+        <div className="mx-4 mb-4 bg-[#7BBFB5]/10 border border-[#7BBFB5]/30 rounded-lg p-3 space-y-3">
+          <p className="text-xs font-nunito font-semibold text-[#3D8A80] uppercase tracking-wide">
+            Pending Rewards ({pendingRedemptions.length})
+          </p>
+
+          {redeemSuccess && (
+            <div className="flex items-center gap-2 text-xs font-nunito text-emerald-700 bg-emerald-50 rounded-lg px-3 py-2">
+              <CheckCircle className="h-3.5 w-3.5" />
+              Reward redeemed successfully!
+            </div>
+          )}
+
           {pendingRedemptions.map((r: any) => (
             <div key={r.id} className="space-y-2">
-              <p className="text-sm font-medium text-stone-700">
-                🎁 Has pending reward:{' '}
-                <span className="text-[#3D8A80]">{r.reward_id}</span>
+              <p className="text-sm font-medium text-stone-700 font-nunito flex items-center gap-1.5">
+                <Gift className="h-3.5 w-3.5 text-[#3D8A80]" />
+                {r.reward_name ?? r.reward_id}
               </p>
 
               {redeemError && (
-                <div className="flex items-center gap-2 text-xs text-red-600">
+                <div className="flex items-center gap-2 text-xs text-red-600 font-nunito">
                   <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
                   {redeemError}
                 </div>
               )}
 
               <div className="flex items-center gap-2">
-                <input
-                  type="text"
-                  value={branchId}
-                  onChange={e => setBranchId(e.target.value)}
-                  placeholder="Branch ID (UUID)…"
-                  className="flex-1 bg-white border border-[#E8E3DA] rounded-lg px-3 py-1.5 text-xs text-stone-800 placeholder:text-stone-400 focus:ring-2 focus:ring-[#7BBFB5] focus:border-transparent outline-none min-w-0"
-                />
+                <div className="flex-1 flex items-center gap-1.5 bg-white border border-[#E8E3DA] rounded-lg px-3 py-1.5">
+                  <MapPin className="h-3 w-3 text-stone-400 shrink-0" />
+                  <select
+                    value={branchId}
+                    onChange={e => { setBranchId(e.target.value); setRedeemError(null); }}
+                    className="flex-1 bg-transparent text-xs text-stone-800 outline-none min-w-0 font-nunito cursor-pointer"
+                  >
+                    <option value="">Select branch...</option>
+                    {branches.map(b => (
+                      <option key={b.id} value={b.id}>{b.name}</option>
+                    ))}
+                  </select>
+                </div>
                 <button
                   type="button"
                   onClick={() => handleRedeem(r.id)}
                   disabled={redeemLoading}
-                  className="bg-[#3D8A80] text-white px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-[#356E66] transition-colors disabled:opacity-50 whitespace-nowrap"
+                  className="bg-[#3D8A80] text-white px-3 py-1.5 rounded-lg text-xs font-medium font-nunito hover:bg-[#356E66] transition-colors disabled:opacity-50 whitespace-nowrap"
                 >
-                  {redeemLoading ? 'Marking…' : 'Mark Redeemed'}
+                  {redeemLoading ? 'Processing...' : 'Redeem'}
                 </button>
               </div>
             </div>
@@ -154,13 +238,20 @@ function LookupCard({ card, onRedeem, onCreditOrder }: LookupCardProps) {
       )}
 
       {/* Order credit */}
-      <div className="space-y-2">
+      <div className="mx-4 mb-4 space-y-2">
         <p className="text-xs font-nunito font-medium text-stone-500 uppercase tracking-wide">
           Credit a Walk-In Order
         </p>
 
+        {orderSuccess && (
+          <div className="flex items-center gap-2 text-xs font-nunito text-emerald-700 bg-emerald-50 rounded-lg px-3 py-2">
+            <CheckCircle className="h-3.5 w-3.5" />
+            Order credited successfully!
+          </div>
+        )}
+
         {orderError && (
-          <div className="flex items-center gap-2 text-xs text-red-600">
+          <div className="flex items-center gap-2 text-xs text-red-600 font-nunito">
             <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
             {orderError}
           </div>
@@ -170,17 +261,24 @@ function LookupCard({ card, onRedeem, onCreditOrder }: LookupCardProps) {
           <input
             type="text"
             value={orderId}
-            onChange={e => setOrderId(e.target.value)}
-            placeholder="Enter order UUID…"
-            className="flex-1 bg-[#F8F6F3] border border-[#E8E3DA] rounded-lg px-3 py-2 text-sm text-stone-800 placeholder:text-stone-400 focus:ring-2 focus:ring-[#7BBFB5] focus:border-transparent outline-none min-w-0"
+            onChange={e => { setOrderId(e.target.value); setOrderError(null); }}
+            placeholder="Enter order UUID..."
+            className="flex-1 bg-[#F8F6F3] border border-[#E8E3DA] rounded-lg px-3 py-2 text-sm text-stone-800 placeholder:text-stone-400 focus:ring-2 focus:ring-[#7BBFB5] focus:border-transparent outline-none min-w-0 font-nunito"
           />
           <button
             type="button"
             onClick={handleCreditOrder}
             disabled={orderLoading}
-            className="bg-[#3D8A80] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#356E66] transition-colors disabled:opacity-50 whitespace-nowrap"
+            className="bg-[#3D8A80] text-white px-4 py-2 rounded-lg text-sm font-medium font-nunito hover:bg-[#356E66] transition-colors disabled:opacity-50 whitespace-nowrap"
           >
-            {orderLoading ? 'Crediting…' : 'Credit Order'}
+            {orderLoading ? (
+              <span className="flex items-center gap-2">
+                <span className="inline-block w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                Crediting...
+              </span>
+            ) : (
+              'Credit Order'
+            )}
           </button>
         </div>
       </div>
@@ -229,15 +327,16 @@ export default function LoyaltyLookupTab() {
           type="search"
           value={query}
           onChange={e => handleChange(e.target.value)}
-          placeholder="Search name, email, phone, or enter card code…"
-          className="w-full bg-[#F8F6F3] border border-[#E8E3DA] rounded-xl pl-10 pr-4 py-3 text-sm text-stone-800 placeholder:text-stone-400 focus:ring-2 focus:ring-[#7BBFB5] focus:border-transparent outline-none"
+          placeholder="Search by name, email, phone, or card code..."
+          className="w-full bg-[#F8F6F3] border border-[#E8E3DA] rounded-xl pl-10 pr-10 py-3 text-sm text-stone-800 placeholder:text-stone-400 focus:ring-2 focus:ring-[#7BBFB5] focus:border-transparent outline-none font-nunito"
+          autoFocus
         />
         {query && (
           <button
             type="button"
             onClick={() => { handleChange(''); setHasSearched(false); }}
             aria-label="Clear search"
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600 transition-colors"
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600 transition-colors p-1"
           >
             <X className="h-4 w-4" />
           </button>
@@ -253,13 +352,14 @@ export default function LoyaltyLookupTab() {
       )}
 
       {/* Searching indicator */}
-      {searching && (
-        <p className="text-sm text-stone-400 text-center py-4">Searching…</p>
-      )}
+      {searching && <LookupSkeleton />}
 
       {/* Results */}
       {!searching && results.length > 0 && (
         <div className="space-y-3">
+          <p className="text-xs font-nunito text-stone-400">
+            {results.length} result{results.length !== 1 ? 's' : ''} found
+          </p>
           {results.map((card: any) => (
             <LookupCard
               key={card.id}
@@ -273,15 +373,25 @@ export default function LoyaltyLookupTab() {
 
       {/* No results */}
       {showNoResults && (
-        <div className="text-center py-12 text-stone-400">
-          <p className="text-sm">No loyalty cards found for &ldquo;{query}&rdquo;</p>
+        <div className="text-center py-16 text-stone-400 bg-white border border-[#E8E3DA] rounded-xl">
+          <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-stone-100 mb-3">
+            <Search className="h-5 w-5 text-stone-400" />
+          </div>
+          <p className="text-sm font-nunito font-medium text-stone-600">No results for &ldquo;{query}&rdquo;</p>
+          <p className="text-xs font-nunito text-stone-400 mt-1">Try a different name, email, or card code</p>
         </div>
       )}
 
       {/* Empty state */}
       {showEmpty && (
-        <div className="text-center py-12 text-stone-400">
-          <p className="text-sm">Search for a customer to view their loyalty card</p>
+        <div className="text-center py-16 text-stone-400 bg-white border border-[#E8E3DA] rounded-xl">
+          <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-[#7BBFB5]/10 mb-3">
+            <CreditCard className="h-5 w-5 text-[#3D8A80]" />
+          </div>
+          <p className="text-sm font-nunito font-medium text-stone-600">Customer Lookup</p>
+          <p className="text-xs font-nunito text-stone-400 mt-1">
+            Search for a customer to view their loyalty card, redeem rewards, or credit orders
+          </p>
         </div>
       )}
     </div>

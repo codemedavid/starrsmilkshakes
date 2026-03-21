@@ -1,5 +1,5 @@
 // tests/loyalty-actions.test.ts
-// Integration tests for Loyalty Server Actions (creditLoyalty, registerLoyaltyCard, redeemReward, lookupCard)
+// Integration tests for Loyalty Server Actions (creditLoyalty, registerLoyaltyCard, redeemGoal, lookupCard)
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
@@ -75,7 +75,7 @@ import { revalidateTag } from 'next/cache';
 import { requireAdmin } from '@/lib/admin-guard';
 import { creditLoyalty } from '@/actions/loyalty';
 import { registerLoyaltyCard } from '@/actions/loyalty';
-import { redeemReward } from '@/actions/loyalty';
+import { redeemGoal } from '@/actions/loyalty';
 import { lookupCard } from '@/actions/loyalty';
 
 const mockRevalidateTag = vi.mocked(revalidateTag);
@@ -127,7 +127,7 @@ const fakeLoyaltyCard = {
   card_code: 'STARR-ABCD',
   current_stamps: 3,
   current_points: 100,
-  goal_reward_id: null,
+  goal_id: null,
   lifetime_stamps: 3,
   lifetime_points: 100,
   created_at: '2026-01-01T00:00:00Z',
@@ -254,7 +254,7 @@ describe('creditLoyalty', () => {
     enqueueSuccess(null);
     // insert transaction → success
     enqueueSuccess(null);
-    // re-fetch updated card (for goal check) — no goal_reward_id set
+    // re-fetch updated card (for goal check) — no goal_id set
     enqueueSuccess({ ...fakeLoyaltyCard, current_stamps: 4, current_points: 115 });
 
     const result = await creditLoyalty(VALID_UUID);
@@ -271,7 +271,7 @@ describe('creditLoyalty', () => {
       ...fakeLoyaltyCard,
       current_stamps: 9,
       current_points: 0,
-      goal_reward_id: VALID_UUID,
+      goal_id: VALID_UUID,
     };
     const updatedCard = {
       ...cardNearGoal,
@@ -463,7 +463,7 @@ describe('registerLoyaltyCard', () => {
     // collision check → unique
     enqueueNull();
     // insert new card
-    enqueueSuccess({ ...fakeLoyaltyCard, goal_reward_id: null });
+    enqueueSuccess({ ...fakeLoyaltyCard, goal_id: null });
     // mark session as used
     enqueueSuccess(null);
     // fetch active rewards → exactly 1
@@ -487,7 +487,7 @@ describe('registerLoyaltyCard', () => {
     // collision check → unique
     enqueueNull();
     // insert new card
-    enqueueSuccess({ ...fakeLoyaltyCard, goal_reward_id: null });
+    enqueueSuccess({ ...fakeLoyaltyCard, goal_id: null });
     // mark session as used
     enqueueSuccess(null);
     // fetch active rewards → 2
@@ -500,33 +500,33 @@ describe('registerLoyaltyCard', () => {
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// redeemReward
+// redeemGoal
 // ═══════════════════════════════════════════════════════════════════════════════
 
-describe('redeemReward', () => {
+describe('redeemGoal', () => {
   it('rejects invalid redemption UUID', async () => {
-    const result = await redeemReward('not-a-uuid', VALID_UUID_2);
+    const result = await redeemGoal('not-a-uuid', VALID_UUID_2);
     expect(result.success).toBe(false);
     expect(result.error).toBe('Invalid redemption ID');
   });
 
   it('rejects invalid branch UUID', async () => {
-    const result = await redeemReward(VALID_UUID, 'not-a-uuid');
+    const result = await redeemGoal(VALID_UUID, 'not-a-uuid');
     expect(result.success).toBe(false);
     expect(result.error).toBe('Invalid branch ID');
   });
 
   it('requires admin auth — throws when unauthenticated', async () => {
     mockRequireAdmin.mockRejectedValue(new Error('NEXT_REDIRECT:/admin/login'));
-    await expect(redeemReward(VALID_UUID, VALID_UUID_2)).rejects.toThrow('NEXT_REDIRECT:/admin/login');
+    await expect(redeemGoal(VALID_UUID, VALID_UUID_2)).rejects.toThrow('NEXT_REDIRECT:/admin/login');
   });
 
-  it('calls the redeem_loyalty_reward RPC with correct params', async () => {
+  it('calls the redeem_loyalty_goal RPC with correct params', async () => {
     mockRpc.mockResolvedValue({ error: null });
 
-    const result = await redeemReward(VALID_UUID, VALID_UUID_2);
+    const result = await redeemGoal(VALID_UUID, VALID_UUID_2);
     expect(result.success).toBe(true);
-    expect(mockRpc).toHaveBeenCalledWith('redeem_loyalty_reward', {
+    expect(mockRpc).toHaveBeenCalledWith('redeem_loyalty_goal', {
       p_redemption_id: VALID_UUID,
       p_branch_id: VALID_UUID_2,
       p_claimed_by: 'admin',
@@ -536,7 +536,7 @@ describe('redeemReward', () => {
   it('revalidates correct cache tags on success', async () => {
     mockRpc.mockResolvedValue({ error: null });
 
-    await redeemReward(VALID_UUID, VALID_UUID_2);
+    await redeemGoal(VALID_UUID, VALID_UUID_2);
 
     expect(mockRevalidateTag).toHaveBeenCalledWith('loyalty-cards');
     expect(mockRevalidateTag).toHaveBeenCalledWith('loyalty-redemptions');
@@ -546,7 +546,7 @@ describe('redeemReward', () => {
   it('returns error when RPC fails', async () => {
     mockRpc.mockResolvedValue({ error: { message: 'Redemption not found or already claimed' } });
 
-    const result = await redeemReward(VALID_UUID, VALID_UUID_2);
+    const result = await redeemGoal(VALID_UUID, VALID_UUID_2);
     expect(result.success).toBe(false);
     expect(result.error).toBe('Redemption not found or already claimed');
   });
@@ -555,7 +555,7 @@ describe('redeemReward', () => {
     const { checkActionRateLimit } = await import('@/lib/admin-guard');
     vi.mocked(checkActionRateLimit).mockResolvedValueOnce({ allowed: false });
 
-    const result = await redeemReward(VALID_UUID, VALID_UUID_2);
+    const result = await redeemGoal(VALID_UUID, VALID_UUID_2);
     expect(result.success).toBe(false);
     expect(result.error).toMatch(/too many requests/i);
   });
@@ -589,7 +589,7 @@ describe('lookupCard', () => {
   it('returns enriched card data for matching results', async () => {
     const rawCard = {
       ...fakeLoyaltyCard,
-      goal_reward_id: VALID_UUID,
+      goal_id: VALID_UUID,
       customers: {
         id: fakeCustomer.id,
         name: fakeCustomer.name,
@@ -613,7 +613,7 @@ describe('lookupCard', () => {
     const card = result.data[0];
     expect(card.customer_name).toBe(fakeCustomer.name);
     expect(card.customer_email).toBe(fakeCustomer.email);
-    expect(card.goal_reward).toEqual(fakeReward);
+    expect(card.goal).toEqual(fakeReward);
     expect(card.pending_redemptions).toEqual([]);
     // nested join object should be stripped
     expect(card.customers).toBeUndefined();

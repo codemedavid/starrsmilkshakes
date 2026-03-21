@@ -1,9 +1,12 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Plus, Minus, X, ShoppingCart } from 'lucide-react';
 import { MenuItem, Variation, AddOn } from '../types';
+import { getAddonSuggestions } from '@/actions/upsell';
+import { useUpsell } from '@/contexts/UpsellContext';
+import type { AddonSuggestion, UpsellCartItem } from '@/types/upsell';
 
 interface MenuItemCardProps {
   item: MenuItem;
@@ -19,11 +22,29 @@ const MenuItemCard: React.FC<MenuItemCardProps> = ({
   onUpdateQuantity
 }) => {
   const router = useRouter();
+  const { showUpgrade, showPair } = useUpsell();
+  const [navigating, setNavigating] = useState(false);
   const [showCustomization, setShowCustomization] = useState(false);
   const [selectedVariation, setSelectedVariation] = useState<Variation | undefined>(
     item.variations?.[0]
   );
   const [selectedAddOns, setSelectedAddOns] = useState<(AddOn & { quantity: number })[]>([]);
+  const [addonSuggestions, setAddonSuggestions] = useState<AddonSuggestion[]>([]);
+
+  useEffect(() => {
+    if (!showCustomization) return;
+
+    let cancelled = false;
+    getAddonSuggestions(item.id).then((result) => {
+      if (!cancelled && result.success && Array.isArray(result.data)) {
+        setAddonSuggestions(result.data);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [showCustomization, item.id]);
 
   const calculatePrice = () => {
     // Use effective price (discounted or regular) as base
@@ -38,11 +59,8 @@ const MenuItemCard: React.FC<MenuItemCardProps> = ({
   };
 
   const handleAddToCart = () => {
-    if (item.variations?.length || item.addOns?.length) {
-      setShowCustomization(true);
-    } else {
-      onAddToCart(item, 1);
-    }
+    // Navigate to product detail page for customization & add-to-cart
+    router.push(`/product/${item.id}`);
   };
 
   const handleCustomizedAddToCart = () => {
@@ -115,9 +133,30 @@ const MenuItemCard: React.FC<MenuItemCardProps> = ({
           className={`relative aspect-square rounded-2xl overflow-hidden transition-all duration-200 ${!item.available ? 'cursor-not-allowed' : 'cursor-pointer active:scale-[0.98]'
             }`}
           style={{ backgroundColor: '#00704A' }}
-          onClick={!item.available ? undefined : () => {
-            // Navigate to product details page using client-side navigation
-            router.push(`/product/${item.id}`);
+          onClick={!item.available ? undefined : async () => {
+            if (navigating) return;
+            setNavigating(true);
+
+            const result = await showUpgrade(item.id, item.category, item.effectivePrice || item.basePrice);
+
+            if (result === 'accepted') {
+              // Upgrade was accepted and added to cart by the overlay.
+              // Show pair suggestions using the original item's category context,
+              // then go back to menu.
+              const upgradeItem: UpsellCartItem = {
+                menu_item_id: item.id,
+                category: item.category,
+                quantity: 1,
+                unit_price: item.effectivePrice || item.basePrice,
+              };
+              await showPair([upgradeItem]);
+              setNavigating(false);
+              router.push('/');
+            } else {
+              // No upgrade or skipped — go to product detail for customization
+              router.push(`/product/${item.id}`);
+              setNavigating(false);
+            }
           }}
         >
           {/* Product Image - Cover Entire Card */}
@@ -281,6 +320,74 @@ const MenuItemCard: React.FC<MenuItemCardProps> = ({
               {groupedAddOns && Object.keys(groupedAddOns).length > 0 && (
                 <div className="mb-6">
                   <h4 className="font-bold text-starrs-teal-dark mb-4">Add-ons</h4>
+
+                  {/* Suggested add-ons */}
+                  {addonSuggestions.length > 0 && (
+                    <div className="mb-4">
+                      <div className="space-y-3">
+                        {addonSuggestions.map((suggestion) => {
+                          const addOn = suggestion.add_on;
+                          if (!addOn) return null;
+                          const selected = selectedAddOns.find((a) => a.id === addOn.id);
+                          return (
+                            <div
+                              key={suggestion.id}
+                              className="flex items-center justify-between p-4 border-2 border-starrs-teal/40 rounded-xl bg-starrs-teal-light/40 hover:border-starrs-teal transition-all duration-200"
+                            >
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+                                  <span className="inline-block bg-starrs-teal text-white text-[10px] font-semibold px-2 py-0.5 rounded-full">
+                                    Recommended
+                                  </span>
+                                  <span className="font-semibold text-starrs-teal-dark">{addOn.name}</span>
+                                </div>
+                                <div className="text-sm text-starrs-teal-dark/70">
+                                  {addOn.price > 0 ? `+₱${addOn.price.toFixed(2)}` : 'Free'}
+                                </div>
+                                {suggestion.suggestion_text && (
+                                  <p className="text-xs text-gray-500 mt-1 italic">{suggestion.suggestion_text}</p>
+                                )}
+                              </div>
+
+                              <div className="flex items-center space-x-2 ml-3">
+                                {selected ? (
+                                  <div className="flex items-center space-x-2 bg-starrs-teal-light rounded-xl p-1 border-2 border-starrs-teal/30">
+                                    <button
+                                      type="button"
+                                      onClick={() => updateAddOnQuantity(addOn, (selected.quantity || 1) - 1)}
+                                      className="p-1.5 hover:bg-starrs-teal/20 rounded-lg transition-colors duration-200"
+                                    >
+                                      <Minus className="h-3 w-3 text-starrs-teal-dark" />
+                                    </button>
+                                    <span className="font-semibold text-starrs-teal-dark min-w-[24px] text-center text-sm">
+                                      {selected.quantity}
+                                    </span>
+                                    <button
+                                      type="button"
+                                      onClick={() => updateAddOnQuantity(addOn, (selected.quantity || 0) + 1)}
+                                      className="p-1.5 hover:bg-starrs-teal/20 rounded-lg transition-colors duration-200"
+                                    >
+                                      <Plus className="h-3 w-3 text-starrs-teal-dark" />
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() => updateAddOnQuantity(addOn, 1)}
+                                    className="flex items-center space-x-1 px-4 py-2 bg-gradient-to-r from-starrs-teal to-starrs-teal-dark text-white rounded-xl hover:from-starrs-teal-dark hover:to-starrs-teal-darker transition-all duration-200 text-sm font-semibold shadow-lg"
+                                  >
+                                    <Plus className="h-3 w-3" />
+                                    <span>Add</span>
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
                   {Object.entries(groupedAddOns).map(([category, addOns]) => (
                     <div key={category} className="mb-4">
                       <h5 className="text-sm font-semibold text-starrs-teal-dark/80 mb-3 capitalize">

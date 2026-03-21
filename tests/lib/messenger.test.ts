@@ -68,6 +68,26 @@ describe('messenger send helpers', () => {
     expect(buildCartSummary([])).toBe('Your cart is empty.');
   });
 
+  it('buildCartSummary includes add-on names', async () => {
+    const { buildCartSummary } = await import('../../src/lib/messenger');
+    const cart = [
+      { name: 'Iced Latte', variation: 'Large', quantity: 1, unitPrice: 200, addOns: ['Whip Cream', 'Extra Shot'] },
+    ];
+    const result = buildCartSummary(cart);
+    expect(result).toContain('Iced Latte (Large) + Whip Cream, Extra Shot');
+    expect(result).toContain('₱200');
+  });
+
+  it('buildCartSummary works without addOns', async () => {
+    const { buildCartSummary } = await import('../../src/lib/messenger');
+    const cart = [
+      { name: 'Cookie Dough', variation: null, quantity: 2, unitPrice: 150 },
+    ];
+    const result = buildCartSummary(cart);
+    expect(result).toContain('Cookie Dough x2');
+    expect(result).toContain('₱300');
+  });
+
   it('buildStatusMessage returns correct messages for each status', async () => {
     const { buildStatusMessage } = await import('../../src/lib/messenger');
     expect(buildStatusMessage('1001', 'confirmed')).toContain('#1001');

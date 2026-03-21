@@ -6,13 +6,16 @@ import {
   calculateEarnings,
   checkGoalReached,
   calculateCarryover,
+  checkMilestonesReached,
 } from '@/lib/loyalty-engine';
 import type {
   LoyaltyConfig,
   LoyaltyBooster,
   LoyaltyOrderItem,
   LoyaltyCard,
-  LoyaltyReward,
+  LoyaltyGoal,
+  LoyaltyMilestone,
+  LoyaltyMilestoneClaim,
 } from '@/types/loyalty';
 
 // ─── Shared fixtures ──────────────────────────────────────────────────────────
@@ -61,7 +64,7 @@ const baseCard = (overrides: Partial<LoyaltyCard> = {}): LoyaltyCard => ({
   card_code: 'ABCD1234',
   current_stamps: 0,
   current_points: 0,
-  goal_reward_id: null,
+  goal_id: null,
   lifetime_stamps: 0,
   lifetime_points: 0,
   created_at: '2026-01-01T00:00:00Z',
@@ -69,7 +72,7 @@ const baseCard = (overrides: Partial<LoyaltyCard> = {}): LoyaltyCard => ({
   ...overrides,
 });
 
-const baseReward = (overrides: Partial<LoyaltyReward> = {}): LoyaltyReward => ({
+const baseReward = (overrides: Partial<LoyaltyGoal> = {}): LoyaltyGoal => ({
   id: 'reward-1',
   name: 'Free Shake',
   description: null,
@@ -218,26 +221,26 @@ describe('findActiveBoosters', () => {
   });
 
   it('returns booster when filter_mode=categories and a category matches', () => {
-    const booster = baseBooster({ filter_mode: 'categories', filter_ids: ['cat-1'] });
+    const booster = baseBooster({ filter_mode: 'category', filter_ids: ['cat-1'] });
     const result = findActiveBoosters([booster], items, NOW);
     expect(result).not.toBeNull();
     expect(result!.id).toBe('boost-1');
   });
 
   it('returns null when filter_mode=categories and no category matches', () => {
-    const booster = baseBooster({ filter_mode: 'categories', filter_ids: ['cat-99'] });
+    const booster = baseBooster({ filter_mode: 'category', filter_ids: ['cat-99'] });
     expect(findActiveBoosters([booster], items, NOW)).toBeNull();
   });
 
   it('returns booster when filter_mode=items and an item matches', () => {
-    const booster = baseBooster({ filter_mode: 'items', filter_ids: ['item-1'] });
+    const booster = baseBooster({ filter_mode: 'item', filter_ids: ['item-1'] });
     const result = findActiveBoosters([booster], items, NOW);
     expect(result).not.toBeNull();
     expect(result!.id).toBe('boost-1');
   });
 
   it('returns null when filter_mode=items and no item matches', () => {
-    const booster = baseBooster({ filter_mode: 'items', filter_ids: ['item-99'] });
+    const booster = baseBooster({ filter_mode: 'item', filter_ids: ['item-99'] });
     expect(findActiveBoosters([booster], items, NOW)).toBeNull();
   });
 
@@ -250,12 +253,12 @@ describe('findActiveBoosters', () => {
   });
 
   it('returns null when filter_mode=categories with empty filter_ids', () => {
-    const booster = baseBooster({ filter_mode: 'categories', filter_ids: [] });
+    const booster = baseBooster({ filter_mode: 'category', filter_ids: [] });
     expect(findActiveBoosters([booster], items, NOW)).toBeNull();
   });
 
   it('returns null when filter_mode=items with empty filter_ids', () => {
-    const booster = baseBooster({ filter_mode: 'items', filter_ids: [] });
+    const booster = baseBooster({ filter_mode: 'item', filter_ids: [] });
     expect(findActiveBoosters([booster], items, NOW)).toBeNull();
   });
 });
@@ -302,10 +305,26 @@ describe('calculateEarnings', () => {
     expect(result.qualifying_total).toBe(0);
   });
 
-  it('returns 1 stamp for a qualifying order regardless of subtotal', () => {
+  it('returns stamps based on qualifying quantity × stamps_per_order', () => {
     const cfg = baseConfig({ stamps_per_order: 1 });
-    const result = calculateEarnings([baseItem({ subtotal: 999 })], cfg, [], NOW);
+    const result = calculateEarnings([baseItem({ quantity: 1, subtotal: 999 })], cfg, [], NOW);
     expect(result.stamps).toBe(1);
+  });
+
+  it('returns stamps scaled by item quantity', () => {
+    const cfg = baseConfig({ stamps_per_order: 1 });
+    const result = calculateEarnings([baseItem({ quantity: 3, subtotal: 300 })], cfg, [], NOW);
+    expect(result.stamps).toBe(3);
+  });
+
+  it('sums quantity across multiple qualifying items', () => {
+    const cfg = baseConfig({ stamps_per_order: 1 });
+    const items = [
+      baseItem({ quantity: 2, subtotal: 200 }),
+      baseItem({ menu_item_id: 'item-2', category_id: 'cat-2', quantity: 3, subtotal: 300 }),
+    ];
+    const result = calculateEarnings(items, cfg, [], NOW);
+    expect(result.stamps).toBe(5); // 2 + 3
   });
 
   it('calculates points as floor(qualifying_total × points_per_peso)', () => {
@@ -497,5 +516,62 @@ describe('calculateCarryover', () => {
     const reward = baseReward({ stamps_required: 10, points_required: null });
     const result = calculateCarryover(card, reward);
     expect(result.stamps).toBe(-7);
+  });
+});
+
+// ─── checkMilestonesReached ───────────────────────────────────────────────────
+
+const baseMilestone = (overrides: Partial<LoyaltyMilestone> = {}): LoyaltyMilestone => ({
+  id: 'ms-1',
+  name: 'Free Sticker',
+  description: null,
+  image_url: null,
+  stamps_required: 5,
+  is_active: true,
+  sort_order: 0,
+  created_at: '2026-01-01T00:00:00Z',
+  updated_at: '2026-01-01T00:00:00Z',
+  ...overrides,
+});
+
+describe('checkMilestonesReached', () => {
+  it('returns milestones whose stamps_required <= current_stamps', () => {
+    const milestones = [
+      baseMilestone({ id: 'ms-1', stamps_required: 3 }),
+      baseMilestone({ id: 'ms-2', stamps_required: 5 }),
+      baseMilestone({ id: 'ms-3', stamps_required: 10 }),
+    ];
+    const result = checkMilestonesReached(5, milestones, []);
+    expect(result.map((m) => m.id)).toEqual(['ms-1', 'ms-2']);
+  });
+
+  it('excludes already claimed milestones', () => {
+    const milestones = [
+      baseMilestone({ id: 'ms-1', stamps_required: 3 }),
+      baseMilestone({ id: 'ms-2', stamps_required: 5 }),
+    ];
+    const existingClaims: Pick<LoyaltyMilestoneClaim, 'milestone_id'>[] = [
+      { milestone_id: 'ms-1' },
+    ];
+    const result = checkMilestonesReached(5, milestones, existingClaims);
+    expect(result.map((m) => m.id)).toEqual(['ms-2']);
+  });
+
+  it('returns empty when no milestones crossed', () => {
+    const milestones = [baseMilestone({ stamps_required: 10 })];
+    expect(checkMilestonesReached(3, milestones, [])).toEqual([]);
+  });
+
+  it('returns empty when all crossed milestones already claimed', () => {
+    const milestones = [baseMilestone({ id: 'ms-1', stamps_required: 3 })];
+    const claims: Pick<LoyaltyMilestoneClaim, 'milestone_id'>[] = [
+      { milestone_id: 'ms-1' },
+    ];
+    expect(checkMilestonesReached(5, milestones, claims)).toEqual([]);
+  });
+
+  it('only considers active milestones (inactive filtered before calling)', () => {
+    const milestones = [baseMilestone({ stamps_required: 3 })];
+    expect(checkMilestonesReached(5, milestones, [])).toHaveLength(1);
   });
 });

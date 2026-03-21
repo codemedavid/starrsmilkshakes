@@ -159,7 +159,7 @@ export function buildProductCards(
 }
 
 export function buildCartSummary(
-  cart: Array<{ name: string; variation: string | null; quantity: number; unitPrice: number }>
+  cart: Array<{ name: string; variation: string | null; quantity: number; unitPrice: number; addOns?: string[] }>
 ): string {
   if (cart.length === 0) return 'Your cart is empty.';
 
@@ -168,7 +168,8 @@ export function buildCartSummary(
     const itemTotal = item.unitPrice * item.quantity;
     total += itemTotal;
     const variationStr = item.variation ? ` (${item.variation})` : '';
-    return `${i + 1}. ${item.name}${variationStr} x${item.quantity} — ₱${itemTotal}`;
+    const addOnStr = item.addOns && item.addOns.length > 0 ? ` + ${item.addOns.join(', ')}` : '';
+    return `${i + 1}. ${item.name}${variationStr}${addOnStr} x${item.quantity} — ₱${itemTotal}`;
   });
 
   lines.push(`\nTotal: ₱${total}`);
@@ -206,4 +207,39 @@ export function buildStatusMessage(
     cancelled: `Your order #${orderNumber} has been cancelled. Please contact us if you have questions.`,
   };
   return messages[status] || `Your order #${orderNumber} status has been updated to: ${status}`;
+}
+
+export async function setupMessengerProfile(pageToken: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    // Set persistent menu
+    const menuResponse = await fetch(`${GRAPH_API_BASE}/me/messenger_profile`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${pageToken}`,
+      },
+      body: JSON.stringify({
+        persistent_menu: [
+          {
+            locale: 'default',
+            composer_input_disabled: false,
+            call_to_actions: [
+              { type: 'web_url', title: 'Order Online', url: 'https://starrsmilkshake.com' },
+              { type: 'postback', title: 'Browse Menu', payload: 'MAIN_MENU' },
+              { type: 'postback', title: 'My Loyalty Card', payload: 'LOYALTY_CARD' },
+            ],
+          },
+        ],
+      }),
+    });
+
+    if (!menuResponse.ok) {
+      const error = await menuResponse.json().catch(() => ({}));
+      return { success: false, error: `Persistent menu failed: ${JSON.stringify(error)}` };
+    }
+
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: String(err) };
+  }
 }

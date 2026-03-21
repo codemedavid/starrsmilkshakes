@@ -71,6 +71,7 @@ export const menuItemSchema = z.object({
   discountStartDate: z.string().optional().nullable(),
   discountEndDate: z.string().optional().nullable(),
   discountActive: z.boolean().optional().default(false),
+  costPrice: z.number().min(0).nullable().optional(),
 });
 
 export type MenuItemInput = z.infer<typeof menuItemSchema>;
@@ -158,16 +159,16 @@ export const loyaltyConfigSchema = z.object({
   points_per_peso: z.number().min(0),
   stamps_per_order: z.number().int().min(1),
   filter_mode: z.enum(['allowlist', 'blocklist']),
-  filtered_category_ids: z.array(z.string().uuid()),
-  filtered_item_ids: z.array(z.string().uuid()),
-  claim_window_days: z.number().int().min(1).max(90),
+  filtered_category_ids: z.array(z.string().min(1)),
+  filtered_item_ids: z.array(z.string().min(1)),
+  claim_window_days: z.number().int().min(1).max(365),
 });
 
 export type LoyaltyConfigInput = z.infer<typeof loyaltyConfigSchema>;
 
-// ─── Loyalty Reward ──────────────────────────────────────────────────────────
+// ─── Loyalty Goal ────────────────────────────────────────────────────────────
 
-export const loyaltyRewardSchema = z.object({
+export const loyaltyGoalSchema = z.object({
   name: sanitized.pipe(z.string().min(1).max(100)),
   description: sanitized.pipe(z.string().max(500)).nullable().optional(),
   image_url: z.string().url().nullable().optional(),
@@ -177,7 +178,20 @@ export const loyaltyRewardSchema = z.object({
   sort_order: z.number().int().optional(),
 });
 
-export type LoyaltyRewardInput = z.infer<typeof loyaltyRewardSchema>;
+export type LoyaltyGoalInput = z.infer<typeof loyaltyGoalSchema>;
+
+// ─── Loyalty Milestone ────────────────────────────────────────────────────────
+
+export const loyaltyMilestoneSchema = z.object({
+  name: sanitized.pipe(z.string().min(1).max(100)),
+  description: sanitized.pipe(z.string().max(500)).nullable().optional(),
+  image_url: z.string().url().nullable().optional(),
+  stamps_required: z.number().int().min(1),
+  is_active: z.boolean().optional(),
+  sort_order: z.number().int().optional(),
+});
+
+export type LoyaltyMilestoneInput = z.infer<typeof loyaltyMilestoneSchema>;
 
 // ─── Loyalty Booster ─────────────────────────────────────────────────────────
 
@@ -185,11 +199,143 @@ export const loyaltyBoosterSchema = z.object({
   name: sanitized.pipe(z.string().min(1).max(100)),
   multiplier: z.number().min(1.1).max(10),
   applies_to: z.enum(['stamps', 'points', 'both']),
-  filter_mode: z.enum(['all', 'categories', 'items']),
-  filter_ids: z.array(z.string().uuid()),
+  filter_mode: z.enum(['all', 'category', 'item']),
+  filter_ids: z.array(z.string().min(1)),
   starts_at: z.string().min(1),
   ends_at: z.string().min(1),
   is_active: z.boolean().optional(),
 });
 
 export type LoyaltyBoosterInput = z.infer<typeof loyaltyBoosterSchema>;
+
+// ─── Cost Tracking ──────────────────────────────────────────────────────────
+
+export const updateItemCostSchema = z.object({
+  itemId: z.string().uuid(),
+  costPrice: z.number().min(0).nullable(),
+});
+
+export type UpdateItemCostInput = z.infer<typeof updateItemCostSchema>;
+
+export const updateVariationCostSchema = z.object({
+  variationId: z.string().uuid(),
+  costPrice: z.number().min(0).nullable(),
+});
+
+export type UpdateVariationCostInput = z.infer<typeof updateVariationCostSchema>;
+
+export const updateAddOnCostSchema = z.object({
+  addOnId: z.string().uuid(),
+  costPrice: z.number().min(0).nullable(),
+});
+
+export type UpdateAddOnCostInput = z.infer<typeof updateAddOnCostSchema>;
+
+export const bulkImportCostItemSchema = z.object({
+  name: z.string().min(1),
+  costPrice: z.number().min(0),
+});
+
+export const bulkImportCostsSchema = z.object({
+  items: z.array(bulkImportCostItemSchema).min(1),
+});
+
+export type BulkImportCostsInput = z.infer<typeof bulkImportCostsSchema>;
+
+// ─── Bundle ─────────────────────────────────────────────────────────────────
+
+const bundleSlotItemSchema = z.object({
+  menu_item_id: z.string().uuid(),
+  price_override: z.number().min(0).nullable().optional(),
+  sort_order: z.number().int().min(0).optional().default(0),
+});
+
+const bundleSlotSchema = z.object({
+  label: z.string().min(1, 'Slot label is required').max(100),
+  sort_order: z.number().int().min(0).optional().default(0),
+  min_selections: z.number().int().min(0).default(1),
+  max_selections: z.number().int().min(1).default(1),
+  items: z.array(bundleSlotItemSchema).min(1, 'Each slot needs at least one item'),
+}).refine(
+  (data) => data.max_selections >= data.min_selections,
+  { message: 'max_selections must be >= min_selections' }
+);
+
+export const createBundleSchema = z.object({
+  name: sanitized.pipe(z.string().min(1, 'Bundle name is required').max(200)),
+  description: z.string().max(500).nullable().optional(),
+  image_url: z.string().url().nullable().optional(),
+  base_price: z.number().positive('Price must be greater than zero'),
+  cost_price: z.number().min(0).nullable().optional(),
+  category: z.string().min(1, 'Category is required'),
+  discount_price: z.number().min(0).nullable().optional(),
+  discount_active: z.boolean().optional().default(false),
+  discount_start_date: z.string().nullable().optional(),
+  discount_end_date: z.string().nullable().optional(),
+  available: z.boolean().optional().default(true),
+  popular: z.boolean().optional().default(false),
+  sort_order: z.number().int().min(0).optional().default(0),
+  slots: z.array(bundleSlotSchema).min(1, 'Bundle needs at least one slot'),
+});
+
+export type CreateBundleInput = z.infer<typeof createBundleSchema>;
+
+export const updateBundleSchema = createBundleSchema;
+
+export type UpdateBundleInput = z.infer<typeof updateBundleSchema>;
+
+// ─── Upsell ─────────────────────────────────────────────────────────────────
+
+export const upsellRuleSchema = z.object({
+  name: sanitized.pipe(z.string().min(1, 'Rule name is required').max(200)),
+  phase: z.enum(['upgrade', 'best_pair', 'interstitial']),
+  trigger_type: z.enum(['item', 'category', 'cart_total', 'cart_empty_category']),
+  trigger_item_ids: z.array(z.string().uuid()).optional().default([]),
+  trigger_category_ids: z.array(z.string().min(1)).optional().default([]),
+  trigger_min_total: z.number().min(0).nullable().optional(),
+  offer_type: z.enum(['item', 'bundle', 'discount', 'loyalty_nudge']),
+  offer_item_id: z.string().uuid().nullable().optional(),
+  offer_bundle_id: z.string().uuid().nullable().optional(),
+  offer_discount_percent: z.number().min(1).max(100).nullable().optional(),
+  offer_message: z.string().max(500).nullable().optional(),
+  priority: z.number().int().min(0).optional().default(0),
+  is_active: z.boolean().optional().default(true),
+  starts_at: z.string().nullable().optional(),
+  ends_at: z.string().nullable().optional(),
+});
+
+export type UpsellRuleInput = z.infer<typeof upsellRuleSchema>;
+
+export const addonSuggestionInputSchema = z.object({
+  add_on_id: z.string().uuid(),
+  suggestion_text: z.string().max(200).nullable().optional(),
+  sort_order: z.number().int().min(0).optional().default(0),
+  is_active: z.boolean().optional().default(true),
+  starts_at: z.string().nullable().optional(),
+  ends_at: z.string().nullable().optional(),
+});
+
+export const setAddonSuggestionsSchema = z.object({
+  menu_item_id: z.string().uuid(),
+  suggestions: z.array(addonSuggestionInputSchema),
+});
+
+export type SetAddonSuggestionsInput = z.infer<typeof setAddonSuggestionsSchema>;
+
+export const pairRuleSchema = z.object({
+  source_item_id: z.string().uuid().nullable().optional(),
+  source_category_id: z.string().min(1).nullable().optional(),
+  paired_item_id: z.string().uuid().nullable().optional(),
+  paired_bundle_id: z.string().uuid().nullable().optional(),
+  message: z.string().max(500).nullable().optional(),
+  priority: z.number().int().min(0).optional().default(0),
+  is_active: z.boolean().optional().default(true),
+}).refine(
+  (data) => (data.source_item_id != null) !== (data.source_category_id != null),
+  { message: 'Exactly one of source_item_id or source_category_id must be set' }
+).refine(
+  (data) => (data.paired_item_id != null) !== (data.paired_bundle_id != null),
+  { message: 'Exactly one of paired_item_id or paired_bundle_id must be set' }
+);
+
+export type PairRuleInput = z.infer<typeof pairRuleSchema>;

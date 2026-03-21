@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { AlertTriangle, CheckCircle, ChevronDown, ChevronRight, Pencil, Plus, X } from 'lucide-react';
+import { AlertTriangle, CheckCircle, ChevronDown, ChevronRight, Info, Pencil, Plus, X, Zap } from 'lucide-react';
 import type { LoyaltyBooster, BoosterAppliesTo, BoosterFilterMode } from '@/types/loyalty';
 import { useLoyaltyBoosters } from '@/hooks/useLoyaltyBoosters';
 
@@ -32,7 +32,7 @@ const emptyForm = (): BoosterFormValues => ({
 });
 
 function boosterToForm(b: LoyaltyBooster): BoosterFormValues {
-  // datetime-local expects "YYYY-MM-DDTHH:mm" — trim the seconds/timezone
+  // datetime-local expects "YYYY-MM-DDTHH:mm" -- trim the seconds/timezone
   const toLocal = (iso: string) => iso ? iso.slice(0, 16) : '';
   return {
     name: b.name,
@@ -68,20 +68,19 @@ function formatDateRange(starts_at: string, ends_at: string): string {
     const d = new Date(iso);
     return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   };
-  if (!starts_at && !ends_at) return '—';
+  if (!starts_at && !ends_at) return 'Always active';
   if (!starts_at) return `Until ${fmt(ends_at)}`;
   if (!ends_at) return `From ${fmt(starts_at)}`;
-  return `${fmt(starts_at)} – ${fmt(ends_at)}`;
+  return `${fmt(starts_at)} - ${fmt(ends_at)}`;
 }
 
 function filterLabel(mode: BoosterFilterMode, ids: string[]): string {
   if (mode === 'all') return 'All items';
   const count = ids.length;
-  const noun = mode === 'categories' ? 'categor' : 'item';
-  const plural = mode === 'categories'
-    ? count === 1 ? 'category' : 'categories'
-    : count === 1 ? 'item' : 'items';
-  return `${count} ${count === 1 ? noun + (mode === 'categories' ? 'y' : '') : plural}`;
+  if (mode === 'category') {
+    return `${count} ${count === 1 ? 'category' : 'categories'}`;
+  }
+  return `${count} ${count === 1 ? 'item' : 'items'}`;
 }
 
 function appliesToLabel(v: BoosterAppliesTo): string {
@@ -105,27 +104,58 @@ interface BoosterFormProps {
   saving: boolean;
   onSave: (values: BoosterFormValues) => Promise<void>;
   onCancel: () => void;
+  isEditing?: boolean;
 }
 
-function BoosterForm({ initialValues, saving, onSave, onCancel }: BoosterFormProps) {
+function BoosterForm({ initialValues, saving, onSave, onCancel, isEditing = false }: BoosterFormProps) {
   const [values, setValues] = useState<BoosterFormValues>(initialValues);
+  const [validationError, setValidationError] = useState<string | null>(null);
 
-  const set = <K extends keyof BoosterFormValues>(key: K, value: BoosterFormValues[K]) =>
+  const set = <K extends keyof BoosterFormValues>(key: K, value: BoosterFormValues[K]) => {
     setValues(prev => ({ ...prev, [key]: value }));
+    setValidationError(null);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!values.name.trim() || !values.multiplier) return;
+    if (!values.name.trim()) {
+      setValidationError('Booster name is required.');
+      return;
+    }
+    if (!values.multiplier || Number(values.multiplier) < 1.1) {
+      setValidationError('Multiplier must be at least 1.1x.');
+      return;
+    }
+    if (!values.starts_at || !values.ends_at) {
+      setValidationError('Both start and end dates are required.');
+      return;
+    }
+    if (new Date(values.starts_at) >= new Date(values.ends_at)) {
+      setValidationError('End date must be after start date.');
+      return;
+    }
+    setValidationError(null);
     await onSave(values);
   };
 
   const inputClass =
-    'w-full bg-[#F8F6F3] border border-[#E8E3DA] rounded-lg px-3 py-2 text-sm text-stone-800 focus:ring-2 focus:ring-[#7BBFB5] focus:border-transparent outline-none';
+    'w-full bg-[#F8F6F3] border border-[#E8E3DA] rounded-lg px-3 py-2 text-sm text-stone-800 focus:ring-2 focus:ring-[#7BBFB5] focus:border-transparent outline-none font-nunito';
 
   const showFilterIds = values.filter_mode !== 'all';
 
   return (
-    <form onSubmit={handleSubmit} className="bg-white border border-[#7BBFB5] rounded-xl p-4 space-y-3">
+    <form onSubmit={handleSubmit} className="bg-white border-2 border-[#7BBFB5] rounded-xl p-4 space-y-3 shadow-sm">
+      <p className="text-xs font-nunito font-semibold text-[#3D8A80] uppercase tracking-wide">
+        {isEditing ? 'Edit Booster' : 'New Booster'}
+      </p>
+
+      {validationError && (
+        <div className="flex items-center gap-2 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg">
+          <Info className="h-3.5 w-3.5 text-amber-600 shrink-0" />
+          <p className="font-nunito text-xs text-amber-700">{validationError}</p>
+        </div>
+      )}
+
       {/* Name */}
       <div>
         <label className="block text-xs font-nunito font-medium text-stone-500 uppercase tracking-wide mb-1.5">
@@ -138,6 +168,7 @@ function BoosterForm({ initialValues, saving, onSave, onCancel }: BoosterFormPro
           onChange={e => set('name', e.target.value)}
           placeholder="e.g. Weekend Double Points"
           className={inputClass}
+          autoFocus
         />
       </div>
 
@@ -147,16 +178,19 @@ function BoosterForm({ initialValues, saving, onSave, onCancel }: BoosterFormPro
           <label className="block text-xs font-nunito font-medium text-stone-500 uppercase tracking-wide mb-1.5">
             Multiplier <span className="text-red-500">*</span>
           </label>
-          <input
-            type="number"
-            required
-            min={1.1}
-            step={0.1}
-            value={values.multiplier}
-            onChange={e => set('multiplier', e.target.value)}
-            placeholder="e.g. 2"
-            className={inputClass}
-          />
+          <div className="relative">
+            <input
+              type="number"
+              required
+              min={1.1}
+              step={0.1}
+              value={values.multiplier}
+              onChange={e => set('multiplier', e.target.value)}
+              placeholder="e.g. 2"
+              className={inputClass}
+            />
+            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-stone-400">x</span>
+          </div>
         </div>
         <div>
           <label className="block text-xs font-nunito font-medium text-stone-500 uppercase tracking-wide mb-1.5">
@@ -178,7 +212,7 @@ function BoosterForm({ initialValues, saving, onSave, onCancel }: BoosterFormPro
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className="block text-xs font-nunito font-medium text-stone-500 uppercase tracking-wide mb-1.5">
-            Starts At
+            Starts At <span className="text-red-500">*</span>
           </label>
           <input
             type="datetime-local"
@@ -188,14 +222,14 @@ function BoosterForm({ initialValues, saving, onSave, onCancel }: BoosterFormPro
           />
         </div>
         <div>
-          <label className="block text-xs font-nunito font-medium text-stone-500 uppercase tracking-wide mb-1.5">
-            Ends At
+          <label className="block text-xs font-nunito font-medium text-stone-500">
+            <span className="uppercase tracking-wide text-xs font-medium">Ends At <span className="text-red-500">*</span></span>
           </label>
           <input
             type="datetime-local"
             value={values.ends_at}
             onChange={e => set('ends_at', e.target.value)}
-            className={inputClass}
+            className={`${inputClass} mt-1.5`}
           />
         </div>
       </div>
@@ -211,8 +245,8 @@ function BoosterForm({ initialValues, saving, onSave, onCancel }: BoosterFormPro
           className={inputClass}
         >
           <option value="all">All items</option>
-          <option value="categories">Specific categories</option>
-          <option value="items">Specific items</option>
+          <option value="category">Specific Categories</option>
+          <option value="item">Specific Items</option>
         </select>
       </div>
 
@@ -220,8 +254,8 @@ function BoosterForm({ initialValues, saving, onSave, onCancel }: BoosterFormPro
       {showFilterIds && (
         <div>
           <label className="block text-xs font-nunito font-medium text-stone-500 uppercase tracking-wide mb-1.5">
-            {values.filter_mode === 'categories' ? 'Category' : 'Item'} IDs
-            <span className="ml-1 font-normal normal-case">(one UUID per line)</span>
+            {values.filter_mode === 'category' ? 'Category' : 'Item'} IDs
+            <span className="ml-1 font-normal normal-case text-stone-400">(one UUID per line)</span>
           </label>
           <textarea
             rows={3}
@@ -238,7 +272,7 @@ function BoosterForm({ initialValues, saving, onSave, onCancel }: BoosterFormPro
           type="button"
           onClick={onCancel}
           disabled={saving}
-          className="border border-[#E8E3DA] text-stone-600 px-3 py-1.5 rounded-lg text-sm hover:bg-[#F2EEE8] transition-colors disabled:opacity-50"
+          className="border border-[#E8E3DA] text-stone-600 px-3 py-1.5 rounded-lg text-sm font-nunito hover:bg-[#F2EEE8] transition-colors disabled:opacity-50"
         >
           Cancel
         </button>
@@ -247,7 +281,14 @@ function BoosterForm({ initialValues, saving, onSave, onCancel }: BoosterFormPro
           disabled={saving || !values.name.trim() || !values.multiplier}
           className="bg-[#3D8A80] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#356E66] transition-colors disabled:opacity-50"
         >
-          {saving ? 'Saving…' : 'Save'}
+          {saving ? (
+            <span className="flex items-center gap-2">
+              <span className="inline-block w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              Saving...
+            </span>
+          ) : (
+            isEditing ? 'Update Booster' : 'Create Booster'
+          )}
         </button>
       </div>
     </form>
@@ -264,80 +305,128 @@ interface BoosterCardProps {
 }
 
 function BoosterCard({ booster, saving, onEdit, onToggle }: BoosterCardProps) {
+  const [showConfirm, setShowConfirm] = useState(false);
   const expired = isExpired(booster.ends_at);
   const upcoming = isUpcoming(booster.starts_at);
   const dimmed = !booster.is_active || expired;
 
   let statusDot: React.ReactNode;
+  let statusLabel: string;
   if (expired) {
-    statusDot = <span className="inline-block w-2 h-2 rounded-full bg-stone-300" aria-label="Expired" />;
-  } else if (booster.is_active && !upcoming) {
-    statusDot = <span className="inline-block w-2 h-2 rounded-full bg-emerald-500" aria-label="Active" />;
+    statusDot = <span className="inline-block w-2 h-2 rounded-full bg-stone-300" />;
+    statusLabel = 'Expired';
+  } else if (upcoming) {
+    statusDot = <span className="inline-block w-2 h-2 rounded-full bg-blue-400" />;
+    statusLabel = 'Upcoming';
+  } else if (booster.is_active) {
+    statusDot = <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />;
+    statusLabel = 'Active';
   } else {
-    statusDot = <span className="inline-block w-2 h-2 rounded-full bg-stone-300" aria-label="Inactive" />;
+    statusDot = <span className="inline-block w-2 h-2 rounded-full bg-stone-300" />;
+    statusLabel = 'Disabled';
   }
 
+  const handleToggle = () => {
+    if (booster.is_active) {
+      setShowConfirm(true);
+    } else {
+      onToggle(booster.id, true);
+    }
+  };
+
+  const confirmDisable = () => {
+    setShowConfirm(false);
+    onToggle(booster.id, false);
+  };
+
   return (
-    <div className={`bg-white border border-[#E8E3DA] rounded-xl p-4 flex items-start gap-4 transition-opacity ${dimmed ? 'opacity-60' : ''}`}>
-      {/* Left: status dot + name + meta */}
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 flex-wrap">
-          {statusDot}
-          <p className="text-sm font-medium text-stone-800 truncate">{booster.name}</p>
-          <span className="bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full text-xs font-bold">
-            {booster.multiplier}x
-          </span>
-          <span className="text-xs px-2 py-0.5 rounded-full bg-stone-100 text-stone-600 font-medium">
-            {appliesToLabel(booster.applies_to)}
-          </span>
-          {expired && (
-            <span className="text-xs px-2 py-0.5 rounded-full bg-stone-100 text-stone-500">
-              Expired
+    <div className={`bg-white border border-[#E8E3DA] rounded-xl p-4 transition-all hover:shadow-sm ${dimmed ? 'opacity-60' : ''}`}>
+      <div className="flex items-start gap-4">
+        {/* Left: status dot + name + meta */}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            {statusDot}
+            <p className="text-sm font-medium text-stone-800 truncate font-nunito">{booster.name}</p>
+            <span className="bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full text-xs font-bold font-nunito">
+              {booster.multiplier}x
             </span>
-          )}
-          {!booster.is_active && !expired && (
-            <span className="text-xs px-2 py-0.5 rounded-full bg-stone-100 text-stone-500">
-              Disabled
+            <span className="text-xs px-2 py-0.5 rounded-full bg-stone-100 text-stone-600 font-medium font-nunito">
+              {appliesToLabel(booster.applies_to)}
             </span>
-          )}
+            {expired && (
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-red-50 text-red-500 font-medium uppercase tracking-wide">
+                Expired
+              </span>
+            )}
+            {!booster.is_active && !expired && (
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-stone-100 text-stone-500 font-medium uppercase tracking-wide">
+                Disabled
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-3 mt-1.5 flex-wrap">
+            <p className="text-xs text-stone-500 font-nunito">
+              {formatDateRange(booster.starts_at, booster.ends_at)}
+            </p>
+            <span className="text-stone-300 text-xs">|</span>
+            <p className="text-xs text-stone-500 font-nunito">
+              {filterLabel(booster.filter_mode, booster.filter_ids)}
+            </p>
+          </div>
         </div>
-        <div className="flex items-center gap-3 mt-1 flex-wrap">
-          <p className="text-xs text-stone-500">
-            {formatDateRange(booster.starts_at, booster.ends_at)}
-          </p>
-          <span className="text-stone-300 text-xs">·</span>
-          <p className="text-xs text-stone-500">
-            {filterLabel(booster.filter_mode, booster.filter_ids)}
-          </p>
+
+        {/* Right: actions */}
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            type="button"
+            onClick={() => onEdit(booster)}
+            aria-label={`Edit ${booster.name}`}
+            className="border border-[#E8E3DA] text-stone-600 px-3 py-1.5 rounded-lg text-sm font-nunito hover:bg-[#F2EEE8] transition-colors inline-flex items-center gap-1.5"
+          >
+            <Pencil className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Edit</span>
+          </button>
+          {!expired && (
+            <button
+              type="button"
+              onClick={handleToggle}
+              disabled={saving}
+              className={`text-sm font-nunito font-medium transition-colors disabled:opacity-50 px-2 py-1.5 rounded-lg ${
+                booster.is_active
+                  ? 'text-red-500 hover:text-red-600 hover:bg-red-50'
+                  : 'text-[#3D8A80] hover:text-[#356E66] hover:bg-[#7BBFB5]/10'
+              }`}
+            >
+              {booster.is_active ? 'Disable' : 'Enable'}
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Right: actions */}
-      <div className="flex items-center gap-2 shrink-0">
-        <button
-          type="button"
-          onClick={() => onEdit(booster)}
-          aria-label={`Edit ${booster.name}`}
-          className="border border-[#E8E3DA] text-stone-600 px-3 py-1.5 rounded-lg text-sm hover:bg-[#F2EEE8] transition-colors inline-flex items-center gap-1.5"
-        >
-          <Pencil className="h-3.5 w-3.5" />
-          Edit
-        </button>
-        {!expired && (
-          <button
-            type="button"
-            onClick={() => onToggle(booster.id, !booster.is_active)}
-            disabled={saving}
-            className={`text-sm transition-colors disabled:opacity-50 ${
-              booster.is_active
-                ? 'text-red-500 hover:text-red-600'
-                : 'text-[#3D8A80] hover:text-[#356E66]'
-            }`}
-          >
-            {booster.is_active ? 'Disable' : 'Enable'}
-          </button>
-        )}
-      </div>
+      {/* Confirmation dialog for disable */}
+      {showConfirm && (
+        <div className="mt-3 pt-3 border-t border-[#E8E3DA] flex items-center justify-between gap-4">
+          <p className="text-xs font-nunito text-stone-600">
+            Disable <span className="font-semibold">{booster.name}</span>? The {booster.multiplier}x multiplier will stop applying.
+          </p>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={() => setShowConfirm(false)}
+              className="text-xs font-nunito text-stone-500 hover:text-stone-700 px-2 py-1"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={confirmDisable}
+              className="text-xs font-nunito font-medium text-red-600 hover:text-red-700 bg-red-50 px-3 py-1.5 rounded-lg"
+            >
+              Yes, Disable
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -354,12 +443,14 @@ interface SectionProps {
   onSaveEdit: (values: BoosterFormValues) => Promise<void>;
   onCancelEdit: () => void;
   collapsible?: boolean;
+  accentColor?: string;
 }
 
 function BoosterSection({
   title, boosters, saving, editingId,
   onEdit, onToggle, onSaveEdit, onCancelEdit,
   collapsible = false,
+  accentColor = 'text-stone-600',
 }: SectionProps) {
   const [collapsed, setCollapsed] = useState(collapsible);
 
@@ -370,7 +461,7 @@ function BoosterSection({
       <button
         type="button"
         onClick={() => collapsible && setCollapsed(c => !c)}
-        className={`flex items-center gap-1.5 text-sm font-medium text-stone-600 ${collapsible ? 'hover:text-stone-800 cursor-pointer' : 'cursor-default'}`}
+        className={`flex items-center gap-1.5 text-sm font-medium font-nunito ${accentColor} ${collapsible ? 'hover:opacity-80 cursor-pointer' : 'cursor-default'}`}
       >
         {collapsible && (
           collapsed
@@ -390,6 +481,7 @@ function BoosterSection({
                 saving={saving}
                 onSave={onSaveEdit}
                 onCancel={onCancelEdit}
+                isEditing
               />
             ) : (
               <BoosterCard
@@ -419,15 +511,35 @@ export default function LoyaltyBoostersTab({ initialBoosters }: Props) {
 
   const now = new Date();
 
-  const activeBoosters = boosters.filter(
-    b => b.is_active && new Date(b.ends_at) > now && new Date(b.starts_at) <= now
-  );
-  const upcomingBoosters = boosters.filter(
-    b => b.is_active && new Date(b.starts_at) > now
-  );
-  const pastBoosters = boosters.filter(
-    b => b.ends_at && new Date(b.ends_at) < now
-  );
+  // Safe date parsing that handles empty strings gracefully
+  const safeParse = (d: string) => d ? new Date(d) : null;
+
+  const activeBoosters = boosters.filter(b => {
+    if (!b.is_active) return false;
+    const start = safeParse(b.starts_at);
+    const end = safeParse(b.ends_at);
+    const afterStart = !start || start <= now;
+    const beforeEnd = !end || end > now;
+    return afterStart && beforeEnd;
+  });
+
+  const upcomingBoosters = boosters.filter(b => {
+    const start = safeParse(b.starts_at);
+    return b.is_active && start && start > now;
+  });
+
+  const pastBoosters = boosters.filter(b => {
+    const end = safeParse(b.ends_at);
+    return end && end < now;
+  });
+
+  // Boosters that don't fit in the above groups (disabled, no dates, etc.)
+  const otherBoosters = boosters.filter(b => {
+    const inActive = activeBoosters.some(a => a.id === b.id);
+    const inUpcoming = upcomingBoosters.some(a => a.id === b.id);
+    const inPast = pastBoosters.some(a => a.id === b.id);
+    return !inActive && !inUpcoming && !inPast;
+  });
 
   const activeCount = activeBoosters.length;
 
@@ -506,13 +618,15 @@ export default function LoyaltyBoostersTab({ initialBoosters }: Props) {
       <div className="flex items-center justify-between">
         <h2 className="text-sm font-nunito font-semibold text-stone-700">
           Promotional Boosters{' '}
-          <span className="font-normal text-stone-500">({activeCount} active)</span>
+          <span className="font-normal text-stone-500">
+            ({activeCount} active / {boosters.length} total)
+          </span>
         </h2>
         {!showAddForm && (
           <button
             type="button"
             onClick={() => { setEditingId(null); setShowAddForm(true); }}
-            className="inline-flex items-center gap-1.5 bg-[#3D8A80] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#356E66] transition-colors"
+            className="inline-flex items-center gap-1.5 bg-[#3D8A80] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#356E66] transition-colors shadow-sm"
           >
             <Plus className="h-4 w-4" />
             Add Booster
@@ -532,17 +646,24 @@ export default function LoyaltyBoostersTab({ initialBoosters }: Props) {
 
       {/* Empty state */}
       {isEmpty && !showAddForm && (
-        <div className="text-center py-12 text-stone-400">
-          <p className="text-sm">No boosters yet. Add your first promotional multiplier above.</p>
+        <div className="text-center py-16 text-stone-400 bg-white border border-[#E8E3DA] rounded-xl">
+          <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-amber-50 mb-3">
+            <Zap className="h-5 w-5 text-amber-600" />
+          </div>
+          <p className="text-sm font-nunito font-medium text-stone-600">No boosters yet</p>
+          <p className="text-xs font-nunito text-stone-400 mt-1">Create promotional multipliers to drive engagement</p>
         </div>
       )}
 
       {/* Grouped sections */}
       {!isEmpty && (
         <div className="space-y-6">
-          <BoosterSection title="Active" boosters={activeBoosters} {...sectionProps} />
-          <BoosterSection title="Upcoming" boosters={upcomingBoosters} {...sectionProps} />
-          <BoosterSection title="Past" boosters={pastBoosters} collapsible {...sectionProps} />
+          <BoosterSection title="Active Now" boosters={activeBoosters} accentColor="text-emerald-700" {...sectionProps} />
+          <BoosterSection title="Upcoming" boosters={upcomingBoosters} accentColor="text-blue-600" {...sectionProps} />
+          {otherBoosters.length > 0 && (
+            <BoosterSection title="Disabled" boosters={otherBoosters} accentColor="text-stone-500" collapsible {...sectionProps} />
+          )}
+          <BoosterSection title="Past" boosters={pastBoosters} accentColor="text-stone-500" collapsible {...sectionProps} />
         </div>
       )}
     </div>

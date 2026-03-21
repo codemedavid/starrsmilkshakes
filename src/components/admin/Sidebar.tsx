@@ -19,6 +19,9 @@ import {
   Shield,
   ShieldCheck,
   Bot,
+  BarChart3,
+  Package,
+  Zap,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -31,6 +34,9 @@ const navItems = [
   { label: 'Categories', href: '/admin/categories', icon: LayoutGrid },
   { label: 'Customers', href: '/admin/customers', icon: Users },
   { label: 'Loyalty', href: '/admin/loyalty', icon: Star },
+  { label: 'Analytics', href: '/admin/analytics', icon: BarChart3 },
+  { label: 'Bundles', href: '/admin/bundles', icon: Package },
+  { label: 'Upsell', href: '/admin/upsell', icon: Zap },
   { label: 'Branches', href: '/admin/branches', icon: MapPin },
   { label: 'Payments', href: '/admin/payments', icon: CreditCard },
   { label: 'Settings', href: '/admin/settings', icon: Settings },

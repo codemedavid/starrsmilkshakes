@@ -6,7 +6,9 @@ import type {
   LoyaltyBooster,
   LoyaltyOrderItem,
   LoyaltyCard,
-  LoyaltyReward,
+  LoyaltyGoal,
+  LoyaltyMilestone,
+  LoyaltyMilestoneClaim,
   EarningsResult,
 } from '@/types/loyalty';
 
@@ -57,8 +59,8 @@ export function filterQualifyingItems(
  * - is_active must be true
  * - `date` must fall within [starts_at, ends_at]
  * - filter_mode='all'        → matches any order items
- * - filter_mode='categories' → at least one item's category_id in filter_ids
- * - filter_mode='items'      → at least one item's menu_item_id in filter_ids
+ * - filter_mode='category'   → at least one item's category_id in filter_ids
+ * - filter_mode='item'       → at least one item's menu_item_id in filter_ids
  * - Multiple matches → highest multiplier wins (no stacking)
  *
  * Returns null when nothing matches.
@@ -77,14 +79,17 @@ export function findActiveBoosters(
 
     if (booster.filter_mode === 'all') return true;
 
-    if (booster.filter_mode === 'categories') {
+    if (booster.filter_mode === 'category') {
       if (booster.filter_ids.length === 0) return false;
       return orderItems.some((item) => booster.filter_ids.includes(item.category_id));
     }
 
-    // filter_mode === 'items'
-    if (booster.filter_ids.length === 0) return false;
-    return orderItems.some((item) => booster.filter_ids.includes(item.menu_item_id));
+    if (booster.filter_mode === 'item') {
+      if (booster.filter_ids.length === 0) return false;
+      return orderItems.some((item) => booster.filter_ids.includes(item.menu_item_id));
+    }
+
+    return false;
   });
 
   if (matching.length === 0) return null;
@@ -117,9 +122,11 @@ export function calculateEarnings(
   const booster_multiplier = booster?.multiplier ?? 1;
   const booster_id = booster?.id ?? null;
 
+  // Stamps scale with total quantity of qualifying items
+  const qualifyingQuantity = qualifyingItems.reduce((sum, item) => sum + item.quantity, 0);
   const stamps =
-    config.stamps_enabled && qualifyingItems.length > 0
-      ? Math.floor(config.stamps_per_order * booster_multiplier)
+    config.stamps_enabled && qualifyingQuantity > 0
+      ? Math.floor(qualifyingQuantity * config.stamps_per_order * booster_multiplier)
       : 0;
 
   const points =
@@ -134,7 +141,7 @@ export function calculateEarnings(
  * Check whether a loyalty card has reached the goal for a given reward.
  * Returns true if EITHER the stamps OR the points requirement is satisfied.
  */
-export function checkGoalReached(card: LoyaltyCard, reward: LoyaltyReward | null): boolean {
+export function checkGoalReached(card: LoyaltyCard, reward: LoyaltyGoal | null): boolean {
   if (reward === null) return false;
 
   const stampsOk =
@@ -155,10 +162,28 @@ export function checkGoalReached(card: LoyaltyCard, reward: LoyaltyReward | null
  */
 export function calculateCarryover(
   card: LoyaltyCard,
-  reward: LoyaltyReward,
+  reward: LoyaltyGoal,
 ): { stamps: number; points: number } {
   return {
     stamps: card.current_stamps - (reward.stamps_required ?? 0),
     points: card.current_points - (reward.points_required ?? 0),
   };
+}
+
+/**
+ * Given the current stamp count, active milestones, and existing claims for
+ * this goal cycle, return the milestones that are newly reached.
+ *
+ * Only pass active milestones. Filtering inactive milestones is the caller's
+ * responsibility.
+ */
+export function checkMilestonesReached(
+  currentStamps: number,
+  milestones: LoyaltyMilestone[],
+  existingClaims: Pick<LoyaltyMilestoneClaim, 'milestone_id'>[],
+): LoyaltyMilestone[] {
+  const claimedIds = new Set(existingClaims.map((c) => c.milestone_id));
+  return milestones.filter(
+    (ms) => ms.stamps_required <= currentStamps && !claimedIds.has(ms.id),
+  );
 }

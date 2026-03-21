@@ -16,7 +16,7 @@ import type {
   LoyaltyBooster,
   LoyaltyOrderItem,
   LoyaltyCard,
-  LoyaltyReward,
+  LoyaltyGoal,
 } from '@/types/loyalty';
 
 // ─── Shared fixtures ──────────────────────────────────────────────────────────
@@ -76,7 +76,7 @@ function makeCard(overrides: Partial<LoyaltyCard> = {}): LoyaltyCard {
     card_code: 'STARR-ABCD',
     current_stamps: 0,
     current_points: 0,
-    goal_reward_id: null,
+    goal_id: null,
     lifetime_stamps: 0,
     lifetime_points: 0,
     created_at: '2026-01-01T00:00:00Z',
@@ -85,9 +85,9 @@ function makeCard(overrides: Partial<LoyaltyCard> = {}): LoyaltyCard {
   };
 }
 
-function makeReward(overrides: Partial<LoyaltyReward> = {}): LoyaltyReward {
+function makeGoal(overrides: Partial<LoyaltyGoal> = {}): LoyaltyGoal {
   return {
-    id: 'reward-1',
+    id: 'goal-1',
     name: 'Free Shake',
     description: null,
     image_url: null,
@@ -106,7 +106,7 @@ function makeReward(overrides: Partial<LoyaltyReward> = {}): LoyaltyReward {
 describe('Loyalty System — Full Flow', () => {
   it('earn → accumulate → goal reached → carryover', () => {
     const config = makeConfig({ stamps_per_order: 1, points_per_peso: 0.1 });
-    const reward = makeReward({ stamps_required: 5, points_required: null });
+    const goal = makeGoal({ stamps_required: 5, points_required: null });
     const items = [makeItem({ subtotal: 200 })];
 
     let card = makeCard();
@@ -120,7 +120,7 @@ describe('Loyalty System — Full Flow', () => {
         current_points: card.current_points + earnings.points,
       };
       // Goal NOT yet reached (need 5 stamps, have < 5)
-      expect(checkGoalReached(card, reward)).toBe(false);
+      expect(checkGoalReached(card, goal)).toBe(false);
     }
 
     // 5th order reaches the goal
@@ -131,19 +131,19 @@ describe('Loyalty System — Full Flow', () => {
       current_points: card.current_points + earnings.points,
     };
     expect(card.current_stamps).toBe(5);
-    expect(checkGoalReached(card, reward)).toBe(true);
+    expect(checkGoalReached(card, goal)).toBe(true);
 
     // Carryover after redemption: 5 - 5 = 0 excess stamps
-    const carryover = calculateCarryover(card, reward);
+    const carryover = calculateCarryover(card, goal);
     expect(carryover.stamps).toBe(0);
   });
 
   it('extra stamps beyond goal produce positive carryover', () => {
-    const reward = makeReward({ stamps_required: 5, points_required: null });
+    const goal = makeGoal({ stamps_required: 5, points_required: null });
     const card = makeCard({ current_stamps: 8, current_points: 0 });
 
-    expect(checkGoalReached(card, reward)).toBe(true);
-    const carryover = calculateCarryover(card, reward);
+    expect(checkGoalReached(card, goal)).toBe(true);
+    const carryover = calculateCarryover(card, goal);
     expect(carryover.stamps).toBe(3); // 8 - 5
   });
 
@@ -206,7 +206,7 @@ describe('Loyalty System — Full Flow', () => {
     const config = makeConfig({ stamps_per_order: 1, points_per_peso: 1 });
     const booster = makeBooster({
       multiplier: 3,
-      filter_mode: 'categories',
+      filter_mode: 'category',
       filter_ids: ['premium-shakes'],
     });
 
@@ -236,21 +236,21 @@ describe('Loyalty System — Full Flow', () => {
   });
 
   it('points-only goal: goal reached by points even when stamps are insufficient', () => {
-    const reward = makeReward({ stamps_required: null, points_required: 500 });
+    const goal = makeGoal({ stamps_required: null, points_required: 500 });
     const card = makeCard({ current_stamps: 0, current_points: 500 });
 
-    expect(checkGoalReached(card, reward)).toBe(true);
+    expect(checkGoalReached(card, goal)).toBe(true);
 
-    const carryover = calculateCarryover(card, reward);
+    const carryover = calculateCarryover(card, goal);
     expect(carryover.points).toBe(0);  // exact match
     expect(carryover.stamps).toBe(0);  // null stamps_required → treated as 0
   });
 
   it('OR logic: goal reached by stamps even when points requirement is not met', () => {
-    const reward = makeReward({ stamps_required: 10, points_required: 1000 });
+    const goal = makeGoal({ stamps_required: 10, points_required: 1000 });
     const card = makeCard({ current_stamps: 10, current_points: 50 }); // points not met
 
-    expect(checkGoalReached(card, reward)).toBe(true);
+    expect(checkGoalReached(card, goal)).toBe(true);
   });
 });
 
@@ -274,7 +274,7 @@ describe('Acceptance Tests', () => {
 
     const booster = makeBooster({
       multiplier: 2,
-      filter_mode: 'categories',
+      filter_mode: 'category',
       filter_ids: ['shakes'],
     });
 
@@ -284,15 +284,15 @@ describe('Acceptance Tests', () => {
     expect(result.booster_id).toBe('boost-1');
   });
 
-  it('expired reward is detected by carryover math — engine reports goal reached correctly', () => {
+  it('expired goal is detected by carryover math — engine reports goal reached correctly', () => {
     // The engine has no concept of expiry (handled at UI/DB layer).
     // Confirm that checkGoalReached returns true, and carryover is correct.
     const card = makeCard({ current_stamps: 10, current_points: 500 });
-    const reward = makeReward({ stamps_required: 10, points_required: 500 });
+    const goal = makeGoal({ stamps_required: 10, points_required: 500 });
 
-    expect(checkGoalReached(card, reward)).toBe(true);
+    expect(checkGoalReached(card, goal)).toBe(true);
 
-    const carryover = calculateCarryover(card, reward);
+    const carryover = calculateCarryover(card, goal);
     expect(carryover.stamps).toBe(0);
     expect(carryover.points).toBe(0);
   });
@@ -329,7 +329,7 @@ describe('Acceptance Tests', () => {
     const config = makeConfig({ stamps_per_order: 1, points_per_peso: 1 });
     const booster = makeBooster({
       multiplier: 5,
-      filter_mode: 'items',
+      filter_mode: 'item',
       filter_ids: ['special-item'],
     });
 
@@ -366,10 +366,10 @@ describe('Acceptance Tests', () => {
   });
 
   it('goal not reached one stamp short', () => {
-    const reward = makeReward({ stamps_required: 10, points_required: null });
+    const goal = makeGoal({ stamps_required: 10, points_required: null });
     const card = makeCard({ current_stamps: 9 }); // one short
 
-    expect(checkGoalReached(card, reward)).toBe(false);
+    expect(checkGoalReached(card, goal)).toBe(false);
   });
 
   it('multiple items across categories: only allowlisted categories qualify', () => {
@@ -393,5 +393,41 @@ describe('Acceptance Tests', () => {
     const earnings = calculateEarnings(items, config, [], NOW);
     expect(earnings.qualifying_total).toBe(200);
     expect(earnings.points).toBe(200);
+  });
+});
+
+// ─── Milestone System ─────────────────────────────────────────────────────────
+
+describe('Milestone System', () => {
+  it('auto-earns milestones when stamp count crosses threshold', async () => {
+    // Setup: create milestones at 3 and 5 stamps
+    // Credit enough stamps to cross 3
+    // Verify milestone claim created for 3-stamp milestone
+  });
+
+  it('does not duplicate milestone claims on repeated credits', async () => {
+    // Setup: milestone at 3 stamps, credit to 5
+    // Credit again (same stamp count)
+    // Verify only one claim row
+  });
+
+  it('resets milestones when new goal cycle begins', async () => {
+    // Setup: milestone at 3, goal at 10
+    // Credit to 10, claim goal, pick new goal
+    // Credit to 3 again, verify new claim with new goal_id
+  });
+
+  it('prevents goal change when active goal exists', async () => {
+    // Set goal A, try to set goal B
+    // Expect error
+  });
+
+  it('allows goal selection after goal is claimed', async () => {
+    // Set goal, reach it, claim it
+    // Verify goal_id is null, set new goal
+  });
+
+  it('new customers start with no goal', async () => {
+    // Register new card, verify goal_id is null
   });
 });

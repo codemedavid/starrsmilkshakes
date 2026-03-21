@@ -33,6 +33,8 @@ export interface MenuItem {
   effectivePrice?: number;
   isOnDiscount?: boolean;
   show_in_messenger?: boolean;
+  // Cost tracking
+  costPrice?: number | null;
 }
 
 export interface CartItem extends MenuItem {
@@ -108,6 +110,8 @@ export interface OrderItem {
   selected_variation: Variation | null;
   selected_add_ons: AddOn[] | null;
   created_at: string;
+  bundle_id?: string | null;
+  bundle_selections?: import('@/types/bundle').BundleSelectionRecord[] | null;
 }
 
 export interface Order {
@@ -286,4 +290,31 @@ export interface AdminPaymentMethod {
   sort_order: number;
   created_at: string;
   updated_at: string;
+}
+
+// --- FAQ Types ---
+
+export type FaqActionType = 'text' | 'send_menu' | 'send_branches' | 'connect_human';
+
+export interface FaqEntry {
+  id: string;
+  question: string;
+  answer: string;
+  keywords: string[];
+  category: string | null;
+  action_type: FaqActionType;
+  sort_order: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface FaqInput {
+  id?: string;
+  question: string;
+  answer: string;
+  keywords: string[];
+  category?: string;
+  action_type?: FaqActionType;
+  sort_order?: number;
 }

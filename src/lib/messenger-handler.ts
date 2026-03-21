@@ -77,6 +77,8 @@ async function updateSession(psid: string, updates: Partial<MessengerSession>): 
 
 async function handleTextMessage(psid: string, text: string, _session: MessengerSession, pageToken: string): Promise<void> {
   const lower = text.toLowerCase().trim();
+
+  // 1. Loyalty triggers
   if (lower === 'loyalty' || lower === 'loyalty card' || lower === 'starr card' || lower === 'my card') {
     await handleLoyaltyCard(psid, pageToken);
     return;
@@ -237,7 +239,9 @@ async function handleInfoIntent(
 }
 
 async function handlePostback(psid: string, payload: string, session: MessengerSession, pageToken: string): Promise<void> {
-  if (payload === 'GET_STARTED' || payload === 'MAIN_MENU') {
+  if (payload === 'GET_STARTED') {
+    await showWelcome(psid, pageToken);
+  } else if (payload === 'MAIN_MENU') {
     await showCategories(psid, pageToken);
   } else if (payload.startsWith('CATEGORY_')) {
     const categoryId = payload.replace('CATEGORY_', '');
@@ -278,6 +282,38 @@ async function handlePostback(psid: string, payload: string, session: MessengerS
   }
 }
 
+async function showWelcome(psid: string, pageToken: string): Promise<void> {
+  const siteUrl = getSiteUrl();
+
+  // Send welcome button template with Order Online link
+  await sendButtonTemplate(
+    psid,
+    "Welcome to Starr's Famous Shakes!\n\nOrder online at starrsmilkshake.com for the best experience, or browse our menu right here!\n\nHow can I help you today?",
+    [
+      { type: 'web_url', title: 'Order Online', url: siteUrl },
+      { type: 'postback', title: 'Browse Menu', payload: 'MAIN_MENU' },
+    ],
+    pageToken
+  );
+
+  // Send category quick replies with loyalty card option
+  const { data: categories } = await supabaseServer
+    .from('categories')
+    .select('id, name, icon')
+    .eq('active', true)
+    .order('sort_order');
+
+  if (categories && categories.length > 0) {
+    const quickReplies: QuickReply[] = [
+      ...buildCategoryQuickReplies(categories.slice(0, 12)),
+      { content_type: 'text', title: 'My Loyalty Card', payload: 'LOYALTY_CARD' },
+    ];
+    await sendQuickReplies(psid, 'Or browse by category:', quickReplies, pageToken);
+  }
+
+  await updateSession(psid, { state: 'browsing_categories', current_category: null, current_page: 0 } as any);
+}
+
 async function showCategories(psid: string, pageToken: string): Promise<void> {
   const { data: categories } = await supabaseServer
     .from('categories')
@@ -293,8 +329,11 @@ async function showCategories(psid: string, pageToken: string): Promise<void> {
   await updateSession(psid, { state: 'browsing_categories', current_category: null, current_page: 0 } as any);
 
   // Facebook limits quick replies to 13
-  const quickReplies = buildCategoryQuickReplies(categories.slice(0, 13));
-  await sendQuickReplies(psid, "Welcome to Starr's Famous Shakes! What are you craving?", quickReplies, pageToken);
+  const quickReplies: QuickReply[] = [
+    ...buildCategoryQuickReplies(categories.slice(0, 12)),
+    { content_type: 'text', title: 'My Loyalty Card', payload: 'LOYALTY_CARD' },
+  ];
+  await sendQuickReplies(psid, 'What are you craving?', quickReplies, pageToken);
 }
 
 async function showProducts(psid: string, categoryId: string, page: number, pageToken: string): Promise<void> {
@@ -413,6 +452,64 @@ async function handleSelectAddon(psid: string, addonId: string, pageToken: strin
   ], pageToken);
 }
 
+interface CartDisplayItem {
+  name: string;
+  variation: string | null;
+  quantity: number;
+  unitPrice: number;
+  addOns: string[];
+}
+
+async function hydrateCartForDisplay(cart: MessengerCartItem[]): Promise<CartDisplayItem[]> {
+  const display: CartDisplayItem[] = [];
+
+  for (const item of cart) {
+    const { data: menuItem } = await supabaseServer
+      .from('menu_items')
+      .select('name, base_price')
+      .eq('id', item.menu_item_id)
+      .single();
+
+    let variationName: string | null = null;
+    let variationPrice = 0;
+    if (item.variation_id) {
+      const { data: variation } = await supabaseServer
+        .from('variations')
+        .select('name, price')
+        .eq('id', item.variation_id)
+        .single();
+      variationName = variation?.name || null;
+      variationPrice = variation?.price || 0;
+    }
+
+    let addOnTotal = 0;
+    const addOnNames: string[] = [];
+    if (item.add_on_ids.length > 0) {
+      const { data: addOns } = await supabaseServer
+        .from('add_ons')
+        .select('name, price')
+        .in('id', item.add_on_ids);
+      if (addOns) {
+        for (const addon of addOns) {
+          addOnTotal += addon.price;
+          addOnNames.push(addon.name);
+        }
+      }
+    }
+
+    const unitPrice = (menuItem?.base_price || 0) + variationPrice + addOnTotal;
+    display.push({
+      name: menuItem?.name || 'Unknown',
+      variation: variationName,
+      quantity: item.quantity,
+      unitPrice,
+      addOns: addOnNames,
+    });
+  }
+
+  return display;
+}
+
 async function finalizeCartItem(psid: string, pageToken: string): Promise<void> {
   const session = await getOrCreateSession(psid);
   if (!session.pending_item_id) return;
@@ -448,15 +545,29 @@ async function finalizeCartItem(psid: string, pageToken: string): Promise<void> 
     pending_add_ons: [],
   } as any);
 
-  // Get item name for confirmation
-  const { data: item } = await supabaseServer.from('menu_items').select('name').eq('id', session.pending_item_id).single();
-  const itemName = item?.name || 'Item';
-  const totalItems = cart.reduce((sum: number, c: MessengerCartItem) => sum + c.quantity, 0);
+  // Get added item name for confirmation header
+  const { data: addedItem } = await supabaseServer
+    .from('menu_items')
+    .select('name')
+    .eq('id', session.pending_item_id)
+    .single();
+  const addedName = addedItem?.name || 'Item';
 
-  await sendQuickReplies(psid, `${itemName} added! Cart: ${totalItems} item(s)`, [
-    { content_type: 'text', title: 'Continue Shopping', payload: 'CONTINUE_SHOPPING' },
-    { content_type: 'text', title: 'View Cart', payload: 'VIEW_CART' },
-    { content_type: 'text', title: 'Checkout', payload: 'CHECKOUT' },
+  // Hydrate full cart for summary using shared helper
+  const cartDisplay = await hydrateCartForDisplay(cart);
+  const summary = buildCartSummary(cartDisplay);
+
+  // Send confirmation + full cart summary
+  await sendTextMessage(
+    psid,
+    `${addedName} added!\n\nYour Cart:\n${summary}\n\nFor a smoother checkout, visit starrsmilkshake.com`,
+    pageToken
+  );
+
+  // Checkout + continue buttons
+  await sendButtonTemplate(psid, 'What would you like to do?', [
+    { type: 'postback', title: 'Checkout', payload: 'CHECKOUT' },
+    { type: 'postback', title: 'Continue Shopping', payload: 'MAIN_MENU' },
   ], pageToken);
 }
 
@@ -468,35 +579,7 @@ async function showCart(psid: string, pageToken: string): Promise<void> {
     return;
   }
 
-  // Hydrate cart items for display
-  const cartDisplay = [];
-  for (const item of session.cart) {
-    const { data: menuItem } = await supabaseServer
-      .from('menu_items')
-      .select('name, base_price')
-      .eq('id', item.menu_item_id)
-      .single();
-
-    let variationName = null;
-    let variationPrice = 0;
-    if (item.variation_id) {
-      const { data: variation } = await supabaseServer
-        .from('variations')
-        .select('name, price')
-        .eq('id', item.variation_id)
-        .single();
-      variationName = variation?.name || null;
-      variationPrice = variation?.price || 0;
-    }
-
-    const unitPrice = (menuItem?.base_price || 0) + variationPrice;
-    cartDisplay.push({
-      name: menuItem?.name || 'Unknown',
-      variation: variationName,
-      quantity: item.quantity,
-      unitPrice,
-    });
-  }
+  const cartDisplay = await hydrateCartForDisplay(session.cart);
 
   const summary = buildCartSummary(cartDisplay);
   await updateSession(psid, { state: 'viewing_cart' } as any);
@@ -622,6 +705,14 @@ async function createCheckoutSession(
     [{ type: 'web_url', title: 'Complete Order', url: checkoutUrl }],
     pageToken
   );
+
+  // Remind about loyalty card
+  await sendQuickReplies(
+    psid,
+    'For a better experience next time, visit starrsmilkshake.com',
+    [{ content_type: 'text', title: 'My Loyalty Card', payload: 'LOYALTY_CARD' }],
+    pageToken
+  );
 }
 
 async function handleRemoveItem(psid: string, index: number, pageToken: string): Promise<void> {
@@ -674,8 +765,8 @@ async function handleLoyaltyCard(psid: string, pageToken: string): Promise<void>
 
   const buttonTitle = hasCard ? 'View My Card' : 'Get My Starr Card';
   const messageText = hasCard
-    ? '⭐ Tap below to view your Starr Card!'
-    : '⭐ Earn starrs with every order! Tap below to get your loyalty card.';
+    ? "⭐ Tap below to view your Starr Card!\n\nThis link expires in 30 minutes. Type 'Loyalty' anytime to get a new one."
+    : "⭐ Earn starrs with every order! Tap below to get your loyalty card.\n\nThis link expires in 30 minutes. Type 'Loyalty' anytime to get a new one.";
 
   await sendButtonTemplate(psid, messageText, [
     { type: 'web_url', title: buttonTitle, url, webview_height_ratio: 'tall' },

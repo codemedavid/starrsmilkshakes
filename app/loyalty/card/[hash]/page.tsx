@@ -1,32 +1,20 @@
+import { Suspense } from 'react';
 import Link from 'next/link';
 import { supabaseServer } from '@/lib/supabase-server';
 import { isTokenExpired } from '@/lib/loyalty-hash';
+import { getCachedActiveGoals, getCachedActiveMilestones } from '@/lib/cached-queries';
 import StampGrid from '@/components/loyalty/StampGrid';
 import PointsBar from '@/components/loyalty/PointsBar';
-import BoosterBanner from '@/components/loyalty/BoosterBanner';
-import ActivityList from '@/components/loyalty/ActivityList';
+import MilestoneLadder from '@/components/loyalty/MilestoneLadder';
+import PendingRedemptionsSection from '@/components/loyalty/PendingRedemptionsSection';
+import BoostersSection from '@/components/loyalty/BoostersSection';
+import ActivitySection from '@/components/loyalty/ActivitySection';
+import { RedemptionsSkeleton, BoosterSkeleton, ActivitySkeleton } from '@/components/loyalty/skeletons';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface PageProps {
   params: Promise<{ hash: string }>;
-}
-
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-
-function formatExpiryCountdown(expiresAt: string): string {
-  const diffMs = new Date(expiresAt).getTime() - Date.now();
-  const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
-  if (diffDays <= 0) return 'expires today';
-  if (diffDays === 1) return '1 day left';
-  return `${diffDays} days left`;
-}
-
-function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString('en-PH', {
-    month: 'short',
-    day: 'numeric',
-  });
 }
 
 // ─── Error State ─────────────────────────────────────────────────────────────
@@ -35,13 +23,13 @@ function ErrorState({ message }: { message: string }) {
   return (
     <div className="min-h-screen flex items-center justify-center px-4 bg-[#FAF8F5]">
       <div className="max-w-md w-full bg-white border border-[#E8E3DA] rounded-2xl p-8 text-center shadow-sm">
-        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#3D8A80] to-[#7BBFB5] flex items-center justify-center mx-auto mb-4">
-          <span className="text-white text-xl">⭐</span>
+        <div className="w-14 h-14 rounded-full bg-gradient-to-br from-[#3D8A80] to-[#7BBFB5] flex items-center justify-center mx-auto mb-4 shadow-lg shadow-[#3D8A80]/20">
+          <span className="text-white text-2xl">⭐</span>
         </div>
         <h1 className="text-lg font-semibold text-stone-800 mb-2">
           Starr&apos;s Famous Shakes
         </h1>
-        <p className="text-sm text-stone-500 mt-4">{message}</p>
+        <p className="text-sm text-stone-500 mt-4 leading-relaxed">{message}</p>
       </div>
     </div>
   );
@@ -81,182 +69,132 @@ export default async function CardPage({ params }: PageProps) {
     return <ErrorState message="No loyalty card found. Open Messenger to register." />;
   }
 
-  // ── 3. Load all remaining data in parallel ────────────────────────────────
+  // ── 3. Load goal from cached goals catalog ───────────────────────────────
+  const [goals, activeMilestones] = await Promise.all([
+    getCachedActiveGoals(),
+    getCachedActiveMilestones(),
+  ]);
+  const goal = card.goal_id
+    ? goals.find((g: any) => g.id === card.goal_id) ?? null
+    : null;
 
-  const now = new Date().toISOString();
+  // ── 4. Load milestone claims for this card+goal ───────────────────────────
+  const { data: milestoneClaims } = await supabaseServer
+    .from('loyalty_milestone_claims')
+    .select('*, loyalty_milestones(name, stamps_required)')
+    .eq('card_id', card.id)
+    .eq('goal_id', card.goal_id ?? '');
 
-  const [goalRewardResult, boostersResult, transactionsResult, redemptionsResult] =
-    await Promise.all([
-      // Goal reward
-      card.goal_reward_id
-        ? (supabaseServer.from('loyalty_rewards') as any)
-            .select('id, name, stamps_required, points_required, icon')
-            .eq('id', card.goal_reward_id)
-            .single()
-        : Promise.resolve({ data: null }),
-
-      // Active boosters
-      (supabaseServer.from('loyalty_boosters') as any)
-        .select('name, ends_at')
-        .eq('is_active', true)
-        .lte('starts_at', now)
-        .gte('ends_at', now),
-
-      // Recent transactions (last 10)
-      (supabaseServer.from('loyalty_transactions') as any)
-        .select('id, type, stamps_delta, points_delta, description, created_at')
-        .eq('card_id', card.id)
-        .order('created_at', { ascending: false })
-        .limit(10),
-
-      // Pending redemptions
-      (supabaseServer.from('loyalty_redemptions') as any)
-        .select('id, expires_at, loyalty_rewards(name)')
-        .eq('card_id', card.id)
-        .eq('status', 'earned'),
-    ]);
-
-  const goalReward = goalRewardResult.data ?? null;
-  const boosters: Array<{ name: string; ends_at: string }> = boostersResult.data ?? [];
-  const transactions = transactionsResult.data ?? [];
-  const pendingRedemptions: Array<{
-    id: string;
-    expires_at: string;
-    loyalty_rewards: { name: string } | null;
-  }> = redemptionsResult.data ?? [];
-
-  // ── 4. Derived values ─────────────────────────────────────────────────────
-
+  // ── 5. Derived values ─────────────────────────────────────────────────────
   const customerName: string = card.customers?.name ?? 'Friend';
+  const firstName = customerName.split(' ')[0];
   const cardCode: string = card.card_code;
   const currentStamps: number = card.current_stamps ?? 0;
   const currentPoints: number = card.current_points ?? 0;
   const lifetimePoints: number = card.lifetime_points ?? 0;
-  const goalStamps: number | null = goalReward?.stamps_required ?? null;
+  const goalStamps: number | null = goal?.stamps_required ?? null;
 
-  // ── 5. Render ──────────────────────────────────────────────────────────────
+  // ── 6. Render ──────────────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen bg-[#FAF8F5] pb-10">
+    <div className="min-h-screen bg-[#FAF8F5] pb-12">
       <div className="max-w-md mx-auto">
 
         {/* ── Teal gradient header ─────────────────────────────────────────── */}
-        <div className="bg-gradient-to-br from-[#3D8A80] to-[#7BBFB5] px-6 pt-10 pb-8 text-center">
-          <p className="text-lg font-semibold text-white">
-            Hi, {customerName}! ⭐
+        <div className="bg-gradient-to-br from-[#3D8A80] to-[#7BBFB5] px-6 pt-12 pb-10 text-center relative overflow-hidden">
+          {/* Subtle decorative circles */}
+          <div className="absolute top-4 right-4 w-24 h-24 rounded-full bg-white/5" aria-hidden="true" />
+          <div className="absolute -bottom-6 -left-6 w-32 h-32 rounded-full bg-white/5" aria-hidden="true" />
+
+          <p className="text-xs font-medium text-white/60 uppercase tracking-widest mb-1 relative z-10">
+            Welcome back
           </p>
-          <p className="text-sm text-white/70 mt-1 font-mono tracking-widest">{cardCode}</p>
+          <h1 className="text-xl font-bold text-white relative z-10">
+            {firstName}
+          </h1>
+          <p className="text-xs text-white/50 mt-2 font-mono tracking-[0.25em] relative z-10">{cardCode}</p>
         </div>
 
         {/* ── Content stack ────────────────────────────────────────────────── */}
-        <div className="px-4 space-y-4 -mt-2">
+        <div className="px-4 space-y-4 -mt-4 relative z-10">
 
-          {/* Progress card */}
+          {/* ── Pending redemptions (streamed) ─────────────────────────── */}
+          <Suspense fallback={<RedemptionsSkeleton />}>
+            <PendingRedemptionsSection cardId={card.id} />
+          </Suspense>
+
+          {/* ── Progress card ──────────────────────────────────────────── */}
           <div className="bg-white border border-[#E8E3DA] rounded-2xl p-5 shadow-sm">
             <div className="flex items-center justify-between mb-4">
-              <p className="text-xs font-semibold text-stone-500 uppercase tracking-wide">
-                Your Goal
-              </p>
-              <Link
-                href={`/loyalty/card/${hash}/goals`}
-                className="text-xs font-medium text-[#3D8A80] hover:opacity-80 transition-opacity"
-              >
-                Change &rsaquo;
-              </Link>
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 rounded-md bg-[#3D8A80]/10 flex items-center justify-center">
+                  <span className="text-xs" aria-hidden="true">⭐</span>
+                </div>
+                <p className="text-xs font-semibold text-stone-500 uppercase tracking-wide">
+                  Your Goal
+                </p>
+              </div>
             </div>
 
-            {goalReward ? (
+            {card.goal_id && goal ? (
               <>
-                <div className="flex items-center gap-2 mb-4">
-                  {goalReward.icon && (
-                    <span className="text-2xl leading-none">{goalReward.icon}</span>
-                  )}
-                  <p className="text-base font-semibold text-stone-800">
-                    {goalReward.name}
-                  </p>
-                </div>
+                <p className="text-base font-bold text-stone-800 mb-4">
+                  {goal.name}
+                </p>
                 <StampGrid currentStamps={currentStamps} goalStamps={goalStamps} />
               </>
             ) : (
-              <div className="text-center py-4">
-                <p className="text-sm text-stone-500 mb-3">
-                  No goal selected yet.
+              <div className="text-center py-6">
+                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#F0EBE0] to-[#E8E3DA] flex items-center justify-center mx-auto mb-3">
+                  <span className="text-2xl" aria-hidden="true">🎯</span>
+                </div>
+                <p className="text-sm font-medium text-stone-700 mb-1">
+                  No goal selected yet
+                </p>
+                <p className="text-xs text-stone-400 mb-4 max-w-[220px] mx-auto">
+                  Choose a reward to work toward and track your progress here.
                 </p>
                 <StampGrid currentStamps={currentStamps} goalStamps={null} />
                 <Link
                   href={`/loyalty/card/${hash}/goals`}
-                  className="inline-block mt-3 text-sm font-medium text-[#3D8A80] hover:opacity-80 transition-opacity"
+                  className="inline-flex items-center gap-1.5 mt-4 text-sm font-semibold text-white bg-gradient-to-r from-[#3D8A80] to-[#5AAF9E] px-5 py-2.5 rounded-xl hover:opacity-90 active:opacity-80 transition-opacity shadow-sm"
                 >
-                  Pick a reward goal →
+                  Pick Your Goal
                 </Link>
               </div>
             )}
           </div>
 
-          {/* Points bar */}
+          {/* ── Milestone ladder ───────────────────────────────────────── */}
+          {activeMilestones.length > 0 && (
+            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 shadow-sm">
+              <MilestoneLadder
+                milestones={activeMilestones}
+                claims={milestoneClaims ?? []}
+                currentStamps={currentStamps}
+              />
+            </div>
+          )}
+
+          {/* ── Points bar ─────────────────────────────────────────────── */}
           <div className="bg-white border border-[#E8E3DA] rounded-2xl overflow-hidden shadow-sm">
             <PointsBar currentPoints={currentPoints} lifetimePoints={lifetimePoints} />
           </div>
 
-          {/* Active boosters */}
-          {boosters.length > 0 && (
-            <div className="bg-white border border-[#E8E3DA] rounded-2xl p-5 shadow-sm">
-              <p className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-3">
-                Active Boosters
-              </p>
-              <BoosterBanner boosters={boosters} />
-            </div>
-          )}
+          {/* ── Active boosters (streamed, cached) ─────────────────────── */}
+          <Suspense fallback={<BoosterSkeleton />}>
+            <BoostersSection />
+          </Suspense>
 
-          {/* Pending redemptions */}
-          {pendingRedemptions.length > 0 && (
-            <div className="bg-white border border-[#E8E3DA] rounded-2xl p-5 shadow-sm">
-              <p className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-3">
-                Ready to Claim
-              </p>
-              <ul className="space-y-3">
-                {pendingRedemptions.map((r) => (
-                  <li
-                    key={r.id}
-                    className="flex items-center justify-between gap-3 bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3"
-                  >
-                    <div className="flex items-center gap-2 min-w-0">
-                      <span className="text-xl leading-none shrink-0">🎁</span>
-                      <div className="min-w-0">
-                        <p className="text-sm font-semibold text-emerald-800 truncate">
-                          {r.loyalty_rewards?.name ?? 'Reward'}
-                        </p>
-                        <p className="text-xs text-emerald-600">
-                          Claim by {formatDate(r.expires_at)}{' '}
-                          <span className="text-emerald-500">
-                            ({formatExpiryCountdown(r.expires_at)})
-                          </span>
-                        </p>
-                      </div>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
+          {/* ── Activity list (streamed) ───────────────────────────────── */}
+          <Suspense fallback={<ActivitySkeleton />}>
+            <ActivitySection cardId={card.id} />
+          </Suspense>
 
-          {/* Activity list */}
-          <div className="bg-white border border-[#E8E3DA] rounded-2xl p-5 shadow-sm">
-            <ActivityList transactions={transactions} />
-          </div>
-
-          {/* View all rewards CTA */}
-          <Link
-            href={`/loyalty/card/${hash}/goals`}
-            className="flex items-center justify-center gap-2 w-full py-3 rounded-2xl
-              bg-white
-              border border-[#E8E3DA]
-              text-sm font-semibold text-stone-700
-              hover:bg-[#F0EBE0]
-              transition-colors shadow-sm"
-          >
-            View All Rewards 🏆
-          </Link>
+          {/* ── Footer ─────────────────────────────────────────────────── */}
+          <p className="text-[11px] text-stone-400 text-center pt-2 pb-4">
+            Starr&apos;s Famous Shakes Loyalty Program
+          </p>
 
         </div>
       </div>

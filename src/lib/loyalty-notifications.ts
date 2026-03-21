@@ -48,17 +48,28 @@ export function buildGoalAchievedMessage(
 }
 
 /**
- * Build the "reward was claimed" confirmation message.
+ * Build the "you hit a milestone" message.
+ *
+ * @example
+ * buildMilestoneEarnedMessage('Free Sticker')
+ * // "🏆 You hit a milestone — Free Sticker!"
+ */
+export function buildMilestoneEarnedMessage(milestoneName: string): string {
+  return `🏆 You hit a milestone — ${milestoneName}!`;
+}
+
+/**
+ * Build the "goal was claimed" confirmation message.
  * Omits stamps or points portions when their value is 0.
  *
  * @example
- * buildRewardClaimedMessage(2, 100)
- * // "✅ Reward claimed! You have 2 starrs and 100 pts toward your next goal."
+ * buildGoalClaimedMessage(2, 100)
+ * // "✅ Goal claimed! You have 2 starrs and 100 pts toward your next goal."
  *
- * buildRewardClaimedMessage(0, 50)
- * // "✅ Reward claimed! You have 50 pts toward your next goal."
+ * buildGoalClaimedMessage(0, 50)
+ * // "✅ Goal claimed! You have 50 pts toward your next goal."
  */
-export function buildRewardClaimedMessage(
+export function buildGoalClaimedMessage(
   carryoverStamps: number,
   carryoverPoints: number
 ): string {
@@ -72,7 +83,7 @@ export function buildRewardClaimedMessage(
   }
 
   const havePart = parts.length > 0 ? ` You have ${parts.join(' and ')} toward your next goal.` : '';
-  return `✅ Reward claimed!${havePart}`;
+  return `✅ Goal claimed!${havePart}`;
 }
 
 // ---------------------------------------------------------------------------

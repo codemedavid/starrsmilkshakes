@@ -39,6 +39,7 @@ export default function MenuItemForm({ item, categories, onClose }: MenuItemForm
   const [popular, setPopular] = useState(item?.popular ?? false);
   const [available, setAvailable] = useState(item?.available ?? true);
   const [showInMessenger, setShowInMessenger] = useState(item?.show_in_messenger ?? false);
+  const [costPrice, setCostPrice] = useState(item?.costPrice?.toString() ?? '');
 
   // ─── Discount fields ───────────────────────────────────────────────────
   const [discountActive, setDiscountActive] = useState(item?.discountActive ?? false);
@@ -122,6 +123,7 @@ export default function MenuItemForm({ item, categories, onClose }: MenuItemForm
         discountPrice: discountPrice ? parseFloat(discountPrice) : null,
         discountStartDate: discountStartDate || null,
         discountEndDate: discountEndDate || null,
+        costPrice: costPrice ? parseFloat(costPrice) : null,
         variations: variations
           .filter((v) => v.name.trim())
           .map((v) => ({
@@ -220,6 +222,27 @@ export default function MenuItemForm({ item, categories, onClose }: MenuItemForm
                 className={inputClass}
                 placeholder="0.00"
               />
+            </div>
+
+            {/* Cost Price */}
+            <div>
+              <label className="block font-nunito text-sm font-medium text-stone-700 mb-1.5">
+                Cost Price
+              </label>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                value={costPrice}
+                onChange={(e) => setCostPrice(e.target.value)}
+                placeholder="e.g. 35.00"
+                className="w-full px-3.5 py-2.5 border border-[#E8E3DA] rounded-lg font-nunito text-sm
+                  focus:outline-none focus:ring-2 focus:ring-[#7BBFB5]/40 focus:border-[#7BBFB5]
+                  transition-all duration-200"
+              />
+              <p className="font-nunito text-xs text-stone-400 mt-1">
+                Cost of goods sold. Leave empty if unknown.
+              </p>
             </div>
 
             {/* Category */}

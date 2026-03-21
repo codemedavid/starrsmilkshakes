@@ -892,20 +892,57 @@ export default function OrdersContent({ initialOrders, branches, adminType }: Or
                   {selectedOrder.order_items?.map((item) => (
                     <div key={item.id} className="flex items-start justify-between p-4 bg-[#F2EEE8] rounded-xl border border-[#E8E3DA]">
                       <div className="flex-1">
-                        <p className="font-nunito font-semibold text-stone-900 mb-1">{item.menu_item_name}</p>
+                        <div className="flex items-center gap-2 mb-1">
+                          <p className="font-nunito font-semibold text-stone-900">{item.menu_item_name}</p>
+                          {item.bundle_id && (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold font-nunito bg-[#7BBFB5]/20 text-[#4A9B91] border border-[#7BBFB5]/40">
+                              Bundle
+                            </span>
+                          )}
+                        </div>
                         <div className="space-y-1">
-                          {item.selected_variation && (
-                            <p className="font-nunito text-sm text-stone-600">
-                              <span className="font-medium">Variation:</span> {item.selected_variation.name}
-                            </p>
+                          {/* Bundle slot selections */}
+                          {item.bundle_selections && item.bundle_selections.length > 0 ? (
+                            <div className="mt-2 space-y-2 pl-1 border-l-2 border-[#7BBFB5]/40">
+                              {item.bundle_selections.map((sel, idx) => (
+                                <div key={idx} className="pl-2">
+                                  <p className="font-nunito text-sm text-stone-700">
+                                    <span className="text-stone-500">{sel.slot_label}:</span>{' '}
+                                    <span className="font-medium">{sel.item_name}</span>
+                                    {sel.variation && (
+                                      <span className="text-stone-500">
+                                        {' '}({sel.variation.name}{sel.variation.price > 0 ? ` +₱${sel.variation.price.toLocaleString()}` : ''})
+                                      </span>
+                                    )}
+                                  </p>
+                                  {sel.add_ons && sel.add_ons.length > 0 && (
+                                    <div className="pl-2 mt-0.5 space-y-0.5">
+                                      {sel.add_ons.map((ao, aoIdx) => (
+                                        <p key={aoIdx} className="font-nunito text-xs text-[#4A9B91]">
+                                          + {ao.name}{ao.price > 0 ? ` ₱${ao.price.toLocaleString()}` : ''}
+                                        </p>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <>
+                              {item.selected_variation && (
+                                <p className="font-nunito text-sm text-stone-600">
+                                  <span className="font-medium">Variation:</span> {item.selected_variation.name}
+                                </p>
+                              )}
+                              {item.selected_add_ons && item.selected_add_ons.length > 0 && (
+                                <p className="font-nunito text-sm text-stone-600">
+                                  <span className="font-medium">Add-ons:</span>{' '}
+                                  {item.selected_add_ons.map((a) => a.name).join(', ')}
+                                </p>
+                              )}
+                            </>
                           )}
-                          {item.selected_add_ons && item.selected_add_ons.length > 0 && (
-                            <p className="font-nunito text-sm text-stone-600">
-                              <span className="font-medium">Add-ons:</span>{' '}
-                              {item.selected_add_ons.map((a) => a.name).join(', ')}
-                            </p>
-                          )}
-                          <p className="font-nunito text-xs text-stone-500">
+                          <p className="font-nunito text-xs text-stone-500 mt-1">
                             Qty: {item.quantity} × ₱{item.unit_price.toLocaleString()}
                           </p>
                         </div>

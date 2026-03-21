@@ -5,7 +5,8 @@ import { requireAdmin, checkActionRateLimit } from '@/lib/admin-guard';
 import { supabaseServer } from '@/lib/supabase-server';
 import {
   loyaltyConfigSchema,
-  loyaltyRewardSchema,
+  loyaltyGoalSchema,
+  loyaltyMilestoneSchema,
   loyaltyBoosterSchema,
   uuidSchema,
 } from '@/lib/validation';
@@ -22,10 +23,18 @@ export async function updateLoyaltyConfig(input: unknown): Promise<ActionResult>
   const parsed = loyaltyConfigSchema.safeParse(input);
   if (!parsed.success) return { success: false, error: 'Invalid input' };
 
+  // Singleton — fetch the row's UUID first, then update by it
+  const { data: row } = await (supabaseServer
+    .from('loyalty_config') as any)
+    .select('id')
+    .limit(1)
+    .single();
+  if (!row) return { success: false, error: 'Loyalty config not initialized' };
+
   const { data, error } = await (supabaseServer
     .from('loyalty_config') as any)
     .update(parsed.data)
-    .eq('id', 1)
+    .eq('id', row.id)
     .select()
     .single();
 
@@ -39,35 +48,35 @@ export async function updateLoyaltyConfig(input: unknown): Promise<ActionResult>
   return { success: true, data };
 }
 
-// ─── createReward ─────────────────────────────────────────────────────────────
+// ─── createGoal ───────────────────────────────────────────────────────────────
 
-export async function createReward(input: unknown): Promise<ActionResult> {
+export async function createGoal(input: unknown): Promise<ActionResult> {
   await requireAdmin();
   const { allowed } = await checkActionRateLimit();
   if (!allowed) return { success: false, error: 'Too many requests. Please try again later.' };
 
-  const parsed = loyaltyRewardSchema.safeParse(input);
+  const parsed = loyaltyGoalSchema.safeParse(input);
   if (!parsed.success) return { success: false, error: 'Invalid input' };
 
   const { data, error } = await (supabaseServer
-    .from('loyalty_rewards') as any)
+    .from('loyalty_goals') as any)
     .insert(parsed.data)
     .select()
     .single();
 
   if (error) {
-    console.error('[createReward] DB error:', error.code);
-    return { success: false, error: 'Failed to create reward' };
+    console.error('[createGoal] DB error:', error.code);
+    return { success: false, error: 'Failed to create goal' };
   }
 
-  revalidateTag('loyalty-rewards');
+  revalidateTag('loyalty-goals');
   revalidatePath('/admin/loyalty');
   return { success: true, data };
 }
 
-// ─── updateReward ─────────────────────────────────────────────────────────────
+// ─── updateGoal ───────────────────────────────────────────────────────────────
 
-export async function updateReward(id: unknown, input: unknown): Promise<ActionResult> {
+export async function updateGoal(id: unknown, input: unknown): Promise<ActionResult> {
   await requireAdmin();
   const { allowed } = await checkActionRateLimit();
   if (!allowed) return { success: false, error: 'Too many requests. Please try again later.' };
@@ -75,29 +84,29 @@ export async function updateReward(id: unknown, input: unknown): Promise<ActionR
   const idResult = uuidSchema.safeParse(id);
   if (!idResult.success) return { success: false, error: 'Invalid ID' };
 
-  const parsed = loyaltyRewardSchema.safeParse(input);
+  const parsed = loyaltyGoalSchema.safeParse(input);
   if (!parsed.success) return { success: false, error: 'Invalid input' };
 
   const { data, error } = await (supabaseServer
-    .from('loyalty_rewards') as any)
+    .from('loyalty_goals') as any)
     .update(parsed.data)
     .eq('id', idResult.data)
     .select()
     .single();
 
   if (error) {
-    console.error('[updateReward] DB error:', error.code);
-    return { success: false, error: 'Failed to update reward' };
+    console.error('[updateGoal] DB error:', error.code);
+    return { success: false, error: 'Failed to update goal' };
   }
 
-  revalidateTag('loyalty-rewards');
+  revalidateTag('loyalty-goals');
   revalidatePath('/admin/loyalty');
   return { success: true, data };
 }
 
-// ─── toggleReward ─────────────────────────────────────────────────────────────
+// ─── toggleGoal ───────────────────────────────────────────────────────────────
 
-export async function toggleReward(id: unknown, isActive: boolean): Promise<ActionResult> {
+export async function toggleGoal(id: unknown, isActive: boolean): Promise<ActionResult> {
   await requireAdmin();
   const { allowed } = await checkActionRateLimit();
   if (!allowed) return { success: false, error: 'Too many requests. Please try again later.' };
@@ -106,18 +115,18 @@ export async function toggleReward(id: unknown, isActive: boolean): Promise<Acti
   if (!idResult.success) return { success: false, error: 'Invalid ID' };
 
   const { data, error } = await (supabaseServer
-    .from('loyalty_rewards') as any)
+    .from('loyalty_goals') as any)
     .update({ is_active: isActive })
     .eq('id', idResult.data)
     .select()
     .single();
 
   if (error) {
-    console.error('[toggleReward] DB error:', error.code);
-    return { success: false, error: 'Failed to toggle reward' };
+    console.error('[toggleGoal] DB error:', error.code);
+    return { success: false, error: 'Failed to toggle goal' };
   }
 
-  revalidateTag('loyalty-rewards');
+  revalidateTag('loyalty-goals');
   revalidatePath('/admin/loyalty');
   return { success: true, data };
 }
@@ -211,7 +220,7 @@ export async function getRedemptions(statusFilter?: string): Promise<ActionResul
   await requireAdmin();
 
   let query = (supabaseServer.from('loyalty_redemptions') as any)
-    .select('*, loyalty_cards!inner(customer_id, card_code, customers!inner(name, email)), loyalty_rewards!inner(name)')
+    .select('*, loyalty_cards!inner(customer_id, card_code, customers!inner(name, email)), loyalty_goals!inner(name)')
     .order('earned_at', { ascending: false })
     .limit(50);
 
@@ -229,13 +238,69 @@ export async function getRedemptions(statusFilter?: string): Promise<ActionResul
   return { success: true, data: data || [] };
 }
 
+// ─── Milestone Admin Actions ────────────────────────────────────────────────
+
+export async function createMilestone(input: unknown): Promise<ActionResult> {
+  await requireAdmin();
+  const { allowed } = await checkActionRateLimit();
+  if (!allowed) return { success: false, error: 'Too many requests. Please try again later.' };
+  const parsed = loyaltyMilestoneSchema.safeParse(input);
+  if (!parsed.success) return { success: false, error: parsed.error.issues[0].message };
+
+  const { data, error } = await (supabaseServer
+    .from('loyalty_milestones') as any)
+    .insert(parsed.data)
+    .select()
+    .single();
+
+  if (error) return { success: false, error: error.message };
+  revalidateTag('loyalty-milestones');
+  return { success: true, data };
+}
+
+export async function updateMilestone(id: unknown, input: unknown): Promise<ActionResult> {
+  await requireAdmin();
+  const { allowed } = await checkActionRateLimit();
+  if (!allowed) return { success: false, error: 'Too many requests. Please try again later.' };
+  if (typeof id !== 'string') return { success: false, error: 'Invalid ID' };
+  const parsed = loyaltyMilestoneSchema.safeParse(input);
+  if (!parsed.success) return { success: false, error: parsed.error.issues[0].message };
+
+  const { data, error } = await (supabaseServer
+    .from('loyalty_milestones') as any)
+    .update(parsed.data)
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) return { success: false, error: error.message };
+  revalidateTag('loyalty-milestones');
+  return { success: true, data };
+}
+
+export async function toggleMilestone(id: unknown, isActive: boolean): Promise<ActionResult> {
+  await requireAdmin();
+  const { allowed } = await checkActionRateLimit();
+  if (!allowed) return { success: false, error: 'Too many requests. Please try again later.' };
+  if (typeof id !== 'string') return { success: false, error: 'Invalid ID' };
+
+  const { error } = await (supabaseServer
+    .from('loyalty_milestones') as any)
+    .update({ is_active: isActive })
+    .eq('id', id);
+
+  if (error) return { success: false, error: error.message };
+  revalidateTag('loyalty-milestones');
+  return { success: true };
+}
+
 // ─── getLoyaltyConfig ────────────────────────────────────────────────────────
 
 export async function getLoyaltyConfig(): Promise<ActionResult> {
   const { data, error } = await (supabaseServer
     .from('loyalty_config') as any)
     .select('*')
-    .eq('id', 1)
+    .limit(1)
     .single();
 
   if (error) {

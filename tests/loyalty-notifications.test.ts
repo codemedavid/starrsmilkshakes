@@ -3,7 +3,8 @@ import { describe, it, expect } from 'vitest';
 import {
   buildStampEarnedMessage,
   buildGoalAchievedMessage,
-  buildRewardClaimedMessage,
+  buildGoalClaimedMessage,
+  buildMilestoneEarnedMessage,
 } from '@/lib/loyalty-notifications';
 
 describe('buildStampEarnedMessage', () => {
@@ -72,44 +73,52 @@ describe('buildGoalAchievedMessage', () => {
   });
 });
 
-describe('buildRewardClaimedMessage', () => {
+describe('buildGoalClaimedMessage', () => {
   it('includes carryover stamps and points when both are non-zero', () => {
-    const msg = buildRewardClaimedMessage(2, 100);
+    const msg = buildGoalClaimedMessage(2, 100);
     expect(msg).toContain('2 starrs');
     expect(msg).toContain('100 pts');
   });
 
   it('omits stamps portion when carryover stamps are 0', () => {
-    const msg = buildRewardClaimedMessage(0, 50);
+    const msg = buildGoalClaimedMessage(0, 50);
     expect(msg).not.toContain('starr');
     expect(msg).toContain('50 pts');
   });
 
   it('omits points portion when carryover points are 0', () => {
-    const msg = buildRewardClaimedMessage(3, 0);
+    const msg = buildGoalClaimedMessage(3, 0);
     expect(msg).toContain('3 starrs');
     expect(msg).not.toContain('pts');
   });
 
   it('omits both portions when both are 0', () => {
-    const msg = buildRewardClaimedMessage(0, 0);
+    const msg = buildGoalClaimedMessage(0, 0);
     expect(msg).not.toContain('starr');
     expect(msg).not.toContain('pts');
   });
 
   it('uses singular "starr" for exactly one carryover stamp', () => {
-    const msg = buildRewardClaimedMessage(1, 0);
+    const msg = buildGoalClaimedMessage(1, 0);
     expect(msg).toContain('1 starr');
     expect(msg).not.toMatch(/1 starrs/);
   });
 
   it('matches the canonical example format', () => {
-    const msg = buildRewardClaimedMessage(2, 100);
-    // "✅ Reward claimed! You have 2 starrs and 100 pts toward your next goal."
+    const msg = buildGoalClaimedMessage(2, 100);
+    // "✅ Goal claimed! You have 2 starrs and 100 pts toward your next goal."
     expect(msg).toContain('✅');
-    expect(msg).toContain('Reward claimed');
+    expect(msg).toContain('Goal claimed');
     expect(msg).toContain('2 starrs');
     expect(msg).toContain('100 pts');
     expect(msg).toContain('next goal');
+  });
+});
+
+describe('buildMilestoneEarnedMessage', () => {
+  it('builds a milestone message with the name', () => {
+    expect(buildMilestoneEarnedMessage('Free Sticker')).toBe(
+      '🏆 You hit a milestone — Free Sticker!',
+    );
   });
 });

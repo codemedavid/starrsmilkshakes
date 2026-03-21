@@ -1,26 +1,44 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { ArrowLeft, Clock, Search, Loader2, MapPin } from 'lucide-react';
-import { CartItem, PaymentMethod, ServiceType, AddressSuggestion, Branch } from '../types';
+import { CartItem, MenuItem, PaymentMethod, ServiceType, AddressSuggestion, Branch } from '../types';
 import BranchSelector from './BranchSelector';
 import { usePaymentMethods } from '../hooks/usePaymentMethods';
 import { useOrders } from '../hooks/useOrders';
 import { useAddressAutocomplete } from '../hooks/useAddressAutocomplete';
 import { useSiteSettings } from '../hooks/useSiteSettings';
+import { useCartContext } from '@/contexts/CartContext';
 import { fetchDeliveryQuotation, buildLalamoveConfig } from '../lib/lalamove';
 import * as fpixel from '../lib/fpixel';
 import { sendPurchaseEvent } from '../lib/meta-conversions';
+import UpgradeScreen from './UpgradeScreen';
+import BestPairScreen from './BestPairScreen';
+import CheckoutInterstitial from './CheckoutInterstitial';
+import { getUpgradeOffers, getPairSuggestions, getInterstitialOffers } from '@/actions/upsell';
+import type { UpsellOffer, PairOffer, InterstitialOffer } from '@/types/upsell';
+import type { BundleCartItem, SlotSelection } from '@/types/bundle';
 
 interface CheckoutProps {
   cartItems: CartItem[];
+  bundleItems?: BundleCartItem[];
   totalPrice: number;
   onBack: () => void;
   msession?: string;
 }
 
-const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, msession }) => {
+type UpsellStep = 'upgrade' | 'pair' | 'checkout' | 'interstitial' | 'placing';
+
+const Checkout: React.FC<CheckoutProps> = ({ cartItems, bundleItems = [], totalPrice, onBack, msession }) => {
   const { paymentMethods } = usePaymentMethods();
   const { createOrder } = useOrders();
+  const { addToCart, addBundleToCart } = useCartContext();
   const [step, setStep] = useState<'details' | 'payment'>('details');
+
+  // Upsell flow state
+  const [upsellLoading, setUpsellLoading] = useState(true);
+  const [upsellStep, setUpsellStep] = useState<UpsellStep>('upgrade');
+  const [upgradeOffers, setUpgradeOffers] = useState<UpsellOffer[]>([]);
+  const [pairOffers, setPairOffers] = useState<PairOffer[]>([]);
+  const [interstitialOffer, setInterstitialOffer] = useState<InterstitialOffer | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [customerName, setCustomerName] = useState('');
@@ -51,6 +69,44 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, mses
   const { siteSettings } = useSiteSettings();
   const [selectedBranch, setSelectedBranch] = useState<Branch | null>(null);
   const [showBranchSelector, setShowBranchSelector] = useState(false);
+
+  // Fetch upsell data on mount and determine initial upsell step
+  useEffect(() => {
+    const fetchUpsellData = async () => {
+      try {
+        const cartItemsMapped = cartItems.map(i => ({
+          menu_item_id: i.menuItemId || i.id,
+          category: i.category,
+          quantity: i.quantity,
+          unit_price: i.totalPrice / i.quantity,
+        }));
+
+        const [upgradeRes, pairRes] = await Promise.all([
+          getUpgradeOffers(cartItemsMapped),
+          getPairSuggestions(cartItemsMapped),
+        ]);
+
+        if (upgradeRes.success && upgradeRes.data?.length > 0) {
+          setUpgradeOffers(upgradeRes.data);
+          setUpsellStep('upgrade');
+        } else if (pairRes.success && pairRes.data?.length > 0) {
+          setPairOffers(pairRes.data);
+          setUpsellStep('pair');
+        } else {
+          setUpsellStep('checkout');
+        }
+
+        if (pairRes.success) setPairOffers(pairRes.data || []);
+      } catch (err) {
+        console.error('Failed to fetch upsell data:', err);
+        setUpsellStep('checkout');
+      } finally {
+        setUpsellLoading(false);
+      }
+    };
+    fetchUpsellData();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Load branch from local storage on mount
   useEffect(() => {
@@ -241,6 +297,25 @@ Please confirm this order to proceed. Thank you for choosing Starr's Famous Shak
     }
   };
 
+  // Intercept "Place Order" to show interstitial offer first if one exists
+  const handlePrePlaceOrder = async () => {
+    const cartItemsMapped = cartItems.map(i => ({
+      menu_item_id: i.menuItemId || i.id,
+      category: i.category,
+      quantity: i.quantity,
+      unit_price: i.totalPrice / i.quantity,
+    }));
+    const cart = { items: cartItemsMapped, total: totalWithDelivery };
+
+    const res = await getInterstitialOffers(cart);
+    if (res.success && res.data) {
+      setInterstitialOffer(res.data);
+      setUpsellStep('interstitial');
+    } else {
+      handlePlaceOrder();
+    }
+  };
+
   // Handle address selection from autocomplete
   const handleAddressSelect = (suggestion: AddressSuggestion) => {
     setAddress(suggestion.display_name);
@@ -378,6 +453,72 @@ Please confirm this order to proceed. Thank you for choosing Starr's Famous Shak
     (serviceType !== 'delivery' || (address && deliveryFee !== null)) &&
     (serviceType !== 'pickup' || (pickupTime !== 'custom' || customTime));
 
+  // Loading state for upsell data fetch
+  if (upsellLoading && (upsellStep === 'upgrade' || upsellStep === 'pair')) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] px-4">
+        <div className="animate-spin rounded-full h-12 w-12 border-4 border-stone-200 border-t-[#3D8A80] mb-6" />
+        <p className="text-lg font-nunito font-semibold text-[#3D8A80]">
+          Finding the best deals for you...
+        </p>
+        <div className="mt-8 w-full max-w-md space-y-4">
+          <div className="h-24 bg-stone-100 rounded-xl animate-pulse" />
+          <div className="h-24 bg-stone-100 rounded-xl animate-pulse delay-150" />
+          <div className="h-12 bg-[#7BBFB5]/20 rounded-xl animate-pulse delay-300" />
+        </div>
+      </div>
+    );
+  }
+
+  // Phase 1: Upgrade Screen
+  if (upsellStep === 'upgrade') {
+    return (
+      <UpgradeScreen
+        offers={upgradeOffers}
+        onAcceptBundle={(bundleId: string, selections: SlotSelection[], bundleTotalPrice: number) => {
+          // Find the bundle from the upgrade offers and add to cart
+          const offer = upgradeOffers.find(o => o.rule.offer_bundle?.id === bundleId);
+          if (offer?.rule.offer_bundle) {
+            addBundleToCart(offer.rule.offer_bundle, selections, bundleTotalPrice);
+          }
+          setUpsellStep(pairOffers.length > 0 ? 'pair' : 'checkout');
+        }}
+        onAcceptItem={(itemId: string) => {
+          // Find the item from the upgrade offers and add to cart
+          const offer = upgradeOffers.find(o => o.rule.offer_item_id === itemId);
+          if (offer?.rule.offer_item) {
+            addToCart(offer.rule.offer_item);
+          }
+          setUpsellStep(pairOffers.length > 0 ? 'pair' : 'checkout');
+        }}
+        onSkip={() => setUpsellStep(pairOffers.length > 0 ? 'pair' : 'checkout')}
+      />
+    );
+  }
+
+  // Phase 3: Best Pair Screen
+  if (upsellStep === 'pair') {
+    return (
+      <BestPairScreen
+        offers={pairOffers}
+        onAddItem={(itemId: string) => {
+          const offer = pairOffers.find(o =>
+            o.rule.paired_item_id === itemId || o.rule.paired_bundle_id === itemId
+          );
+          if (offer?.item) {
+            addToCart(offer.item as MenuItem);
+          }
+          setUpsellStep('checkout');
+        }}
+        onNavigateToProduct={(itemId: string) => {
+          // Legacy checkout flow — treat same as skip for now
+          setUpsellStep('checkout');
+        }}
+        onSkip={() => setUpsellStep('checkout')}
+      />
+    );
+  }
+
   if (step === 'details') {
     return (
       <div className="max-w-4xl mx-auto px-4 py-8">
@@ -438,6 +579,50 @@ Please confirm this order to proceed. Thank you for choosing Starr's Famous Shak
                     <p className="text-sm text-gray-600">₱{item.totalPrice} x {item.quantity}</p>
                   </div>
                   <span className="font-semibold text-black">₱{item.totalPrice * item.quantity}</span>
+                </div>
+              ))}
+              {bundleItems.map((bundleItem, idx) => (
+                <div key={`bundle-${idx}`} className="py-2 border-b border-red-100">
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <h4 className="font-medium text-black">{bundleItem.bundle.name}</h4>
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-teal-50 text-teal-700 border border-teal-200">
+                          Combo
+                        </span>
+                      </div>
+                      {bundleItem.slot_selections.map((sel) => {
+                        const slot = bundleItem.bundle.slots.find(s => s.id === sel.slot_id);
+                        if (!slot) return null;
+                        return sel.selected_items.map((si, siIdx) => {
+                          const slotItem = slot.items.find(sli => sli.menu_item_id === si.menu_item_id);
+                          const itemName = slotItem?.menu_item?.name ?? si.menu_item_id;
+                          return (
+                            <div key={`${sel.slot_id}-${siIdx}`} className="ml-1 pl-3 border-l-2 border-teal-300/50 mb-1">
+                              <p className="text-sm text-gray-700">
+                                <span className="text-gray-500">{slot.label}:</span>{' '}
+                                <span className="font-medium">{itemName}</span>
+                                {si.selected_variation && (
+                                  <span className="text-gray-500"> ({si.selected_variation.name})</span>
+                                )}
+                              </p>
+                              {si.selected_add_ons && si.selected_add_ons.length > 0 && (
+                                <div className="pl-2 space-y-0.5">
+                                  {si.selected_add_ons.map((ao, aoIdx) => (
+                                    <p key={aoIdx} className="text-xs text-teal-700">
+                                      + {ao.name}{ao.quantity && ao.quantity > 1 ? ` x${ao.quantity}` : ''}
+                                    </p>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        });
+                      })}
+                      <p className="text-sm text-gray-600 mt-1">₱{bundleItem.totalPrice} x {bundleItem.quantity}</p>
+                    </div>
+                    <span className="font-semibold text-black ml-4">₱{bundleItem.totalPrice * bundleItem.quantity}</span>
+                  </div>
                 </div>
               ))}
             </div>
@@ -890,6 +1075,50 @@ Please confirm this order to proceed. Thank you for choosing Starr's Famous Shak
                 <span className="font-semibold text-black">₱{item.totalPrice * item.quantity}</span>
               </div>
             ))}
+            {bundleItems.map((bundleItem, idx) => (
+              <div key={`bundle-${idx}`} className="py-2 border-b border-red-100">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <h4 className="font-medium text-black">{bundleItem.bundle.name}</h4>
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-teal-50 text-teal-700 border border-teal-200">
+                        Combo
+                      </span>
+                    </div>
+                    {bundleItem.slot_selections.map((sel) => {
+                      const slot = bundleItem.bundle.slots.find(s => s.id === sel.slot_id);
+                      if (!slot) return null;
+                      return sel.selected_items.map((si, siIdx) => {
+                        const slotItem = slot.items.find(sli => sli.menu_item_id === si.menu_item_id);
+                        const itemName = slotItem?.menu_item?.name ?? si.menu_item_id;
+                        return (
+                          <div key={`${sel.slot_id}-${siIdx}`} className="ml-1 pl-3 border-l-2 border-teal-300/50 mb-1">
+                            <p className="text-sm text-gray-700">
+                              <span className="text-gray-500">{slot.label}:</span>{' '}
+                              <span className="font-medium">{itemName}</span>
+                              {si.selected_variation && (
+                                <span className="text-gray-500"> ({si.selected_variation.name})</span>
+                              )}
+                            </p>
+                            {si.selected_add_ons && si.selected_add_ons.length > 0 && (
+                              <div className="pl-2 space-y-0.5">
+                                {si.selected_add_ons.map((ao, aoIdx) => (
+                                  <p key={aoIdx} className="text-xs text-teal-700">
+                                    + {ao.name}{ao.quantity && ao.quantity > 1 ? ` x${ao.quantity}` : ''}
+                                  </p>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      });
+                    })}
+                    <p className="text-sm text-gray-600 mt-1">₱{bundleItem.totalPrice} x {bundleItem.quantity}</p>
+                  </div>
+                  <span className="font-semibold text-black ml-4">₱{bundleItem.totalPrice * bundleItem.quantity}</span>
+                </div>
+              </div>
+            ))}
           </div>
 
           {serviceType === 'delivery' && (
@@ -944,7 +1173,7 @@ Please confirm this order to proceed. Thank you for choosing Starr's Famous Shak
           )}
 
           <button
-            onClick={handlePlaceOrder}
+            onClick={handlePrePlaceOrder}
             disabled={isSubmitting}
             className={`w-full py-4 rounded-xl font-medium text-lg transition-all duration-200 transform ${isSubmitting
               ? 'bg-gray-400 text-white cursor-not-allowed'
@@ -959,6 +1188,31 @@ Please confirm this order to proceed. Thank you for choosing Starr's Famous Shak
           </p>
         </div>
       </div>
+
+      {/* Phase 4: Interstitial offer overlay — shown on top of the payment step */}
+      {upsellStep === 'interstitial' && interstitialOffer && (
+        <CheckoutInterstitial
+          offer={interstitialOffer}
+          onAccept={() => {
+            if (interstitialOffer) {
+              if (interstitialOffer.item) {
+                addToCart(interstitialOffer.item as MenuItem);
+              }
+              // For loyalty_nudge, just go back to menu
+              if (interstitialOffer.type === 'loyalty_nudge') {
+                onBack();
+                return;
+              }
+            }
+            setInterstitialOffer(null);
+            setUpsellStep('checkout');
+          }}
+          onDecline={() => {
+            setInterstitialOffer(null);
+            handlePlaceOrder();
+          }}
+        />
+      )}
     </div>
   );
 };
