@@ -592,7 +592,7 @@ Please confirm this order to proceed. Thank you for choosing Starr's Famous Shak
                         </span>
                       </div>
                       {bundleItem.slot_selections.map((sel) => {
-                        const slot = bundleItem.bundle.slots.find(s => s.id === sel.slot_id);
+                        const slot = (bundleItem.bundle.slots || []).find(s => s.id === sel.slot_id);
                         if (!slot) return null;
                         return sel.selected_items.map((si, siIdx) => {
                           const slotItem = slot.items.find(sli => sli.menu_item_id === si.menu_item_id);
@@ -1086,7 +1086,7 @@ Please confirm this order to proceed. Thank you for choosing Starr's Famous Shak
                       </span>
                     </div>
                     {bundleItem.slot_selections.map((sel) => {
-                      const slot = bundleItem.bundle.slots.find(s => s.id === sel.slot_id);
+                      const slot = (bundleItem.bundle.slots || []).find(s => s.id === sel.slot_id);
                       if (!slot) return null;
                       return sel.selected_items.map((si, siIdx) => {
                         const slotItem = slot.items.find(sli => sli.menu_item_id === si.menu_item_id);

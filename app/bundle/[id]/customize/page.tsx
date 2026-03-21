@@ -57,7 +57,7 @@ export default function BundleWizardPage({ params }: PageProps) {
 
   // Sorted slots for consistent ordering
   const sortedSlots = useMemo(
-    () => bundle ? [...bundle.slots].sort((a, b) => a.sort_order - b.sort_order) : [],
+    () => bundle ? [...(bundle.slots || [])].sort((a, b) => a.sort_order - b.sort_order) : [],
     [bundle]
   );
 
@@ -122,7 +122,7 @@ export default function BundleWizardPage({ params }: PageProps) {
       const data = await fetchBundleById(id);
       if (data) {
         setBundle(data);
-        const sorted = [...data.slots].sort((a, b) => a.sort_order - b.sort_order);
+        const sorted = [...(data.slots || [])].sort((a, b) => a.sort_order - b.sort_order);
         setSlotStates(sorted.map(slot => ({ slot_id: slot.id, selected_items: [] })));
       }
       setLoading(false);

@@ -18,9 +18,9 @@ interface BundleCustomizerProps {
 
 export default function BundleCustomizer({ bundle, onAddToCart, onClose }: BundleCustomizerProps) {
   const [slotStates, setSlotStates] = useState<SlotState[]>(
-    bundle.slots.map(slot => ({ slot_id: slot.id, selected_items: [] }))
+    (bundle.slots || []).map(slot => ({ slot_id: slot.id, selected_items: [] }))
   );
-  const [expandedSlot, setExpandedSlot] = useState<string>(bundle.slots[0]?.id ?? '');
+  const [expandedSlot, setExpandedSlot] = useState<string>((bundle.slots || [])[0]?.id ?? '');
 
   // Build selections for engine — memoized so downstream useMemo deps are stable
   const selections = useMemo<SlotSelection[]>(
@@ -179,7 +179,7 @@ export default function BundleCustomizer({ bundle, onAddToCart, onClose }: Bundl
 
         {/* Slots */}
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
-          {[...bundle.slots].sort((a, b) => a.sort_order - b.sort_order).map(slot => {
+          {[...(bundle.slots || [])].sort((a, b) => a.sort_order - b.sort_order).map(slot => {
             const state = slotStates.find(s => s.slot_id === slot.id)!;
             const isExpanded = expandedSlot === slot.id;
             const selCount = state.selected_items.length;

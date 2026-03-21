@@ -8,7 +8,7 @@ export function validateBundleSelections(
 ): { valid: boolean; errors: string[] } {
   const errors: string[] = [];
 
-  for (const slot of bundle.slots) {
+  for (const slot of (bundle.slots || [])) {
     const selection = slotSelections.find(s => s.slot_id === slot.id);
     const count = selection?.selected_items.length ?? 0;
 
@@ -72,7 +72,7 @@ export function calculateBundleSavings(
   let individualTotal = 0;
 
   for (const sel of slotSelections) {
-    const slot = bundle.slots.find(s => s.id === sel.slot_id);
+    const slot = (bundle.slots || []).find(s => s.id === sel.slot_id);
     if (!slot) continue;
     for (const item of sel.selected_items) {
       const slotItem = slot.items.find(si => si.menu_item_id === item.menu_item_id);
@@ -92,7 +92,7 @@ export function calculateBundleSavings(
 export function isBundleAvailable(bundle: Bundle, slotAvailability: SlotItemAvailability[]): boolean {
   if (!bundle.available) return false;
 
-  for (const slot of bundle.slots) {
+  for (const slot of (bundle.slots || [])) {
     const avail = slotAvailability.find(a => a.slot_id === slot.id);
     if (!avail || avail.available_count < slot.min_selections) return false;
   }

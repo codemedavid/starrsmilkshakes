@@ -34,8 +34,8 @@ export default function BundlePage({ params }: BundlePageProps) {
             const mapped = await fetchBundleById(id);
             if (mapped) {
                 setBundle(mapped);
-                setSlotStates(mapped.slots.map(slot => ({ slot_id: slot.id, selected_items: [] })));
-                setExpandedSlot(mapped.slots[0]?.id ?? '');
+                setSlotStates((mapped.slots || []).map(slot => ({ slot_id: slot.id, selected_items: [] })));
+                setExpandedSlot((mapped.slots || [])[0]?.id ?? '');
             }
             setLoading(false);
         }
@@ -73,7 +73,7 @@ export default function BundlePage({ params }: BundlePageProps) {
     // Total completed slots
     const completedSlots = useMemo(() => {
         if (!bundle) return 0;
-        return bundle.slots.filter(slot => {
+        return (bundle.slots || []).filter(slot => {
             const state = slotStates.find(s => s.slot_id === slot.id);
             return state && state.selected_items.length >= slot.min_selections;
         }).length;
@@ -183,8 +183,8 @@ export default function BundlePage({ params }: BundlePageProps) {
             setTimeout(() => setShowToast(false), 3000);
             // Reset for adding another
             setQuantity(1);
-            setSlotStates(bundle.slots.map(slot => ({ slot_id: slot.id, selected_items: [] })));
-            setExpandedSlot(bundle.slots[0]?.id ?? '');
+            setSlotStates((bundle.slots || []).map(slot => ({ slot_id: slot.id, selected_items: [] })));
+            setExpandedSlot((bundle.slots || [])[0]?.id ?? '');
         }
     };
 
@@ -297,20 +297,20 @@ export default function BundlePage({ params }: BundlePageProps) {
                     <div className="flex items-center justify-between mb-2">
                         <h3 className="text-sm font-bold text-starrs-teal-dark">Build Your Combo</h3>
                         <span className="text-xs font-semibold text-starrs-teal bg-starrs-teal/10 px-2 py-1 rounded-lg">
-                            {completedSlots} of {bundle.slots.length} done
+                            {completedSlots} of {(bundle.slots || []).length} done
                         </span>
                     </div>
                     <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
                         <div
                             className="h-full rounded-full bg-gradient-to-r from-starrs-teal to-starrs-teal-dark transition-all duration-500"
-                            style={{ width: `${bundle.slots.length > 0 ? (completedSlots / bundle.slots.length) * 100 : 0}%` }}
+                            style={{ width: `${(bundle.slots || []).length > 0 ? (completedSlots / (bundle.slots || []).length) * 100 : 0}%` }}
                         />
                     </div>
                 </div>
 
                 {/* Slot Sections */}
                 <div className="space-y-6 mb-12">
-                    {[...bundle.slots].sort((a, b) => a.sort_order - b.sort_order).map((slot, slotIndex) => {
+                    {[...(bundle.slots || [])].sort((a, b) => a.sort_order - b.sort_order).map((slot, slotIndex) => {
                         const state = slotStates.find(s => s.slot_id === slot.id)!;
                         if (!state) return null;
                         const isExpanded = expandedSlot === slot.id;

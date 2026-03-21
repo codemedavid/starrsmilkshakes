@@ -17,7 +17,7 @@ interface BundleReviewStepProps {
 export default function BundleReviewStep({
   bundle, slotStates, quantity, onQuantityChange, onEditSlot, priceInfo, savingsInfo,
 }: BundleReviewStepProps) {
-  const sortedSlots = [...bundle.slots].sort((a, b) => a.sort_order - b.sort_order);
+  const sortedSlots = [...(bundle.slots || [])].sort((a, b) => a.sort_order - b.sort_order);
   return (
     <div className="px-4 pb-28">
       <div className="text-center mb-6">
