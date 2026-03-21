@@ -8,26 +8,25 @@ import { fetchBundleById } from '@/lib/bundle-fetcher';
 import type { Bundle, SlotSelection, SlotState } from '@/types/bundle';
 import type { MenuItem, Variation, AddOn } from '@/types';
 import type { BundleSlot } from '@/types/bundle';
-import type { PairOffer, InterstitialOffer, UpsellCartItem, UpsellCart } from '@/types/upsell';
+import type { PairOffer, UpsellCartItem } from '@/types/upsell';
 import {
   validateBundleSelections,
   calculateBundlePrice,
   calculateBundleSavings,
 } from '@/lib/bundle-engine';
-import { getPairSuggestions, getInterstitialOffers } from '@/actions/upsell';
+import { getPairSuggestions } from '@/actions/upsell';
 
 import WizardStepIndicator from '@/components/bundle-wizard/WizardStepIndicator';
 import SlotStep from '@/components/bundle-wizard/SlotStep';
 import BundleReviewStep from '@/components/bundle-wizard/BundleReviewStep';
 import BundleUpsellPair from '@/components/bundle-wizard/BundleUpsellPair';
-import BundleUpsellInterstitial from '@/components/bundle-wizard/BundleUpsellInterstitial';
 import WizardBottomBar from '@/components/bundle-wizard/WizardBottomBar';
 
 interface PageProps {
   params: Promise<{ id: string }>;
 }
 
-type WizardPhase = 'slots' | 'review' | 'upsell-pair' | 'upsell-interstitial' | 'done';
+type WizardPhase = 'slots' | 'review' | 'upsell-pair' | 'done';
 
 export default function BundleWizardPage({ params }: PageProps) {
   const { id } = use(params);
@@ -48,7 +47,6 @@ export default function BundleWizardPage({ params }: PageProps) {
 
   // Upsell state
   const [pairOffers, setPairOffers] = useState<PairOffer[] | null>(null);
-  const [interstitialOffer, setInterstitialOffer] = useState<InterstitialOffer | null>(null);
 
   // Ref to guard pushState against popstate-triggered re-renders
   const isPopStateNav = useRef(false);
@@ -144,8 +142,6 @@ export default function BundleWizardPage({ params }: PageProps) {
         setCurrentSlotIndex(sortedSlots.length - 1);
       } else if (phase === 'upsell-pair') {
         setPhase('review');
-      } else if (phase === 'upsell-interstitial') {
-        setPhase(pairOffers && pairOffers.length > 0 ? 'upsell-pair' : 'review');
       } else {
         router.replace('/');
       }
@@ -282,10 +278,8 @@ export default function BundleWizardPage({ params }: PageProps) {
       setCurrentSlotIndex(sortedSlots.length - 1);
     } else if (phase === 'upsell-pair') {
       setPhase('review');
-    } else if (phase === 'upsell-interstitial') {
-      setPhase(pairOffers && pairOffers.length > 0 ? 'upsell-pair' : 'review');
     }
-  }, [phase, editingFromReview, currentSlotIndex, slotStates, sortedSlots.length, pairOffers, router]);
+  }, [phase, editingFromReview, currentSlotIndex, slotStates, sortedSlots.length, router]);
 
   const handleEditSlot = useCallback((slotIndex: number) => {
     setEditingFromReview(true);
@@ -323,26 +317,15 @@ export default function BundleWizardPage({ params }: PageProps) {
       }))
     );
 
-    // Fetch upsell data
+    // Fetch pair upsell data only — interstitial belongs in the checkout flow
     try {
-      const [pairResult, interstitialResult] = await Promise.all([
-        getPairSuggestions(upsellCartItems),
-        getInterstitialOffers({
-          items: upsellCartItems,
-          total: priceInfo.total * quantity,
-        }),
-      ]);
-
+      const pairResult = await getPairSuggestions(upsellCartItems);
       const pairs = pairResult.success ? (pairResult.data as PairOffer[] ?? []) : [];
-      const interstitial = interstitialResult.success ? (interstitialResult.data as InterstitialOffer | null) : null;
 
       setPairOffers(pairs);
-      setInterstitialOffer(interstitial);
 
       if (pairs.length > 0) {
         setPhase('upsell-pair');
-      } else if (interstitial) {
-        setPhase('upsell-interstitial');
       } else {
         addToCartAndFinish();
       }
@@ -354,12 +337,8 @@ export default function BundleWizardPage({ params }: PageProps) {
   }, [bundle, selections, quantity, priceInfo.total, addToCartAndFinish, submitting]);
 
   const handlePairSkip = useCallback(() => {
-    if (interstitialOffer) {
-      setPhase('upsell-interstitial');
-    } else {
-      addToCartAndFinish();
-    }
-  }, [interstitialOffer, addToCartAndFinish]);
+    addToCartAndFinish();
+  }, [addToCartAndFinish]);
 
   const handlePairAdd = useCallback((itemId: string) => {
     // Add the bundle to cart first so it's not lost, then navigate
@@ -368,22 +347,6 @@ export default function BundleWizardPage({ params }: PageProps) {
     router.replace(`/product/${itemId}?source=pair`);
   }, [addBundleToCart, router]);
 
-  const handleInterstitialAccept = useCallback(() => {
-    if (interstitialOffer?.type === 'loyalty_nudge') {
-      // Loyalty nudge — just add bundle and go to menu
-      addToCartAndFinish();
-      return;
-    }
-    // Add the upsell offer item to regular cart, then add bundle and finish
-    if (interstitialOffer?.item) {
-      cart.addToCart(interstitialOffer.item as any, 1, undefined, []);
-    }
-    addToCartAndFinish();
-  }, [interstitialOffer, addToCartAndFinish, cart]);
-
-  const handleInterstitialDecline = useCallback(() => {
-    addToCartAndFinish();
-  }, [addToCartAndFinish]);
 
   // --- Render ---
 
@@ -497,14 +460,6 @@ export default function BundleWizardPage({ params }: PageProps) {
           />
         )}
 
-        {/* Upsell interstitial */}
-        {phase === 'upsell-interstitial' && interstitialOffer && (
-          <BundleUpsellInterstitial
-            offer={interstitialOffer}
-            onAccept={handleInterstitialAccept}
-            onDecline={handleInterstitialDecline}
-          />
-        )}
       </div>
 
       {/* Bottom bar — for slots and review phases */}

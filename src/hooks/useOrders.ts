@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { Branch, Order, OrderFilters, OrderStats, OrderStatus, CartItem } from '../types';
+import type { BundleCartItem } from '../types/bundle';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 
 interface CreateOrderOptions {
@@ -101,7 +102,8 @@ export const useOrders = ({ admin = false }: UseOrdersOptions = {}) => {
     serviceType: 'dine-in' | 'pickup' | 'delivery',
     paymentMethod: string,
     total: number,
-    options?: CreateOrderOptions
+    options?: CreateOrderOptions,
+    bundleItems?: BundleCartItem[]
   ): Promise<Order> => {
     try {
       // Create order via API
@@ -112,6 +114,7 @@ export const useOrders = ({ admin = false }: UseOrdersOptions = {}) => {
         },
         body: JSON.stringify({
           cartItems,
+          bundleItems: bundleItems || [],
           customerName,
           contactNumber,
           serviceType,
