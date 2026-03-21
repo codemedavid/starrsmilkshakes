@@ -5,6 +5,9 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Bot, Loader2 } from 'lucide-react';
 import { updateSiteSettings } from '@/actions/settings';
 import AiLogsTab from './AiLogsTab';
+import KnowledgeTab from './KnowledgeTab';
+import FaqTab from './FaqTab';
+import TriggerTab from './TriggerTab';
 
 // ─── Tab definitions ──────────────────────────────────────────────────────────
 
@@ -16,32 +19,6 @@ const TABS: { id: TabId; label: string }[] = [
   { id: 'triggers', label: 'Triggers' },
   { id: 'logs', label: 'Logs' },
 ];
-
-// ─── Placeholder tabs (replaced in Tasks 15–17) ───────────────────────────────
-
-function KnowledgeTabPlaceholder() {
-  return (
-    <div className="text-center py-12 text-stone-400 font-nunito">
-      Knowledge Base tab — coming soon
-    </div>
-  );
-}
-
-function FaqTabPlaceholder() {
-  return (
-    <div className="text-center py-12 text-stone-400 font-nunito">
-      FAQs tab — coming soon
-    </div>
-  );
-}
-
-function TriggerTabPlaceholder() {
-  return (
-    <div className="text-center py-12 text-stone-400 font-nunito">
-      Triggers tab — coming soon
-    </div>
-  );
-}
 
 // ─── Toggle switch ────────────────────────────────────────────────────────────
 
@@ -205,9 +182,9 @@ export default function AiHubTabs() {
 
       {/* ── Tab content ────────────────────────────────────────────────────── */}
       <div className="p-6">
-        {activeTab === 'knowledge' && <KnowledgeTabPlaceholder />}
-        {activeTab === 'faqs' && <FaqTabPlaceholder />}
-        {activeTab === 'triggers' && <TriggerTabPlaceholder />}
+        {activeTab === 'knowledge' && <KnowledgeTab />}
+        {activeTab === 'faqs' && <FaqTab />}
+        {activeTab === 'triggers' && <TriggerTab />}
         {activeTab === 'logs' && <AiLogsTab />}
       </div>
     </>
