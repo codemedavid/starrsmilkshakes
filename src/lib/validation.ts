@@ -13,7 +13,7 @@ import { z } from 'zod';
 const sanitizeString = (s: string): string => s.replace(/<[^>]*>/g, '');
 
 /** Reusable sanitized string builder. */
-const sanitized = z.string().transform(sanitizeString);
+export const sanitized = z.string().transform(sanitizeString);
 
 // ─── UUID ─────────────────────────────────────────────────────────────────────
 
@@ -86,6 +86,7 @@ export const paymentMethodSchema = z.object({
   qr_code_url: z.string().min(1, 'QR code URL is required'),
   active: z.boolean().optional().default(true),
   sort_order: z.number().int().nonnegative().optional(),
+  branch_id: z.string().uuid().nullable().optional(),
 });
 
 export type PaymentMethodInput = z.infer<typeof paymentMethodSchema>;
@@ -339,3 +340,33 @@ export const pairRuleSchema = z.object({
 );
 
 export type PairRuleInput = z.infer<typeof pairRuleSchema>;
+
+// AI Admin Dashboard schemas
+
+export const knowledgeEntrySchema = z.object({
+  title: sanitized.pipe(z.string().min(1, 'Title is required').max(200, 'Title must be 200 characters or fewer')),
+  content: sanitized.pipe(z.string().min(1, 'Content is required').max(10000, 'Content must be 10,000 characters or fewer')),
+  category: sanitized.pipe(z.string().max(100)).optional(),
+  is_active: z.boolean().optional(),
+});
+
+export type KnowledgeEntryInput = z.infer<typeof knowledgeEntrySchema>;
+
+export const faqEntrySchema = z.object({
+  question: sanitized.pipe(z.string().min(1, 'Question is required').max(500, 'Question must be 500 characters or fewer')),
+  answer: sanitized.pipe(z.string().min(1, 'Answer is required').max(5000, 'Answer must be 5,000 characters or fewer')),
+  category: sanitized.pipe(z.string().max(100)).optional(),
+});
+
+export type FaqEntryInput = z.infer<typeof faqEntrySchema>;
+
+export const triggerSchema = z.object({
+  name: sanitized.pipe(z.string().min(1, 'Name is required').max(200, 'Name must be 200 characters or fewer')),
+  patterns: z.array(sanitized.pipe(z.string().min(1).max(200))).min(1, 'At least one pattern is required'),
+  match_type: z.enum(['exact', 'contains', 'regex']),
+  response: sanitized.pipe(z.string().min(1, 'Response is required').max(2000, 'Response must be 2,000 characters or fewer')),
+  priority: z.number().int().min(0).max(1000).optional(),
+  is_active: z.boolean().optional(),
+});
+
+export type TriggerInput = z.infer<typeof triggerSchema>;
