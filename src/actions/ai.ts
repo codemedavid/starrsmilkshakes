@@ -472,3 +472,216 @@ export async function deleteTrigger(id: string): Promise<ActionResult> {
 
   return { success: true };
 }
+
+// ─── Document Upload & Chunks ─────────────────────────────────────────────────
+
+export async function uploadDocument(formData: FormData): Promise<ActionResult> {
+  await requireAdmin();
+
+  const file = formData.get('file') as File | null;
+  if (!file) return { success: false, error: 'No file provided' };
+
+  const allowedTypes = ['text/plain', 'text/markdown', 'application/pdf'];
+  const extMap: Record<string, string> = {
+    'text/plain': 'txt',
+    'text/markdown': 'md',
+    'application/pdf': 'pdf',
+  };
+
+  if (!allowedTypes.includes(file.type)) {
+    return { success: false, error: 'File type not supported. Use .txt, .md, or .pdf' };
+  }
+  if (file.size > 10 * 1024 * 1024) {
+    return { success: false, error: 'File too large. Maximum 10MB.' };
+  }
+
+  const fileType = extMap[file.type] || 'txt';
+
+  // Upload to Supabase Storage
+  const fileBuffer = Buffer.from(await file.arrayBuffer());
+  const storagePath = `${Date.now()}-${file.name}`;
+
+  const { error: uploadError } = await supabaseServer.storage
+    .from('knowledge-docs')
+    .upload(storagePath, fileBuffer, { contentType: file.type });
+
+  if (uploadError) return { success: false, error: 'Failed to upload file' };
+
+  const { data: urlData } = supabaseServer.storage
+    .from('knowledge-docs')
+    .getPublicUrl(storagePath);
+
+  // Create document record
+  const { data: doc, error: docError } = await (supabaseServer.from('knowledge_documents') as any)
+    .insert({
+      filename: file.name,
+      file_url: urlData.publicUrl,
+      storage_path: storagePath,
+      file_type: fileType,
+      file_size: file.size,
+      status: 'processing',
+    })
+    .select()
+    .single();
+
+  if (docError || !doc) return { success: false, error: 'Failed to create document record' };
+
+  // Extract text
+  let text = '';
+  try {
+    if (fileType === 'pdf') {
+      const parser = new PDFParse({ data: fileBuffer });
+      const pdfData = await parser.getText();
+      text = pdfData.text;
+    } else {
+      text = fileBuffer.toString('utf-8');
+    }
+  } catch (err) {
+    await (supabaseServer.from('knowledge_documents') as any)
+      .update({ status: 'error', error_message: 'Failed to extract text from file', updated_at: new Date().toISOString() })
+      .eq('id', doc.id);
+    return { success: false, error: 'Failed to extract text', data: { id: doc.id } };
+  }
+
+  // Smart chunk
+  const chunks = smartChunk(text);
+
+  if (chunks.length === 0) {
+    await (supabaseServer.from('knowledge_documents') as any)
+      .update({ status: 'error', error_message: 'No text content found in file', updated_at: new Date().toISOString() })
+      .eq('id', doc.id);
+    return { success: false, error: 'No text content found', data: { id: doc.id } };
+  }
+
+  // Insert chunks
+  const chunkRows = chunks.map((c) => ({
+    document_id: doc.id,
+    chunk_index: c.chunk_index,
+    content: c.content,
+    section_header: c.section_header || null,
+    is_approved: false,
+  }));
+
+  const { error: chunkError } = await (supabaseServer.from('knowledge_chunks') as any)
+    .insert(chunkRows);
+
+  if (chunkError) {
+    await (supabaseServer.from('knowledge_documents') as any)
+      .update({ status: 'error', error_message: 'Failed to save chunks', updated_at: new Date().toISOString() })
+      .eq('id', doc.id);
+    return { success: false, error: 'Failed to save chunks', data: { id: doc.id } };
+  }
+
+  // Update document status
+  await (supabaseServer.from('knowledge_documents') as any)
+    .update({ status: 'review', chunk_count: chunks.length, updated_at: new Date().toISOString() })
+    .eq('id', doc.id);
+
+  return { success: true, data: { id: doc.id } };
+}
+
+export async function getDocumentWithChunks(id: string): Promise<ActionResult> {
+  await requireAdmin();
+
+  const { data: doc, error: docError } = await (supabaseServer.from('knowledge_documents') as any)
+    .select('*')
+    .eq('id', id)
+    .single();
+
+  if (docError || !doc) return { success: false, error: 'Document not found' };
+
+  const { data: chunks, error: chunkError } = await (supabaseServer.from('knowledge_chunks') as any)
+    .select('*')
+    .eq('document_id', id)
+    .order('chunk_index', { ascending: true });
+
+  if (chunkError) return { success: false, error: 'Failed to fetch chunks' };
+
+  return { success: true, data: { document: doc, chunks: chunks || [] } };
+}
+
+export async function updateChunks(
+  docId: string,
+  chunks: { id: string; content: string; is_approved: boolean }[]
+): Promise<ActionResult> {
+  await requireAdmin();
+
+  for (const chunk of chunks) {
+    const { error } = await (supabaseServer.from('knowledge_chunks') as any)
+      .update({ content: chunk.content, is_approved: chunk.is_approved })
+      .eq('id', chunk.id)
+      .eq('document_id', docId);
+
+    if (error) return { success: false, error: `Failed to update chunk ${chunk.id}` };
+  }
+
+  return { success: true };
+}
+
+export async function approveDocument(docId: string): Promise<ActionResult> {
+  await requireAdmin();
+
+  const { data: chunks } = await (supabaseServer.from('knowledge_chunks') as any)
+    .select('*')
+    .eq('document_id', docId)
+    .eq('is_approved', true);
+
+  if (!chunks || chunks.length === 0) {
+    return { success: false, error: 'No approved chunks to embed' };
+  }
+
+  // Embed each approved chunk
+  for (const chunk of chunks) {
+    syncEmbedding(
+      'knowledge_chunks',
+      chunk.id,
+      buildChunkContent({ section_header: chunk.section_header, content: chunk.content }),
+      { document_id: docId, chunk_index: chunk.chunk_index, section_header: chunk.section_header }
+    ).catch((err) => console.error('[rag-sync] chunk:', err));
+  }
+
+  // Update document status
+  await (supabaseServer.from('knowledge_documents') as any)
+    .update({ status: 'approved', updated_at: new Date().toISOString() })
+    .eq('id', docId);
+
+  return { success: true };
+}
+
+export async function deleteDocument(docId: string): Promise<ActionResult> {
+  await requireAdmin();
+
+  // Get document for storage path, and chunks for embedding cleanup
+  const { data: doc } = await (supabaseServer.from('knowledge_documents') as any)
+    .select('storage_path')
+    .eq('id', docId)
+    .single();
+
+  const { data: chunks } = await (supabaseServer.from('knowledge_chunks') as any)
+    .select('id')
+    .eq('document_id', docId);
+
+  if (chunks) {
+    for (const chunk of chunks) {
+      removeEmbedding('knowledge_chunks', chunk.id).catch((err) =>
+        console.error('[rag-sync] remove chunk:', err)
+      );
+    }
+  }
+
+  // Delete file from storage
+  if (doc?.storage_path) {
+    await supabaseServer.storage
+      .from('knowledge-docs')
+      .remove([doc.storage_path]);
+  }
+
+  // Delete document (cascades to chunks)
+  const { error } = await (supabaseServer.from('knowledge_documents') as any)
+    .delete()
+    .eq('id', docId);
+
+  if (error) return { success: false, error: 'Failed to delete document' };
+
+  return { success: true };
+}
