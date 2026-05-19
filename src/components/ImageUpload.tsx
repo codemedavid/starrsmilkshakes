@@ -101,7 +101,7 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
             <>
               <ImageIcon className="h-12 w-12 text-gray-400 mb-2" />
               <p className="text-sm text-gray-600 mb-1">Click to upload image</p>
-              <p className="text-xs text-gray-500">JPEG, PNG, WebP, GIF (max 5MB)</p>
+              <p className="text-xs text-gray-500">JPEG, PNG, WebP, GIF (max 25MB)</p>
             </>
           )}
         </div>

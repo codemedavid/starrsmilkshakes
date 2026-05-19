@@ -1,7 +1,6 @@
 import { useState } from 'react';
 
-const CLOUD_NAME = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
-const UPLOAD_PRESET = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
+const IMAGEKIT_PUBLIC_KEY = process.env.NEXT_PUBLIC_IMAGEKIT_PUBLIC_KEY;
 
 export const useImageUpload = () => {
   const [uploading, setUploading] = useState(false);
@@ -12,32 +11,35 @@ export const useImageUpload = () => {
       setUploading(true);
       setUploadProgress(0);
 
-      // Validate file type
       const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
       if (!allowedTypes.includes(file.type)) {
         throw new Error('Please upload a valid image file (JPEG, PNG, WebP, or GIF)');
       }
 
-      // Validate file size (10MB limit - Cloudinary free tier allows up to 10MB)
-      const maxSize = 10 * 1024 * 1024;
+      const maxSize = 25 * 1024 * 1024;
       if (file.size > maxSize) {
-        throw new Error('Image size must be less than 10MB');
+        throw new Error('Image size must be less than 25MB');
       }
 
-      if (!CLOUD_NAME || !UPLOAD_PRESET) {
-        throw new Error('Cloudinary configuration is missing. Check your environment variables.');
+      if (!IMAGEKIT_PUBLIC_KEY) {
+        throw new Error('ImageKit configuration is missing. Check your environment variables.');
       }
 
-      // Build FormData for Cloudinary unsigned upload
+      const authRes = await fetch('/api/imagekit-auth');
+      if (!authRes.ok) throw new Error('Failed to get upload credentials');
+      const { token, expire, signature } = await authRes.json();
+
       const formData = new FormData();
       formData.append('file', file);
-      formData.append('upload_preset', UPLOAD_PRESET);
+      formData.append('fileName', file.name);
+      formData.append('publicKey', IMAGEKIT_PUBLIC_KEY);
+      formData.append('signature', signature);
+      formData.append('expire', String(expire));
+      formData.append('token', token);
       formData.append('folder', 'menu-images');
+      formData.append('useUniqueFileName', 'true');
 
-      // Upload to Cloudinary with progress tracking via XMLHttpRequest
-      const url = `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`;
-
-      const secureUrl = await new Promise<string>((resolve, reject) => {
+      const imageUrl = await new Promise<string>((resolve, reject) => {
         const xhr = new XMLHttpRequest();
 
         xhr.upload.addEventListener('progress', (event) => {
@@ -50,11 +52,11 @@ export const useImageUpload = () => {
         xhr.addEventListener('load', () => {
           if (xhr.status >= 200 && xhr.status < 300) {
             const response = JSON.parse(xhr.responseText);
-            resolve(response.secure_url);
+            resolve(response.url);
           } else {
             try {
               const errResponse = JSON.parse(xhr.responseText);
-              reject(new Error(errResponse.error?.message || 'Upload failed'));
+              reject(new Error(errResponse.message || 'Upload failed'));
             } catch {
               reject(new Error(`Upload failed with status ${xhr.status}`));
             }
@@ -65,12 +67,12 @@ export const useImageUpload = () => {
           reject(new Error('Network error during upload'));
         });
 
-        xhr.open('POST', url);
+        xhr.open('POST', 'https://upload.imagekit.io/api/v1/files/upload');
         xhr.send(formData);
       });
 
       setUploadProgress(100);
-      return secureUrl;
+      return imageUrl;
     } catch (error) {
       console.error('Error uploading image:', error);
       throw error;
@@ -81,11 +83,8 @@ export const useImageUpload = () => {
   };
 
   const deleteImage = async (_imageUrl: string): Promise<void> => {
-    // Cloudinary deletion requires server-side signed API calls.
-    // For now, we just clear the URL from the UI.
-    // The image remains on Cloudinary storage (free tier has generous limits).
-    // To add server-side deletion later, create an API route that uses
-    // the Cloudinary Admin API with API_KEY and API_SECRET.
+    // ImageKit deletion requires server-side API calls with the private key.
+    // The image remains in ImageKit storage.
     return;
   };
 

@@ -122,7 +122,7 @@ export const getCachedInitialCustomers = unstable_cache(
 export const getCachedBundles = unstable_cache(
   async () => {
     const { data } = await (supabaseServer.from('bundles') as any)
-      .select('*, bundle_slots(*, bundle_slot_items(*))')
+      .select('*, slots:bundle_slots(*, items:bundle_slot_items(*))')
       .order('created_at', { ascending: false });
     return data || [];
   },

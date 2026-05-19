@@ -88,7 +88,7 @@ export async function updateBundle(id: string, input: unknown): Promise<ActionRe
   if (!allowed) return { success: false, error: 'Too many requests' };
 
   const parsed = updateBundleSchema.safeParse(input);
-  if (!parsed.success) return { success: false, error: 'Invalid input' };
+  if (!parsed.success) return { success: false, error: 'Invalid input: ' + parsed.error.issues.map(i => i.message).join(', ') };
 
   const { slots, ...bundleData } = parsed.data;
 
