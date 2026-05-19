@@ -15,8 +15,7 @@ export async function syncEmbedding(
   const contentHash = hashContent(content);
 
   // Check if content is unchanged
-  const { data: existing } = await supabaseServer
-    .from('rag_embeddings')
+  const { data: existing } = await (supabaseServer.from('rag_embeddings') as any)
     .select('content_hash')
     .eq('source_table', sourceTable)
     .eq('source_id', sourceId)
@@ -26,7 +25,7 @@ export async function syncEmbedding(
 
   const embedding = await generateEmbedding(content, 'passage');
 
-  await supabaseServer.from('rag_embeddings').upsert(
+  await (supabaseServer.from('rag_embeddings') as any).upsert(
     {
       source_table: sourceTable,
       source_id: sourceId,
@@ -44,8 +43,7 @@ export async function removeEmbedding(
   sourceTable: string,
   sourceId: string
 ): Promise<void> {
-  await supabaseServer
-    .from('rag_embeddings')
+  await (supabaseServer.from('rag_embeddings') as any)
     .delete()
     .match({ source_table: sourceTable, source_id: sourceId });
 }

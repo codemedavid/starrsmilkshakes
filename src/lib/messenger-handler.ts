@@ -24,8 +24,7 @@ import { checkTriggers } from '@/lib/trigger-matcher';
 const PRODUCTS_PER_PAGE = 10;
 
 async function isAiEnabled(): Promise<boolean> {
-  const { data } = await supabaseServer
-    .from('site_settings')
+  const { data } = await (supabaseServer.from('site_settings') as any)
     .select('value')
     .eq('id', 'ai_faq_enabled')
     .single();
@@ -48,8 +47,7 @@ export async function handleMessengerEvent(event: any, pageToken: string): Promi
 }
 
 async function getOrCreateSession(psid: string): Promise<MessengerSession> {
-  const { data } = await supabaseServer
-    .from('messenger_sessions')
+  const { data } = await (supabaseServer.from('messenger_sessions') as any)
     .select('*')
     .eq('psid', psid)
     .single();
@@ -68,12 +66,12 @@ async function getOrCreateSession(psid: string): Promise<MessengerSession> {
     cart: [],
   };
 
-  await supabaseServer.from('messenger_sessions').insert(newSession);
+  await (supabaseServer.from('messenger_sessions') as any).insert(newSession);
   return newSession as unknown as MessengerSession;
 }
 
 async function updateSession(psid: string, updates: Partial<MessengerSession>): Promise<void> {
-  await supabaseServer.from('messenger_sessions').update(updates).eq('psid', psid);
+  await (supabaseServer.from('messenger_sessions') as any).update(updates).eq('psid', psid);
 }
 
 async function handleTextMessage(psid: string, text: string, _session: MessengerSession, pageToken: string): Promise<void> {
@@ -200,8 +198,7 @@ async function handleBrowseIntent(
 
   // Try to match a specific category and show its real product cards
   if (parsed.data.category) {
-    const { data: categories } = await supabaseServer
-      .from('categories')
+    const { data: categories } = await (supabaseServer.from('categories') as any)
       .select('id, name')
       .eq('active', true);
 
@@ -305,8 +302,7 @@ async function showWelcome(psid: string, pageToken: string): Promise<void> {
   );
 
   // Send category quick replies with loyalty card option
-  const { data: categories } = await supabaseServer
-    .from('categories')
+  const { data: categories } = await (supabaseServer.from('categories') as any)
     .select('id, name, icon')
     .eq('active', true)
     .order('sort_order');
@@ -323,8 +319,7 @@ async function showWelcome(psid: string, pageToken: string): Promise<void> {
 }
 
 async function showCategories(psid: string, pageToken: string): Promise<void> {
-  const { data: categories } = await supabaseServer
-    .from('categories')
+  const { data: categories } = await (supabaseServer.from('categories') as any)
     .select('id, name, icon')
     .eq('active', true)
     .order('sort_order');
@@ -347,8 +342,7 @@ async function showCategories(psid: string, pageToken: string): Promise<void> {
 async function showProducts(psid: string, categoryId: string, page: number, pageToken: string): Promise<void> {
   const offset = page * PRODUCTS_PER_PAGE;
 
-  const { data: items, count } = await supabaseServer
-    .from('menu_items')
+  const { data: items, count } = await (supabaseServer.from('menu_items') as any)
     .select('id, name, description, base_price, image_url, discount_price, discount_active, discount_start_date, discount_end_date', { count: 'exact' })
     .eq('category', categoryId)
     .eq('available', true)
@@ -391,8 +385,7 @@ async function showProducts(psid: string, categoryId: string, page: number, page
 }
 
 async function handleAddToCart(psid: string, itemId: string, pageToken: string): Promise<void> {
-  const { data: variations } = await supabaseServer
-    .from('variations')
+  const { data: variations } = await (supabaseServer.from('variations') as any)
     .select('id, name, price')
     .eq('menu_item_id', itemId);
 
@@ -429,8 +422,7 @@ async function handleSelectVariation(psid: string, variationId: string, pageToke
 }
 
 async function checkAndShowAddOns(psid: string, itemId: string, pageToken: string): Promise<void> {
-  const { data: addOns } = await supabaseServer
-    .from('add_ons')
+  const { data: addOns } = await (supabaseServer.from('add_ons') as any)
     .select('id, name, price')
     .eq('menu_item_id', itemId);
 
@@ -472,8 +464,7 @@ async function hydrateCartForDisplay(cart: MessengerCartItem[]): Promise<CartDis
   const display: CartDisplayItem[] = [];
 
   for (const item of cart) {
-    const { data: menuItem } = await supabaseServer
-      .from('menu_items')
+    const { data: menuItem } = await (supabaseServer.from('menu_items') as any)
       .select('name, base_price')
       .eq('id', item.menu_item_id)
       .single();
@@ -481,8 +472,7 @@ async function hydrateCartForDisplay(cart: MessengerCartItem[]): Promise<CartDis
     let variationName: string | null = null;
     let variationPrice = 0;
     if (item.variation_id) {
-      const { data: variation } = await supabaseServer
-        .from('variations')
+      const { data: variation } = await (supabaseServer.from('variations') as any)
         .select('name, price')
         .eq('id', item.variation_id)
         .single();
@@ -493,8 +483,7 @@ async function hydrateCartForDisplay(cart: MessengerCartItem[]): Promise<CartDis
     let addOnTotal = 0;
     const addOnNames: string[] = [];
     if (item.add_on_ids.length > 0) {
-      const { data: addOns } = await supabaseServer
-        .from('add_ons')
+      const { data: addOns } = await (supabaseServer.from('add_ons') as any)
         .select('name, price')
         .in('id', item.add_on_ids);
       if (addOns) {
@@ -554,8 +543,7 @@ async function finalizeCartItem(psid: string, pageToken: string): Promise<void> 
   } as any);
 
   // Get added item name for confirmation header
-  const { data: addedItem } = await supabaseServer
-    .from('menu_items')
+  const { data: addedItem } = await (supabaseServer.from('menu_items') as any)
     .select('name')
     .eq('id', session.pending_item_id)
     .single();
@@ -607,8 +595,7 @@ async function handleCheckout(psid: string, pageToken: string): Promise<void> {
   }
 
   // Check for multiple branches
-  const { data: branches } = await supabaseServer
-    .from('branches')
+  const { data: branches } = await (supabaseServer.from('branches') as any)
     .select('id, name')
     .eq('active', true);
 
@@ -642,8 +629,7 @@ async function createCheckoutSession(
   // Hydrate cart for the checkout session (full objects, not just IDs)
   const hydratedCart = [];
   for (const item of cart) {
-    const { data: menuItem } = await supabaseServer
-      .from('menu_items')
+    const { data: menuItem } = await (supabaseServer.from('menu_items') as any)
       .select('*')
       .eq('id', item.menu_item_id)
       .single();
@@ -652,8 +638,7 @@ async function createCheckoutSession(
 
     let selectedVariation = null;
     if (item.variation_id) {
-      const { data: variation } = await supabaseServer
-        .from('variations')
+      const { data: variation } = await (supabaseServer.from('variations') as any)
         .select('*')
         .eq('id', item.variation_id)
         .single();
@@ -664,8 +649,7 @@ async function createCheckoutSession(
 
     let selectedAddOns: any[] = [];
     if (item.add_on_ids.length > 0) {
-      const { data: addOns } = await supabaseServer
-        .from('add_ons')
+      const { data: addOns } = await (supabaseServer.from('add_ons') as any)
         .select('*')
         .in('id', item.add_on_ids);
       selectedAddOns = (addOns || []).map((a: any) => ({
@@ -693,7 +677,7 @@ async function createCheckoutSession(
   const hash = generateCheckoutHash();
   const expiresAt = getCheckoutExpiresAt();
 
-  await supabaseServer.from('messenger_checkout_sessions').insert({
+  await (supabaseServer.from('messenger_checkout_sessions') as any).insert({
     hash,
     psid,
     cart: hydratedCart,

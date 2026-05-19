@@ -1,9 +1,12 @@
 import { requireAdmin } from '@/lib/admin-guard';
-import { getCachedPaymentMethods } from '@/lib/cached-queries';
+import { getCachedPaymentMethods, getCachedBranches } from '@/lib/cached-queries';
 import PaymentsContent from './PaymentsContent';
 
 export default async function PaymentsPage() {
   await requireAdmin();
-  const paymentMethods = await getCachedPaymentMethods();
-  return <PaymentsContent paymentMethods={paymentMethods} />;
+  const [paymentMethods, branches] = await Promise.all([
+    getCachedPaymentMethods(),
+    getCachedBranches(),
+  ]);
+  return <PaymentsContent paymentMethods={paymentMethods} branches={branches} />;
 }

@@ -102,10 +102,8 @@ export async function sendLoyaltyNotification(
   psid: string,
   text: string,
   pageAccessToken: string,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  messagingType: string = 'MESSAGE_TAG',
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  tag: string = 'POST_PURCHASE_UPDATE'
+  _messagingType: string = 'MESSAGE_TAG',
+  _tag: string = 'POST_PURCHASE_UPDATE'
 ): Promise<void> {
   try {
     await sendTextMessage(psid, text, pageAccessToken);

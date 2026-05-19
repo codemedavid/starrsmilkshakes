@@ -43,7 +43,6 @@ export default function UpsellOverlay() {
       <div className="fixed inset-0 z-[70] bg-black/50 flex items-end sm:items-center justify-center">
         <div className="relative w-full max-w-lg max-h-[85vh] overflow-y-auto bg-white rounded-t-2xl sm:rounded-2xl shadow-xl">
           <UpgradeScreen
-            asModal
             offers={activeUpsell.upgradeOffers}
             onAcceptBundle={(bundleId: string, selections: SlotSelection[], totalPrice: number) => {
               const offer = activeUpsell.upgradeOffers!.find(

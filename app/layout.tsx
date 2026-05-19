@@ -3,6 +3,7 @@ import './globals.css';
 import CustomHeaderScripts from '@/components/CustomHeaderScripts';
 import FacebookPixel from '@/components/FacebookPixel';
 import { CartProvider } from '@/contexts/CartContext';
+import { UpsellProvider } from '@/contexts/UpsellContext';
 
 export const metadata = {
   title: "Starr's Famous Shakes",
@@ -14,7 +15,9 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     <html lang="en">
       <body className="bg-starrs-mint-light text-starrs-teal-dark">
         <CartProvider>
-          {children}
+          <UpsellProvider>
+            {children}
+          </UpsellProvider>
         </CartProvider>
         <CustomHeaderScripts />
         <FacebookPixel />

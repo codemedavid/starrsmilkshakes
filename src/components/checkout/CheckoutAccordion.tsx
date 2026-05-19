@@ -192,6 +192,7 @@ export default function CheckoutAccordion({
             selectedMethod={paymentMethodId}
             referenceNumber={referenceNumber}
             totalAmount={grandTotal}
+            branchId={selectedBranch?.id}
             onSelectMethod={setPaymentMethodId}
             onReferenceChange={setReferenceNumber}
             onContinue={goNext}

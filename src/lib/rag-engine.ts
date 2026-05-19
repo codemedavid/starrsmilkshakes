@@ -14,7 +14,7 @@ const MATCH_COUNT = 5;
 export async function searchRagContext(query: string): Promise<RagResult[]> {
   const embedding = await generateEmbedding(query);
 
-  const { data, error } = await supabaseServer.rpc('match_rag_embeddings', {
+  const { data, error } = await (supabaseServer as any).rpc('match_rag_embeddings', {
     query_embedding: JSON.stringify(embedding),
     match_threshold: MATCH_THRESHOLD,
     match_count: MATCH_COUNT,

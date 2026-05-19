@@ -1,0 +1,1020 @@
+<!-- Branch Selection -->
+<!DOCTYPE html><html class="light" lang="en"><head>
+    <meta charset="utf-8">
+    <meta content="width=device-width, initial-scale=1.0" name="viewport">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;family=Be_Vietnam_Pro:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script id="tailwind-config">
+          tailwind.config = {
+            darkMode: "class",
+            theme: {
+              extend: {
+                colors: {
+                  "primary-dim": "#1a5952",
+                  "primary-container": "#ace8e0",
+                  "on-secondary": "#f6f3e0",
+                  "on-secondary-fixed": "#404033",
+                  "error": "#b31b25",
+                  "surface-container": "#e9e9e1",
+                  "secondary-dim": "#515042",
+                  "surface-container-high": "#e3e3db",
+                  "on-secondary-fixed-variant": "#5d5c4e",
+                  "on-primary-container": "#185751",
+                  "surface-container-highest": "#ddddd5",
+                  "on-tertiary-container": "#00344c",
+                  "on-primary-fixed": "#00443e",
+                  "surface-tint": "#29655e",
+                  "on-secondary-container": "#535244",
+                  "on-error-container": "#570008",
+                  "tertiary-fixed-dim": "#00aef0",
+                  "inverse-surface": "#0d0f0b",
+                  "surface-container-lowest": "#ffffff",
+                  "inverse-primary": "#c0fdf4",
+                  "tertiary-container": "#2cbcff",
+                  "secondary": "#5d5c4e",
+                  "error-container": "#fb5151",
+                  "surface-container-low": "#f2f1ea",
+                  "on-primary": "#c2fef6",
+                  "on-tertiary": "#e8f4ff",
+                  "secondary-fixed-dim": "#d8d5c3",
+                  "secondary-fixed": "#e6e3d0",
+                  "outline-variant": "#adada7",
+                  "on-error": "#ffefee",
+                  "surface-bright": "#f8f7f0",
+                  "on-surface-variant": "#5b5c57",
+                  "primary": "#29655e",
+                  "on-tertiary-fixed": "#001a28",
+                  "on-tertiary-fixed-variant": "#003e58",
+                  "background": "#f8f7f0",
+                  "tertiary-fixed": "#2cbcff",
+                  "primary-fixed-dim": "#9edad2",
+                  "error-dim": "#9f0519",
+                  "tertiary-dim": "#005578",
+                  "surface-dim": "#d4d5cc",
+                  "surface-variant": "#ddddd5",
+                  "inverse-on-surface": "#9d9d97",
+                  "surface": "#f8f7f0",
+                  "secondary-container": "#e6e3d0",
+                  "on-background": "#2e2f2b",
+                  "on-surface": "#2e2f2b",
+                  "on-primary-fixed-variant": "#25615b",
+                  "primary-fixed": "#ace8e0",
+                  "outline": "#777772",
+                  "tertiary": "#006289"
+                },
+                fontFamily: {
+                  "headline": ["Plus Jakarta Sans"],
+                  "body": ["Be Vietnam Pro"],
+                  "label": ["Be Vietnam Pro"]
+                },
+                borderRadius: {"DEFAULT": "1rem", "lg": "2rem", "xl": "3rem", "full": "9999px"},
+              },
+            },
+          }
+        </script>
+    <style>
+          .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+          }
+          .glass-panel {
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+          }
+          .custom-scrollbar::-webkit-scrollbar {
+            width: 0px;
+            background: transparent;
+          }
+        </style>
+    <style>
+        body {
+          min-height: max(884px, 100dvh);
+        }
+      </style>
+      </head>
+    <body class="bg-surface font-body text-on-surface selection:bg-primary-container">
+    <!-- Top Navigation -->
+    <header class="bg-[#f8f7f0]/80 dark:bg-[#1c1c1a]/80 backdrop-blur-xl fixed top-0 w-full z-50">
+    <div class="flex items-center justify-between px-6 h-16 w-full">
+    <div class="flex items-center gap-3">
+    <button class="p-2 text-[#29655e] dark:text-[#ace8e0] hover:bg-[#f2f1ea] dark:hover:bg-[#2e2f2b] rounded-full transition-colors active:scale-95 duration-200" style="">
+    <span class="material-symbols-outlined" data-icon="arrow_back" style="">arrow_back</span>
+    </button>
+    <h1 class="font-['Plus_Jakarta_Sans'] font-bold tracking-tight text-[#29655e] dark:text-[#ace8e0] text-lg" style="">Starr's Famous Shakes</h1>
+    </div>
+    <img alt="Starr's Logo" class="h-8 w-auto" data-alt="Starr's Famous Shakes minimalist circular logo" src="https://lh3.googleusercontent.com/aida-public/AB6AXuADDBr_cjG2zn8TPO32QCNhd8Mm_wRA4Hhx2DzCWIVF3jkNjWG9TrSezfI8D2p5G6Zr_gGO5kMcULUTUnJBClZ67KOCuSKCJYqMQiYov4n5EcYlxDUxFD4pyR7rtLZg4kUo6hud_qxKFyN6mmWKgB1FjosEAv1mAjNsdr3oGn4CykhNU18ODO9FlmfeBRosCgJtXaU9DwTxkcVnFI9FHFVfre1LcR2fM6u44TX7MhabgCxTWAbcszyawLryaULIrx26Q8qk_oE7jEun" style="">
+    </div>
+    <div class="h-px w-full bg-gradient-to-r from-transparent via-[#adada7]/15 to-transparent"></div>
+    </header>
+    <main class="pt-24 pb-32 px-6 max-w-2xl mx-auto">
+    <!-- Hero Branding Section -->
+    <section class="mb-10 text-left">
+    <span class="font-label text-xs uppercase tracking-[0.2em] text-on-surface-variant mb-3 block" style="">Find Your Flavor</span>
+    <h2 class="font-headline text-4xl font-extrabold tracking-tighter text-primary leading-none mb-4" style="">
+                    Pick your <br><span class="text-tertiary-fixed-dim" style="">nearest creamery.</span>
+    </h2>
+    <p class="text-on-surface-variant text-lg leading-relaxed max-w-md" style="">
+                    Freshly whipped joy is closer than you think. Select a location to see the full menu.
+                </p>
+    </section>
+    <!-- Search & Filter Area -->
+    <div class="mb-8 flex gap-3">
+    <div class="flex-1 bg-surface-container-highest rounded-full px-6 py-4 flex items-center gap-3 group focus-within:bg-surface-container-lowest focus-within:shadow-sm transition-all border border-transparent focus-within:border-outline-variant/15">
+    <span class="material-symbols-outlined text-on-surface-variant" data-icon="near_me" style="">near_me</span>
+    <input class="bg-transparent border-none focus:ring-0 p-0 w-full text-on-surface placeholder:text-on-surface-variant/60 font-medium" placeholder="Search city or zip..." type="text">
+    </div>
+    <button class="aspect-square w-14 flex items-center justify-center bg-surface-container-low rounded-full text-primary hover:bg-surface-container-high transition-colors" style="">
+    <span class="material-symbols-outlined" data-icon="tune" style="">tune</span>
+    </button>
+    </div>
+    <!-- Location Grid/List -->
+    <div class="space-y-6">
+    <!-- Active Location -->
+    <div class="relative group cursor-pointer transition-all duration-300">
+    <div class="absolute inset-0 bg-primary-container/20 blur-2xl rounded-xl -z-10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+    <div class="bg-surface-container-lowest p-6 rounded-xl border border-outline-variant/10 shadow-sm flex flex-col gap-6">
+    <div class="flex justify-between items-start">
+    <div class="flex-1">
+    <div class="flex items-center gap-2 mb-1">
+    <span class="bg-primary text-on-primary px-3 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider" style="">Closest</span>
+    <h3 class="font-headline text-xl font-bold text-on-surface" style="">West End Promenade</h3>
+    </div>
+    <p class="text-on-surface-variant text-sm" style="">452 Marble Arch Way, Suite 400</p>
+    </div>
+    <div class="text-right">
+    <span class="font-headline text-lg font-extrabold text-primary" style="">0.8 mi</span>
+    </div>
+    </div>
+    <div class="flex items-center justify-between pt-4 border-t border-outline-variant/10">
+    <div class="flex items-center gap-2 text-on-surface-variant">
+    <span class="material-symbols-outlined text-sm" data-icon="schedule" style="">schedule</span>
+    <span class="text-xs font-medium" style="">Open until 10:00 PM</span>
+    </div>
+    <div class="flex items-center gap-4">
+    <button class="text-primary font-bold text-xs uppercase tracking-widest flex items-center gap-1" style="">
+                                    Info <span class="material-symbols-outlined text-sm" data-icon="chevron_right" style="">chevron_right</span>
+    </button>
+    </div>
+    </div>
+    </div>
+    </div>
+    <!-- Second Location -->
+    <div class="bg-surface-container-low p-6 rounded-xl transition-all duration-300 hover:bg-surface-container-high cursor-pointer flex flex-col gap-6">
+    <div class="flex justify-between items-start">
+    <div class="flex-1">
+    <h3 class="font-headline text-xl font-bold text-on-secondary-fixed" style="">The Village Commons</h3>
+    <p class="text-on-secondary-fixed-variant text-sm" style="">1221 Heritage Square Blvd</p>
+    </div>
+    <div class="text-right">
+    <span class="font-headline text-lg font-extrabold text-on-secondary-fixed-variant" style="">2.4 mi</span>
+    </div>
+    </div>
+    <div class="flex items-center justify-between pt-4 border-t border-on-secondary-fixed-variant/10">
+    <div class="flex items-center gap-2 text-on-secondary-fixed-variant">
+    <span class="material-symbols-outlined text-sm" data-icon="schedule" style="">schedule</span>
+    <span class="text-xs font-medium" style="">Open until 11:30 PM</span>
+    </div>
+    <button class="text-on-secondary-fixed-variant font-bold text-xs uppercase tracking-widest flex items-center gap-1" style="">
+                            Info <span class="material-symbols-outlined text-sm" data-icon="chevron_right" style="">chevron_right</span>
+    </button>
+    </div>
+    </div>
+    <!-- Third Location -->
+    <div class="bg-surface-container-low p-6 rounded-xl transition-all duration-300 hover:bg-surface-container-high cursor-pointer flex flex-col gap-6">
+    <div class="flex justify-between items-start">
+    <div class="flex-1">
+    <h3 class="font-headline text-xl font-bold text-on-secondary-fixed" style="">Bayside Marina</h3>
+    <p class="text-on-secondary-fixed-variant text-sm" style="">90 Harbor View Road</p>
+    </div>
+    <div class="text-right">
+    <span class="font-headline text-lg font-extrabold text-on-secondary-fixed-variant" style="">5.1 mi</span>
+    </div>
+    </div>
+    <div class="flex items-center justify-between pt-4 border-t border-on-secondary-fixed-variant/10">
+    <div class="flex items-center gap-2 text-on-secondary-fixed-variant">
+    <span class="material-symbols-outlined text-sm" data-icon="schedule" style="">schedule</span>
+    <span class="text-xs font-medium" style="">Opens at 11:00 AM</span>
+    </div>
+    <button class="text-on-secondary-fixed-variant font-bold text-xs uppercase tracking-widest flex items-center gap-1" style="">
+                            Info <span class="material-symbols-outlined text-sm" data-icon="chevron_right" style="">chevron_right</span>
+    </button>
+    </div>
+    </div>
+    </div>
+    <!-- Map Snippet (Editorial Style) -->
+    <div class="mt-10 relative h-48 w-full rounded-xl overflow-hidden group">
+    <div class="absolute inset-0 bg-cover bg-center" data-alt="Stylized map view of a city area with teal markers" data-location="Chicago" style="background-image: url(&quot;https://lh3.googleusercontent.com/aida-public/AB6AXuAAdWU5iRws4QywLDaxrG6tc_dPW5n3vjLnUE3OxfdYl1UiL1HcogHyBig7Lxd4vGCiTXF8LGP3VSJqeY59XrXaVsbCzXzhmnShu-LeXPPrdvNVaJbW5-kt1zzlhbiMnJ2TZl3W2XfQijcdgVYJOI7szcZwukkDrrxOTDrnGWcgoPgnMuRNFE5GdKPzQEcnBY5jRL8XSpmAY7hzinY0pomqgOuxYM4coS7XBv_sE2jPdVIMQEaPmCQRu7GASH_ftiuIcwmugcByK3Ei&quot;);"></div>
+    <div class="absolute inset-0 bg-primary/20 mix-blend-multiply"></div>
+    <div class="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent"></div>
+    <div class="absolute bottom-4 left-4 flex items-center gap-2 bg-surface/90 backdrop-blur px-3 py-1.5 rounded-full shadow-sm">
+    <span class="material-symbols-outlined text-primary text-xs" data-icon="map" style="">map</span>
+    <span class="text-[10px] font-bold uppercase tracking-widest text-on-surface" style="">View full map</span>
+    </div>
+    </div>
+    </main>
+    <!-- Navigation & Action Shell -->
+    <div class="fixed bottom-0 left-0 w-full z-40">
+    <!-- Next Button Container (Floating above Nav) -->
+    <div class="px-6 pb-6">
+    <button class="w-full h-16 bg-primary text-on-primary rounded-full flex items-center justify-center gap-2 font-headline text-lg font-bold shadow-xl active:scale-95 transition-transform bg-gradient-to-b from-primary to-primary-dim" style="">
+                    Next
+                    <span class="material-symbols-outlined" data-icon="arrow_forward" style="">arrow_forward</span>
+    </button>
+    </div>
+    <!-- Bottom NavBar -->
+    <nav class="bg-[#f8f7f0]/90 dark:bg-[#1c1c1a]/90 backdrop-blur-2xl border-t border-[#adada7]/15 h-24 flex justify-around items-center px-8 pb-4 rounded-t-[3rem] shadow-[0_-8px_32px_rgba(46,47,43,0.06)]">
+    <a class="flex flex-col items-center justify-center bg-[#29655e] text-[#f8f7f0] dark:bg-[#ace8e0] dark:text-[#29655e] rounded-full w-14 h-14 -mt-4 shadow-lg active:scale-90 duration-300 ease-out" href="#" style="">
+    <span class="material-symbols-outlined" data-icon="icecream" style="font-variation-settings: &quot;FILL&quot; 1;">icecream</span>
+    <span class="font-['Be_Vietnam_Pro'] text-[10px] font-medium uppercase tracking-widest mt-0.5 hidden" style="">Menu</span>
+    </a>
+    <a class="flex flex-col items-center justify-center text-[#5b5c57] dark:text-[#adada7] opacity-70 hover:opacity-100 transition-opacity active:scale-90 duration-300 ease-out" href="#" style="">
+    <span class="material-symbols-outlined" data-icon="receipt_long" style="">receipt_long</span>
+    <span class="font-['Be_Vietnam_Pro'] text-[10px] font-medium uppercase tracking-widest mt-1" style="">Orders</span>
+    </a>
+    <a class="flex flex-col items-center justify-center text-[#5b5c57] dark:text-[#adada7] opacity-70 hover:opacity-100 transition-opacity active:scale-90 duration-300 ease-out" href="#" style="">
+    <span class="material-symbols-outlined" data-icon="redeem" style="">redeem</span>
+    <span class="font-['Be_Vietnam_Pro'] text-[10px] font-medium uppercase tracking-widest mt-1" style="">Rewards</span>
+    </a>
+    <a class="flex flex-col items-center justify-center text-[#5b5c57] dark:text-[#adada7] opacity-70 hover:opacity-100 transition-opacity active:scale-90 duration-300 ease-out" href="#" style="">
+    <span class="material-symbols-outlined" data-icon="shopping_bag" style="">shopping_bag</span>
+    <span class="font-['Be_Vietnam_Pro'] text-[10px] font-medium uppercase tracking-widest mt-1" style="">Cart</span>
+    </a>
+    </nav>
+    </div>
+    </body></html>
+    
+    <!-- Order Type -->
+    <!DOCTYPE html>
+    
+    <html class="light" lang="en"><head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>Order Type - Starr's Famous Shakes</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;family=Be_Vietnam_Pro:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+    <script id="tailwind-config">
+          tailwind.config = {
+            darkMode: "class",
+            theme: {
+              extend: {
+                colors: {
+                  "primary-dim": "#1a5952",
+                  "primary-container": "#ace8e0",
+                  "on-secondary": "#f6f3e0",
+                  "on-secondary-fixed": "#404033",
+                  "error": "#b31b25",
+                  "surface-container": "#e9e9e1",
+                  "secondary-dim": "#515042",
+                  "surface-container-high": "#e3e3db",
+                  "on-secondary-fixed-variant": "#5d5c4e",
+                  "on-primary-container": "#185751",
+                  "surface-container-highest": "#ddddd5",
+                  "on-tertiary-container": "#00344c",
+                  "on-primary-fixed": "#00443e",
+                  "surface-tint": "#29655e",
+                  "on-secondary-container": "#535244",
+                  "on-error-container": "#570008",
+                  "tertiary-fixed-dim": "#00aef0",
+                  "inverse-surface": "#0d0f0b",
+                  "surface-container-lowest": "#ffffff",
+                  "inverse-primary": "#c0fdf4",
+                  "tertiary-container": "#2cbcff",
+                  "secondary": "#5d5c4e",
+                  "error-container": "#fb5151",
+                  "surface-container-low": "#f2f1ea",
+                  "on-primary": "#c2fef6",
+                  "on-tertiary": "#e8f4ff",
+                  "secondary-fixed-dim": "#d8d5c3",
+                  "secondary-fixed": "#e6e3d0",
+                  "outline-variant": "#adada7",
+                  "on-error": "#ffefee",
+                  "surface-bright": "#f8f7f0",
+                  "on-surface-variant": "#5b5c57",
+                  "primary": "#29655e",
+                  "on-tertiary-fixed": "#001a28",
+                  "on-tertiary-fixed-variant": "#003e58",
+                  "background": "#f8f7f0",
+                  "tertiary-fixed": "#2cbcff",
+                  "primary-fixed-dim": "#9edad2",
+                  "error-dim": "#9f0519",
+                  "tertiary-dim": "#005578",
+                  "surface-dim": "#d4d5cc",
+                  "surface-variant": "#ddddd5",
+                  "inverse-on-surface": "#9d9d97",
+                  "surface": "#f8f7f0",
+                  "secondary-container": "#e6e3d0",
+                  "on-background": "#2e2f2b",
+                  "on-surface": "#2e2f2b",
+                  "on-primary-fixed-variant": "#25615b",
+                  "primary-fixed": "#ace8e0",
+                  "outline": "#777772",
+                  "tertiary": "#006289"
+                },
+                fontFamily: {
+                  "headline": ["Plus Jakarta Sans"],
+                  "body": ["Be Vietnam Pro"],
+                  "label": ["Be Vietnam Pro"]
+                },
+                borderRadius: {"DEFAULT": "1rem", "lg": "2rem", "xl": "3rem", "full": "9999px"},
+              },
+            },
+          }
+        </script>
+    <style>
+          .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+          }
+          .glass-effect {
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+          }
+        </style>
+    <style>
+        body {
+          min-height: max(884px, 100dvh);
+        }
+      </style>
+      </head>
+    <body class="bg-background font-body text-on-background selection:bg-primary-container min-h-screen flex flex-col">
+    <!-- Top Navigation Anchor -->
+    <header class="fixed top-0 w-full z-50 bg-[#f8f7f0]/80 dark:bg-[#1c1c1a]/80 backdrop-blur-xl flex items-center justify-between px-6 h-16 w-full">
+    <div class="flex items-center gap-4">
+    <button class="hover:bg-[#f2f1ea] dark:hover:bg-[#2e2f2b] rounded-full transition-colors p-2 active:scale-95 duration-200 text-[#29655e] dark:text-[#ace8e0]">
+    <span class="material-symbols-outlined" data-icon="arrow_back">arrow_back</span>
+    </button>
+    <h1 class="font-['Plus_Jakarta_Sans'] font-bold tracking-tight text-[#29655e] dark:text-[#ace8e0] text-xl font-extrabold tracking-tighter">Starr's Famous Shakes</h1>
+    </div>
+    </header>
+    <!-- Main Content Canvas -->
+    <main class="flex-grow pt-24 pb-32 px-6 max-w-4xl mx-auto w-full">
+    <!-- Hero Section with Branding -->
+    <div class="mb-12 text-center">
+    <div class="inline-block mb-6 p-4 rounded-xl bg-surface-container-low">
+    <img alt="Starr's Famous Shakes Logo" class="h-20 w-auto" data-alt="Starr's Famous Shakes retro style creamery logo" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDPJaMu4c9a-d7GR17y0V7qQF-vQxOxe3xjKaqorH4ClEligWMwaNDR8oNV6ur1b12YmxF2bgs0wTKT8Tz0tc0VKs4tNtdk0A7CP8t-h6fDIsCUIsApli8AR4vWA9z3IkCsXSk4PfsgvN0kLkRTPa4arySm3n7Aah14ZcR4ztQvDbuHQkomA29KQ40I2XPhNp9Cq8pe4N1-drx59oWbAp9Kjwho_HAxXXe6O5A_FiNQqovq7-9iOK2tsXcvl5ArXRn2LzDNkJuziXLM"/>
+    </div>
+    <h2 class="font-headline text-4xl md:text-5xl font-extrabold text-primary tracking-tight mb-4 leading-tight">
+                    How would you like your <span class="text-tertiary-fixed-dim">shake</span>?
+                </h2>
+    <p class="text-on-surface-variant max-w-md mx-auto">Choose your preferred way to enjoy our signature hand-spun creations today.</p>
+    </div>
+    <!-- Order Type Selection - Asymmetric Bento Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-12 gap-6">
+    <!-- Dine-in Card (Large Focus) -->
+    <button class="md:col-span-8 group relative overflow-hidden text-left bg-surface-container-low rounded-xl p-8 transition-all duration-300 hover:bg-surface-container-high active:scale-[0.98]">
+    <div class="flex flex-col h-full justify-between gap-12">
+    <div>
+    <div class="w-16 h-16 rounded-full bg-primary-container flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-500">
+    <span class="material-symbols-outlined text-primary text-4xl" data-icon="restaurant">restaurant</span>
+    </div>
+    <h3 class="font-headline text-3xl font-bold text-on-background mb-2">Dine-in</h3>
+    <p class="text-on-surface-variant text-lg">Experience the full nostalgia of our classic creamery. Grab a booth and stay a while.</p>
+    </div>
+    <div class="flex items-center text-primary font-semibold gap-2">
+    <span>Select Experience</span>
+    <span class="material-symbols-outlined text-xl">arrow_forward</span>
+    </div>
+    </div>
+    <!-- Abstract visual element -->
+    <div class="absolute -right-8 -bottom-8 w-40 h-40 bg-primary/5 rounded-full blur-3xl group-hover:bg-primary/10 transition-colors"></div>
+    </button>
+    <!-- Pickup Card -->
+    <button class="md:col-span-4 group relative overflow-hidden text-left bg-surface-container-highest rounded-xl p-8 transition-all duration-300 hover:bg-surface-variant active:scale-[0.98]">
+    <div class="flex flex-col h-full justify-between">
+    <div>
+    <div class="w-14 h-14 rounded-full bg-surface-container-lowest flex items-center justify-center mb-6 group-hover:rotate-12 transition-transform">
+    <span class="material-symbols-outlined text-primary text-3xl" data-icon="shopping_basket">shopping_basket</span>
+    </div>
+    <h3 class="font-headline text-2xl font-bold text-on-background mb-2">Pickup</h3>
+    <p class="text-on-surface-variant text-sm">Ready when you are. Skip the wait and grab your cold treat on the go.</p>
+    </div>
+    </div>
+    </button>
+    <!-- Delivery Card -->
+    <button class="md:col-span-12 group relative overflow-hidden text-left bg-secondary-container rounded-xl p-8 transition-all duration-300 hover:opacity-90 active:scale-[0.99]">
+    <div class="flex flex-col md:flex-row items-center justify-between gap-8">
+    <div class="flex-1">
+    <div class="w-14 h-14 rounded-full bg-on-secondary flex items-center justify-center mb-4 md:mb-6">
+    <span class="material-symbols-outlined text-secondary text-3xl" data-icon="moped">moped</span>
+    </div>
+    <h3 class="font-headline text-2xl font-bold text-on-secondary-fixed mb-2">Delivery</h3>
+    <p class="text-on-secondary-fixed-variant">Cravings delivered straight to your doorstep. Fresh, cold, and famous.</p>
+    </div>
+    <div class="w-full md:w-auto px-8 py-4 bg-on-secondary-fixed text-on-secondary rounded-full font-bold flex items-center justify-center gap-2">
+                            Check Availability
+                            <span class="material-symbols-outlined">location_on</span>
+    </div>
+    </div>
+    <!-- Artistic leak -->
+    <div class="absolute top-0 right-0 w-64 h-full bg-gradient-to-l from-white/10 to-transparent pointer-events-none"></div>
+    </button>
+    </div>
+    <!-- Action Footer -->
+    <div class="mt-12 flex items-center justify-between gap-4">
+    <button class="px-8 py-4 rounded-full bg-surface-container-highest text-primary font-bold transition-all hover:bg-surface-variant active:scale-95">
+                    Back
+                </button>
+    <button class="px-10 py-4 rounded-full bg-primary text-on-primary font-bold shadow-lg shadow-primary/20 bg-gradient-to-b from-primary to-primary-dim transition-all hover:opacity-90 active:scale-95">
+                    Next Step
+                </button>
+    </div>
+    </main>
+    <!-- Bottom Navigation Shell (Suppressed on deep transaction pages but kept for branding context per hierarchy if top-level) -->
+    <!-- Hidden here to focus on the choice transaction as per "Task-Focused" rule -->
+    <!-- Material Design Inspired Floating Accent -->
+    <div class="fixed -bottom-24 -left-24 w-64 h-64 bg-tertiary-container/10 rounded-full blur-[100px] pointer-events-none z-0"></div>
+    <div class="fixed -top-24 -right-24 w-96 h-96 bg-primary-container/20 rounded-full blur-[120px] pointer-events-none z-0"></div>
+    </body></html>
+    
+    <!-- Dine-in Details -->
+    <!DOCTYPE html>
+    
+    <html class="light" lang="en"><head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>Starr's - Dine-in Details</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&amp;family=Be+Vietnam+Pro:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+    <script id="tailwind-config">
+            tailwind.config = {
+                darkMode: "class",
+                theme: {
+                    extend: {
+                        colors: {
+                            "on-primary": "#c2fef6",
+                            "inverse-surface": "#0d0f0b",
+                            "on-error": "#ffefee",
+                            "on-secondary-fixed-variant": "#5d5c4e",
+                            "surface-tint": "#29655e",
+                            "primary": "#29655e",
+                            "surface-bright": "#f8f7f0",
+                            "outline-variant": "#adada7",
+                            "on-secondary-fixed": "#404033",
+                            "on-primary-container": "#185751",
+                            "on-tertiary-fixed-variant": "#003e58",
+                            "on-primary-fixed-variant": "#25615b",
+                            "secondary-fixed": "#e6e3d0",
+                            "surface-dim": "#d4d5cc",
+                            "surface-variant": "#ddddd5",
+                            "on-tertiary-container": "#00344c",
+                            "secondary-fixed-dim": "#d8d5c3",
+                            "error-dim": "#9f0519",
+                            "primary-fixed": "#ace8e0",
+                            "primary-dim": "#1a5952",
+                            "surface-container-low": "#f2f1ea",
+                            "error-container": "#fb5151",
+                            "tertiary-container": "#2cbcff",
+                            "surface": "#f8f7f0",
+                            "secondary-dim": "#515042",
+                            "on-surface": "#2e2f2b",
+                            "surface-container-lowest": "#ffffff",
+                            "tertiary-dim": "#005578",
+                            "on-tertiary-fixed": "#001a28",
+                            "inverse-primary": "#c0fdf4",
+                            "on-secondary-container": "#535244",
+                            "tertiary-fixed-dim": "#00aef0",
+                            "tertiary": "#006289",
+                            "background": "#f8f7f0",
+                            "error": "#b31b25",
+                            "primary-fixed-dim": "#9edad2",
+                            "inverse-on-surface": "#9d9d97",
+                            "on-surface-variant": "#5b5c57",
+                            "tertiary-fixed": "#2cbcff",
+                            "primary-container": "#ace8e0",
+                            "on-primary-fixed": "#00443e",
+                            "on-background": "#2e2f2b",
+                            "surface-container-highest": "#ddddd5",
+                            "surface-container-high": "#e3e3db",
+                            "surface-container": "#e9e9e1",
+                            "outline": "#777772",
+                            "on-secondary": "#f6f3e0",
+                            "secondary": "#5d5c4e",
+                            "on-tertiary": "#e8f4ff",
+                            "on-error-container": "#570008",
+                            "secondary-container": "#e6e3d0"
+                        },
+                        fontFamily: {
+                            "headline": ["Plus Jakarta Sans"],
+                            "body": ["Be Vietnam Pro"],
+                            "label": ["Be Vietnam Pro"]
+                        },
+                        borderRadius: {"DEFAULT": "1rem", "lg": "2rem", "xl": "3rem", "full": "9999px"},
+                    },
+                },
+            }
+        </script>
+    <style>
+            .material-symbols-outlined {
+                font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            }
+            .effervescent-blur {
+                filter: blur(80px);
+                opacity: 0.15;
+            }
+        </style>
+    <style>
+        body {
+          min-height: max(884px, 100dvh);
+        }
+      </style>
+      </head>
+    <body class="bg-background text-on-surface font-body selection:bg-primary-container selection:text-on-primary-container min-h-screen overflow-x-hidden">
+    <!-- Top Navigation (Shell Implementation) -->
+    <header class="bg-[#f8f7f0]/80 dark:bg-[#1a1b16]/80 backdrop-blur-xl fixed top-0 w-full z-50">
+    <div class="flex items-center justify-between px-6 h-16 w-full max-w-screen-xl mx-auto">
+    <button class="active:scale-95 duration-200 hover:opacity-80 transition-opacity">
+    <span class="material-symbols-outlined text-[#29655e] dark:text-[#ace8e0] text-2xl" data-icon="arrow_back">arrow_back</span>
+    </button>
+    <h1 class="font-['Plus_Jakarta_Sans'] font-bold tracking-tight text-2xl font-black text-[#29655e] dark:text-[#ace8e0] tracking-tighter">STARR'S</h1>
+    <div class="w-8"></div> <!-- Spacer for centering -->
+    </div>
+    <div class="bg-[#f2f1ea] dark:bg-[#2e2f2b] h-[1px] w-full absolute bottom-0 opacity-20"></div>
+    </header>
+    <main class="pt-24 pb-32 px-6 max-w-xl mx-auto relative">
+    <!-- Effervescent Background Elements -->
+    <div class="fixed -top-24 -right-24 w-96 h-96 bg-tertiary-container rounded-full effervescent-blur -z-10"></div>
+    <div class="fixed top-1/2 -left-48 w-80 h-80 bg-primary-fixed-dim rounded-full effervescent-blur -z-10"></div>
+    <!-- Header Moment -->
+    <div class="mb-12 relative">
+    <span class="font-headline font-bold text-primary tracking-widest text-xs uppercase mb-2 block">Service Details</span>
+    <h2 class="font-headline text-5xl font-extrabold tracking-tighter text-on-surface leading-tight">Dine-in<br/><span class="text-primary-dim">Information</span></h2>
+    <div class="mt-4 flex items-center gap-2">
+    <div class="h-1 w-12 bg-primary-container rounded-full"></div>
+    <p class="text-on-surface-variant font-medium">Grab a seat, we'll bring the magic.</p>
+    </div>
+    </div>
+    <!-- Form Section -->
+    <div class="space-y-8">
+    <!-- Asymmetric Layout: Name & Phone -->
+    <div class="grid grid-cols-1 md:grid-cols-12 gap-6">
+    <div class="md:col-span-12">
+    <label class="block font-label text-sm font-semibold text-on-surface-variant mb-3 px-2">Full Name</label>
+    <div class="relative">
+    <input class="w-full bg-surface-container-highest border-0 rounded-lg h-16 px-6 focus:ring-2 focus:ring-primary focus:bg-surface-container-lowest transition-all placeholder:text-outline font-medium text-lg" placeholder="Who's enjoying today?" type="text"/>
+    </div>
+    </div>
+    <div class="md:col-span-8">
+    <label class="block font-label text-sm font-semibold text-on-surface-variant mb-3 px-2">Phone Number</label>
+    <div class="relative">
+    <input class="w-full bg-surface-container-highest border-0 rounded-lg h-16 px-6 focus:ring-2 focus:ring-primary focus:bg-surface-container-lowest transition-all placeholder:text-outline font-medium text-lg" placeholder="(555) 000-0000" type="tel"/>
+    </div>
+    </div>
+    <div class="md:col-span-4">
+    <label class="block font-label text-sm font-semibold text-on-surface-variant mb-3 px-2">Table No.</label>
+    <div class="relative">
+    <input class="w-full bg-surface-container-highest border-0 rounded-lg h-16 px-6 focus:ring-2 focus:ring-primary focus:bg-surface-container-lowest transition-all placeholder:text-outline font-medium text-lg text-center" placeholder="00" type="number"/>
+    </div>
+    </div>
+    </div>
+    <!-- Special Instructions (Glassmorphic Detail) -->
+    <div class="pt-2">
+    <label class="block font-label text-sm font-semibold text-on-surface-variant mb-3 px-2">Special Instructions</label>
+    <textarea class="w-full bg-surface-container-highest border-0 rounded-lg p-6 focus:ring-2 focus:ring-primary focus:bg-surface-container-lowest transition-all placeholder:text-outline font-medium text-lg resize-none" placeholder="Any allergies or extra sprinkles?" rows="4"></textarea>
+    </div>
+    <!-- Visual Break Component: The "Whipped" Card -->
+    <div class="bg-surface-container-low rounded-xl p-8 relative overflow-hidden group">
+    <div class="absolute -right-8 -top-8 w-32 h-32 bg-primary-container/20 rounded-full blur-2xl group-hover:scale-110 transition-transform duration-700"></div>
+    <div class="flex items-start gap-4 relative z-10">
+    <div class="bg-surface-container-lowest p-3 rounded-full shadow-sm">
+    <span class="material-symbols-outlined text-primary text-3xl" data-icon="restaurant">restaurant</span>
+    </div>
+    <div>
+    <h4 class="font-headline font-bold text-lg text-on-surface mb-1">Freshly Whipped</h4>
+    <p class="text-on-surface-variant text-sm leading-relaxed">Your order will be prepared and delivered directly to your table as soon as it's ready.</p>
+    </div>
+    </div>
+    </div>
+    </div>
+    <!-- Sticky Interaction Zone -->
+    <div class="fixed bottom-0 left-0 w-full p-6 bg-gradient-to-t from-surface via-surface/90 to-transparent pt-12 z-40">
+    <div class="max-w-xl mx-auto flex flex-col sm:flex-row gap-4">
+    <button class="flex-1 order-2 sm:order-1 h-14 rounded-full font-headline font-bold text-primary bg-surface-container-highest active:scale-95 transition-all hover:bg-surface-container-high">
+                        Back
+                    </button>
+    <button class="flex-[2] order-1 sm:order-2 h-14 rounded-full font-headline font-bold text-on-primary bg-primary shadow-lg shadow-primary/20 active:scale-95 transition-all hover:opacity-90 flex items-center justify-center gap-2">
+                        Confirm Details
+                        <span class="material-symbols-outlined text-xl" data-icon="check_circle">check_circle</span>
+    </button>
+    </div>
+    </div>
+    </main>
+    <!-- Aesthetic Floating Element -->
+    <div class="fixed bottom-32 -right-12 hidden lg:block opacity-20 rotate-12">
+    <div class="w-64 h-80 bg-surface-container rounded-xl overflow-hidden border border-outline-variant/10">
+    <img alt="Creamy Milkshake" class="w-full h-full object-cover" data-alt="A thick gourmet chocolate milkshake with whipped cream" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAWqM5nT2DTkBaWz5BQIbdvXcvXWH4Bh5WMdFaWaZL-qyr9I_o7Gi92VrZ8pM6sCrdcWdsY0YkcbJaeYAmOQF5UTEMY-1k6TqaIBxD6qozAm5HuMp0S7Vk38w1bWaSNqxJ0W7adK_EmeSo-iyQrnmyoCYFRvj5PKxm3DiGkYFFkInq6VSXQ3JdthTv6XItibCwlrQLN04VzY5em1kcDU_458tPWfaPpwtka__p9H-L7e_BJpKniDKNP0fl2uSzTSNjSXqeUAZT1Vu7f"/>
+    </div>
+    </div>
+    </body></html>
+    
+    <!-- Pickup Details -->
+    <!DOCTYPE html>
+    
+    <html lang="en"><head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>Pickup Details - STARR'S</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@700;800&amp;family=Be+Vietnam+Pro:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+    <script id="tailwind-config">
+          tailwind.config = {
+            darkMode: "class",
+            theme: {
+              extend: {
+                colors: {
+                  "on-primary": "#c2fef6",
+                  "inverse-surface": "#0d0f0b",
+                  "on-error": "#ffefee",
+                  "on-secondary-fixed-variant": "#5d5c4e",
+                  "surface-tint": "#29655e",
+                  "primary": "#29655e",
+                  "surface-bright": "#f8f7f0",
+                  "outline-variant": "#adada7",
+                  "on-secondary-fixed": "#404033",
+                  "on-primary-container": "#185751",
+                  "on-tertiary-fixed-variant": "#003e58",
+                  "on-primary-fixed-variant": "#25615b",
+                  "secondary-fixed": "#e6e3d0",
+                  "surface-dim": "#d4d5cc",
+                  "surface-variant": "#ddddd5",
+                  "on-tertiary-container": "#00344c",
+                  "secondary-fixed-dim": "#d8d5c3",
+                  "error-dim": "#9f0519",
+                  "primary-fixed": "#ace8e0",
+                  "primary-dim": "#1a5952",
+                  "surface-container-low": "#f2f1ea",
+                  "error-container": "#fb5151",
+                  "tertiary-container": "#2cbcff",
+                  "surface": "#f8f7f0",
+                  "secondary-dim": "#515042",
+                  "on-surface": "#2e2f2b",
+                  "surface-container-lowest": "#ffffff",
+                  "tertiary-dim": "#005578",
+                  "on-tertiary-fixed": "#001a28",
+                  "inverse-primary": "#c0fdf4",
+                  "on-secondary-container": "#535244",
+                  "tertiary-fixed-dim": "#00aef0",
+                  "tertiary": "#006289",
+                  "background": "#f8f7f0",
+                  "error": "#b31b25",
+                  "primary-fixed-dim": "#9edad2",
+                  "inverse-on-surface": "#9d9d97",
+                  "on-surface-variant": "#5b5c57",
+                  "tertiary-fixed": "#2cbcff",
+                  "primary-container": "#ace8e0",
+                  "on-primary-fixed": "#00443e",
+                  "on-background": "#2e2f2b",
+                  "surface-container-highest": "#ddddd5",
+                  "surface-container-high": "#e3e3db",
+                  "surface-container": "#e9e9e1",
+                  "outline": "#777772",
+                  "on-secondary": "#f6f3e0",
+                  "secondary": "#5d5c4e",
+                  "on-tertiary": "#e8f4ff",
+                  "on-error-container": "#570008",
+                  "secondary-container": "#e6e3d0"
+                },
+                fontFamily: {
+                  "headline": ["Plus Jakarta Sans"],
+                  "body": ["Be Vietnam Pro"],
+                  "label": ["Be Vietnam Pro"]
+                },
+                borderRadius: {"DEFAULT": "1rem", "lg": "2rem", "xl": "3rem", "full": "9999px"},
+              },
+            },
+          }
+        </script>
+    <style>
+          .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+          }
+          body {
+            font-family: 'Be Vietnam Pro', sans-serif;
+          }
+          h1, h2, h3 {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+          }
+          .glass-morphism {
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+          }
+        </style>
+    <style>
+        body {
+          min-height: max(884px, 100dvh);
+        }
+      </style>
+      </head>
+    <body class="bg-surface text-on-surface min-h-screen">
+    <!-- TopAppBar -->
+    <header class="fixed top-0 w-full z-50 bg-[#f8f7f0]/80 dark:bg-[#1a1b16]/80 backdrop-blur-xl">
+    <div class="flex items-center justify-between px-6 h-16 w-full max-w-screen-xl mx-auto">
+    <button class="text-[#29655e] dark:text-[#ace8e0] hover:opacity-80 transition-opacity active:scale-95 duration-200">
+    <span class="material-symbols-outlined" data-icon="arrow_back">arrow_back</span>
+    </button>
+    <h1 class="text-2xl font-black text-[#29655e] dark:text-[#ace8e0] tracking-tighter">STARR'S</h1>
+    <div class="w-10"></div> <!-- Spacer for centering -->
+    </div>
+    <div class="bg-[#f2f1ea] dark:bg-[#2e2f2b] h-[1px] w-full absolute bottom-0 opacity-20"></div>
+    </header>
+    <main class="pt-24 pb-12 px-6 max-w-xl mx-auto relative overflow-hidden">
+    <!-- Asymmetric Background Decorative Elements -->
+    <div class="absolute -top-24 -right-24 w-64 h-64 bg-tertiary-container/10 rounded-full blur-[80px] -z-10"></div>
+    <div class="absolute top-1/2 -left-32 w-80 h-80 bg-primary-container/20 rounded-full blur-[100px] -z-10"></div>
+    <!-- Editorial Header Section -->
+    <section class="mb-10">
+    <h2 class="text-4xl md:text-5xl font-extrabold tracking-tight text-primary leading-[1.1] mb-4">
+                    Let's get your <span class="text-tertiary">order</span> ready for pickup.
+                </h2>
+    <p class="text-on-surface-variant font-body text-lg max-w-[80%]">
+                    Tell us when you're arriving so we can ensure your shakes are chilled to perfection.
+                </p>
+    </section>
+    <!-- Pickup Details Form -->
+    <form class="space-y-8">
+    <div class="space-y-6">
+    <!-- Name Field -->
+    <div class="group">
+    <label class="block text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-2 ml-4">Full Name</label>
+    <div class="relative">
+    <input class="w-full bg-surface-container-highest border-none rounded-xl px-6 py-5 focus:ring-2 focus:ring-primary/20 focus:bg-surface-container-lowest transition-all text-on-surface placeholder:text-outline-variant/60 font-medium" placeholder="Starr Miller" type="text"/>
+    <span class="material-symbols-outlined absolute right-6 top-1/2 -translate-y-1/2 text-primary/40" data-icon="person">person</span>
+    </div>
+    </div>
+    <!-- Phone Number Field -->
+    <div class="group">
+    <label class="block text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-2 ml-4">Phone Number</label>
+    <div class="relative">
+    <input class="w-full bg-surface-container-highest border-none rounded-xl px-6 py-5 focus:ring-2 focus:ring-primary/20 focus:bg-surface-container-lowest transition-all text-on-surface placeholder:text-outline-variant/60 font-medium" placeholder="(555) 000-0000" type="tel"/>
+    <span class="material-symbols-outlined absolute right-6 top-1/2 -translate-y-1/2 text-primary/40" data-icon="call">call</span>
+    </div>
+    </div>
+    <!-- Bento Style Dual Row -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <!-- Pickup Time Selection -->
+    <div class="bg-surface-container-low rounded-xl p-6 relative overflow-hidden group">
+    <div class="absolute -bottom-4 -right-4 text-primary/5">
+    <span class="material-symbols-outlined text-8xl" data-icon="schedule">schedule</span>
+    </div>
+    <label class="block text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-4">Pickup Time</label>
+    <select class="w-full bg-surface-container-lowest border-none rounded-lg px-4 py-3 focus:ring-2 focus:ring-primary/20 transition-all text-on-surface font-semibold appearance-none">
+    <option>As soon as possible</option>
+    <option>In 15 minutes</option>
+    <option>In 30 minutes</option>
+    <option>Scheduled later</option>
+    </select>
+    </div>
+    <!-- Curbside Toggle Indicator -->
+    <div class="bg-primary-container/30 rounded-xl p-6 flex flex-col justify-between border-none">
+    <span class="material-symbols-outlined text-primary mb-2" data-icon="curbside_check">check</span>
+    <p class="text-on-primary-container font-bold text-sm">Curbside Pickup Enabled</p>
+    <p class="text-on-primary-container/70 text-xs mt-1">We'll bring it right to your car.</p>
+    </div>
+    </div>
+    <!-- Vehicle Description (Asymmetric larger area) -->
+    <div class="group">
+    <label class="block text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-2 ml-4">Vehicle Description</label>
+    <div class="relative">
+    <textarea class="w-full bg-surface-container-highest border-none rounded-xl px-6 py-5 focus:ring-2 focus:ring-primary/20 focus:bg-surface-container-lowest transition-all text-on-surface placeholder:text-outline-variant/60 font-medium resize-none" placeholder="e.g., Blue Tesla Model 3, parked near the hydrant" rows="3"></textarea>
+    <span class="material-symbols-outlined absolute right-6 top-6 text-primary/40" data-icon="directions_car">directions_car</span>
+    </div>
+    </div>
+    </div>
+    <!-- Image Interjection (Effervescent Creamery Aesthetic) -->
+    <div class="relative w-full h-48 rounded-xl overflow-hidden bg-surface-container-high group">
+    <img alt="Close up of a thick creamy milkshake with whipped cream" class="w-full h-full object-cover opacity-80 group-hover:scale-105 transition-transform duration-700" data-alt="Close up of a thick creamy milkshake with whipped cream" src="https://lh3.googleusercontent.com/aida-public/AB6AXuB-7NI_-jJ9bZrEyN8qA_Z9xJaz4tPKzPa9Jtr6xJSGEMvO42019hAkNFj-ZO7edXKmbMFSQb1Dq0q2nKL8RwmttR-J6oP-5Q4YzNmNbg1y6CS17lD89d5Wmz6BlzFa7b2tPVaAMVp9riPTTKLhVZR_QCt8pm6IbiPuAv-ec0TLx0b0MT_xON4o0p3DdMwsXNU-QGyYjAzbVeks3R-bWuvZ3v56nTGVk9iExJSrGVaEt9yc_2P2Zla3YjXNpvU9VHMcet54dxCCc1id"/>
+    <div class="absolute inset-0 bg-gradient-to-t from-primary/60 to-transparent"></div>
+    <div class="absolute bottom-6 left-6 right-6">
+    <p class="text-white font-headline font-bold text-xl tracking-tight leading-none">Freshly churned.</p>
+    <p class="text-primary-fixed font-body text-sm mt-1">Your order is prepared only when you're nearby.</p>
+    </div>
+    </div>
+    <!-- Action Buttons -->
+    <div class="flex flex-col gap-4 pt-4">
+    <button class="w-full bg-primary text-on-primary font-headline font-bold text-lg py-5 rounded-full shadow-lg hover:opacity-90 active:scale-95 transition-all flex items-center justify-center gap-2" type="submit">
+                        Confirm Details
+                        <span class="material-symbols-outlined" data-icon="chevron_right">chevron_right</span>
+    </button>
+    <button class="w-full bg-surface-container-highest text-primary font-headline font-bold text-lg py-5 rounded-full hover:bg-surface-container-high active:scale-95 transition-all" type="button">
+                        Back
+                    </button>
+    </div>
+    </form>
+    </main>
+    <!-- Navigation suppressed per rules for transactional focused task -->
+    <!-- Bottom spacing for mobile comfort -->
+    <div class="h-12"></div>
+    </body></html>
+    
+    <!-- Delivery Details -->
+    <!DOCTYPE html>
+    
+    <html lang="en"><head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>Starr's - Delivery Details</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;family=Be+Vietnam+Pro:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+    <script id="tailwind-config">
+          tailwind.config = {
+            darkMode: "class",
+            theme: {
+              extend: {
+                colors: {
+                  "on-primary": "#c2fef6",
+                  "inverse-surface": "#0d0f0b",
+                  "on-error": "#ffefee",
+                  "on-secondary-fixed-variant": "#5d5c4e",
+                  "surface-tint": "#29655e",
+                  "primary": "#29655e",
+                  "surface-bright": "#f8f7f0",
+                  "outline-variant": "#adada7",
+                  "on-secondary-fixed": "#404033",
+                  "on-primary-container": "#185751",
+                  "on-tertiary-fixed-variant": "#003e58",
+                  "on-primary-fixed-variant": "#25615b",
+                  "secondary-fixed": "#e6e3d0",
+                  "surface-dim": "#d4d5cc",
+                  "surface-variant": "#ddddd5",
+                  "on-tertiary-container": "#00344c",
+                  "secondary-fixed-dim": "#d8d5c3",
+                  "error-dim": "#9f0519",
+                  "primary-fixed": "#ace8e0",
+                  "primary-dim": "#1a5952",
+                  "surface-container-low": "#f2f1ea",
+                  "error-container": "#fb5151",
+                  "tertiary-container": "#2cbcff",
+                  "surface": "#f8f7f0",
+                  "secondary-dim": "#515042",
+                  "on-surface": "#2e2f2b",
+                  "surface-container-lowest": "#ffffff",
+                  "tertiary-dim": "#005578",
+                  "on-tertiary-fixed": "#001a28",
+                  "inverse-primary": "#c0fdf4",
+                  "on-secondary-container": "#535244",
+                  "tertiary-fixed-dim": "#00aef0",
+                  "tertiary": "#006289",
+                  "background": "#f8f7f0",
+                  "error": "#b31b25",
+                  "primary-fixed-dim": "#9edad2",
+                  "inverse-on-surface": "#9d9d97",
+                  "on-surface-variant": "#5b5c57",
+                  "tertiary-fixed": "#2cbcff",
+                  "primary-container": "#ace8e0",
+                  "on-primary-fixed": "#00443e",
+                  "on-background": "#2e2f2b",
+                  "surface-container-highest": "#ddddd5",
+                  "surface-container-high": "#e3e3db",
+                  "surface-container": "#e9e9e1",
+                  "outline": "#777772",
+                  "on-secondary": "#f6f3e0",
+                  "secondary": "#5d5c4e",
+                  "on-tertiary": "#e8f4ff",
+                  "on-error-container": "#570008",
+                  "secondary-container": "#e6e3d0"
+                },
+                fontFamily: {
+                  "headline": ["Plus Jakarta Sans"],
+                  "body": ["Be Vietnam Pro"],
+                  "label": ["Be Vietnam Pro"]
+                },
+                borderRadius: {"DEFAULT": "1rem", "lg": "2rem", "xl": "3rem", "full": "9999px"},
+              },
+            },
+          }
+        </script>
+    <style>
+          .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+          }
+          .glass-effect {
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+          }
+          .asymmetric-image-container {
+            border-radius: 4rem 1.5rem 4rem 1.5rem;
+          }
+        </style>
+    <style>
+        body {
+          min-height: max(884px, 100dvh);
+        }
+      </style>
+      </head>
+    <body class="bg-surface text-on-surface font-body min-h-screen pb-24">
+    <!-- TopAppBar -->
+    <header class="bg-[#f8f7f0]/80 dark:bg-[#1a1b16]/80 backdrop-blur-xl fixed top-0 w-full z-50">
+    <div class="flex items-center justify-between px-6 h-16 w-full max-w-screen-xl mx-auto">
+    <button class="active:scale-95 duration-200 text-[#29655e] flex items-center justify-center">
+    <span class="material-symbols-outlined" data-icon="arrow_back">arrow_back</span>
+    </button>
+    <h1 class="font-['Plus_Jakarta_Sans'] font-bold tracking-tight text-[#29655e] text-lg">Delivery Details</h1>
+    <div class="w-10"></div> <!-- Spacer for centering -->
+    </div>
+    <div class="bg-[#f2f1ea] dark:bg-[#2e2f2b] h-[1px] w-full absolute bottom-0 opacity-20"></div>
+    </header>
+    <main class="max-w-xl mx-auto pt-24 px-6">
+    <!-- Brand Header Section (Editorial Style) -->
+    <section class="mb-12 relative">
+    <div class="absolute -top-12 -right-8 w-48 h-48 bg-tertiary-container opacity-10 blur-[80px] rounded-full z-0"></div>
+    <div class="relative z-10">
+    <span class="text-primary font-headline font-extrabold tracking-widest text-xs uppercase mb-2 block">Checkout Journey</span>
+    <h2 class="text-4xl md:text-5xl font-headline font-black text-on-surface tracking-tighter leading-none mb-4">
+                        Where is the <br/><span class="text-primary">Starr</span> landing?
+                    </h2>
+    <p class="text-on-surface-variant font-body leading-relaxed max-w-xs">
+                        Give us the details and we'll have your creamy shakes whisked over in no time.
+                    </p>
+    </div>
+    </section>
+    <!-- Form Section -->
+    <form class="space-y-8">
+    <!-- Full Name -->
+    <div class="space-y-3">
+    <label class="font-label font-semibold text-xs uppercase tracking-widest text-on-surface-variant ml-4">Full Name</label>
+    <div class="relative group">
+    <input class="w-full h-16 px-8 bg-surface-container-highest border-none rounded-lg focus:ring-2 focus:ring-primary focus:bg-surface-container-lowest transition-all duration-300 placeholder:text-outline/50" placeholder="Starr Robertson" type="text"/>
+    <span class="absolute right-6 top-1/2 -translate-y-1/2 material-symbols-outlined text-primary/40 group-focus-within:text-primary transition-colors" data-icon="person">person</span>
+    </div>
+    </div>
+    <!-- Phone Number -->
+    <div class="space-y-3">
+    <label class="font-label font-semibold text-xs uppercase tracking-widest text-on-surface-variant ml-4">Phone Number</label>
+    <div class="relative group">
+    <input class="w-full h-16 px-8 bg-surface-container-highest border-none rounded-lg focus:ring-2 focus:ring-primary focus:bg-surface-container-lowest transition-all duration-300 placeholder:text-outline/50" placeholder="+1 (555) 000-0000" type="tel"/>
+    <span class="absolute right-6 top-1/2 -translate-y-1/2 material-symbols-outlined text-primary/40 group-focus-within:text-primary transition-colors" data-icon="call">call</span>
+    </div>
+    </div>
+    <!-- Delivery Address with Map Integration -->
+    <div class="space-y-3">
+    <label class="font-label font-semibold text-xs uppercase tracking-widest text-on-surface-variant ml-4">Delivery Address</label>
+    <div class="bg-surface-container-low rounded-xl overflow-hidden p-2 transition-transform duration-300 hover:scale-[1.01]">
+    <div class="relative h-44 w-full rounded-lg overflow-hidden bg-surface-variant">
+    <!-- Simulated Map Image -->
+    <img class="w-full h-full object-cover grayscale brightness-90 opacity-80" data-alt="A stylized map view of a city neighborhood" data-location="Los Angeles" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAzI6Ub4HYIUaHk2NXa0lC3TvGPl0E2KargNB_F-8imhpIDlltB8y5_tvQ3o7ZGBC1aaRns0WIUQyhnpWtxUElLdFRINbDjv4pjDkua6HV7t115HG_KAnOft9Cz_d4N1SZeYJz5qjJjFLcB-NC9id3JRyHcXO1wME3RqDtWNZ3xwHahzvADsIvdioM6cfqzmvO4YyOdO2P4w1I_5Wk_20wue0cwEpPpyqiOJw7TmLCD5-Dj46bWLoCfc9CNl4AsvVEnDsdYrg5jmvEO"/>
+    <div class="absolute inset-0 bg-gradient-to-t from-surface-container-low/80 to-transparent"></div>
+    <!-- Map Pin -->
+    <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center">
+    <div class="w-10 h-10 bg-primary rounded-full flex items-center justify-center shadow-lg border-4 border-surface-container-lowest">
+    <span class="material-symbols-outlined text-white text-lg" data-icon="location_on" style="font-variation-settings: 'FILL' 1;">location_on</span>
+    </div>
+    <div class="bg-surface-container-lowest px-4 py-1.5 rounded-full shadow-sm mt-2">
+    <span class="text-[10px] font-bold text-primary uppercase tracking-tighter">Your Location</span>
+    </div>
+    </div>
+    </div>
+    <div class="px-4 py-4 flex items-center gap-4">
+    <div class="flex-1">
+    <input class="w-full bg-transparent border-none p-0 focus:ring-0 text-on-surface font-medium placeholder:text-outline/40" placeholder="123 Milky Way Blvd, Creamy Heights" type="text"/>
+    </div>
+    <button class="w-10 h-10 flex items-center justify-center rounded-full bg-surface-container-highest text-primary active:scale-90 transition-transform" type="button">
+    <span class="material-symbols-outlined text-xl" data-icon="my_location">my_location</span>
+    </button>
+    </div>
+    </div>
+    </div>
+    <!-- Apartment/Suite -->
+    <div class="space-y-3">
+    <label class="font-label font-semibold text-xs uppercase tracking-widest text-on-surface-variant ml-4">Apartment / Suite</label>
+    <div class="relative group">
+    <input class="w-full h-16 px-8 bg-surface-container-highest border-none rounded-lg focus:ring-2 focus:ring-primary focus:bg-surface-container-lowest transition-all duration-300 placeholder:text-outline/50" placeholder="Suite 402, 4th Floor" type="text"/>
+    <span class="absolute right-6 top-1/2 -translate-y-1/2 material-symbols-outlined text-primary/40 group-focus-within:text-primary transition-colors" data-icon="apartment">apartment</span>
+    </div>
+    </div>
+    <!-- Delivery Instructions -->
+    <div class="space-y-3">
+    <label class="font-label font-semibold text-xs uppercase tracking-widest text-on-surface-variant ml-4">Delivery Instructions</label>
+    <div class="relative group">
+    <textarea class="w-full px-8 py-5 bg-surface-container-highest border-none rounded-lg focus:ring-2 focus:ring-primary focus:bg-surface-container-lowest transition-all duration-300 placeholder:text-outline/50 resize-none" placeholder="Leave at the front gate, code is 4321..." rows="3"></textarea>
+    <span class="absolute right-6 top-5 material-symbols-outlined text-primary/40 group-focus-within:text-primary transition-colors" data-icon="edit_note">edit_note</span>
+    </div>
+    </div>
+    <!-- CTA Buttons -->
+    <div class="flex flex-col gap-4 pt-6">
+    <button class="w-full h-16 bg-primary text-white font-headline font-bold text-lg rounded-full shadow-lg active:scale-95 duration-200 flex items-center justify-center gap-3 bg-gradient-to-b from-primary to-[#21514b]" type="button">
+                        Confirm Details
+                        <span class="material-symbols-outlined" data-icon="check_circle" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+    </button>
+    <button class="w-full h-14 bg-surface-container-highest text-primary font-headline font-bold rounded-full active:scale-95 duration-200 transition-colors" type="button">
+                        Back
+                    </button>
+    </div>
+    </form>
+    <!-- Aesthetic Footer Element -->
+    <div class="mt-16 flex justify-center opacity-10">
+    <span class="text-6xl font-headline font-black tracking-tighter text-on-surface select-none">STARR'S</span>
+    </div>
+    </main>
+    <!-- BottomNavBar Suppression Check: HIDDEN for transactional screens per instructions -->
+    <!-- Navigation shell is suppressed here to prioritize the focused checkout journey -->
+    <!-- Decorative Floating Elements (Effervescent Aesthetic) -->
+    <div class="fixed top-1/4 -left-12 w-32 h-32 bg-primary-container/20 blur-[60px] rounded-full -z-10 pointer-events-none"></div>
+    <div class="fixed bottom-1/4 -right-12 w-48 h-48 bg-tertiary-container/10 blur-[80px] rounded-full -z-10 pointer-events-none"></div>
+    </body></html>

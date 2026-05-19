@@ -11,14 +11,13 @@ export interface RateLimitResult {
 export async function checkAiRateLimit(psid: string): Promise<RateLimitResult> {
   const now = new Date();
 
-  const { data: existing } = await supabaseServer
-    .from('ai_rate_limits')
+  const { data: existing } = await (supabaseServer.from('ai_rate_limits') as any)
     .select('*')
     .eq('psid', psid)
     .single();
 
   if (!existing) {
-    await supabaseServer.from('ai_rate_limits').upsert({
+    await (supabaseServer.from('ai_rate_limits') as any).upsert({
       psid,
       count: 1,
       window_start: now.toISOString(),
@@ -30,8 +29,7 @@ export async function checkAiRateLimit(psid: string): Promise<RateLimitResult> {
   const elapsed = now.getTime() - windowStart.getTime();
 
   if (elapsed > WINDOW_MS) {
-    await supabaseServer
-      .from('ai_rate_limits')
+    await (supabaseServer.from('ai_rate_limits') as any)
       .update({ count: 1, window_start: now.toISOString() })
       .eq('psid', psid);
     return { allowed: true, remaining: MAX_REQUESTS_PER_MINUTE - 1 };
@@ -41,8 +39,7 @@ export async function checkAiRateLimit(psid: string): Promise<RateLimitResult> {
     return { allowed: false, remaining: 0 };
   }
 
-  await supabaseServer
-    .from('ai_rate_limits')
+  await (supabaseServer.from('ai_rate_limits') as any)
     .update({ count: existing.count + 1 })
     .eq('psid', psid);
 

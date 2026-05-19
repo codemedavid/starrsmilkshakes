@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import { Plus, Edit2, Trash2, CreditCard, AlertTriangle, Loader2, QrCode } from 'lucide-react';
-import type { AdminPaymentMethod as PaymentMethod } from '@/types';
+import type { AdminPaymentMethod as PaymentMethod, Branch } from '@/types';
 import {
   addPaymentMethod,
   updatePaymentMethod,
@@ -13,6 +13,7 @@ import ImageUpload from '@/components/ImageUpload';
 
 interface PaymentsContentProps {
   paymentMethods: PaymentMethod[];
+  branches: Branch[];
 }
 
 // ─── Modal form state ─────────────────────────────────────────────────────────
@@ -25,6 +26,7 @@ interface FormData {
   qr_code_url: string;
   active: boolean;
   sort_order: number;
+  branch_id: string | null;
 }
 
 const emptyForm = (): FormData => ({
@@ -35,11 +37,12 @@ const emptyForm = (): FormData => ({
   qr_code_url: '',
   active: true,
   sort_order: 0,
+  branch_id: null,
 });
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export default function PaymentsContent({ paymentMethods }: PaymentsContentProps) {
+export default function PaymentsContent({ paymentMethods, branches }: PaymentsContentProps) {
   const [showForm, setShowForm] = useState(false);
   const [editingMethod, setEditingMethod] = useState<PaymentMethod | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
@@ -72,6 +75,7 @@ export default function PaymentsContent({ paymentMethods }: PaymentsContentProps
       qr_code_url: method.qr_code_url,
       active: method.active,
       sort_order: method.sort_order,
+      branch_id: method.branch_id ?? null,
     });
     setFormError(null);
     setShowForm(true);
@@ -242,6 +246,13 @@ export default function PaymentsContent({ paymentMethods }: PaymentsContentProps
                 <p className="text-sm font-nunito text-stone-400 font-mono truncate">
                   {method.account_number}
                 </p>
+                {method.branch_id ? (
+                  <p className="text-xs font-nunito text-[#7BBFB5] mt-0.5">
+                    {branches.find((b) => b.id === method.branch_id)?.name ?? 'Unknown branch'}
+                  </p>
+                ) : (
+                  <p className="text-xs font-nunito text-stone-400 mt-0.5">All branches</p>
+                )}
               </div>
             </div>
 
@@ -364,6 +375,28 @@ export default function PaymentsContent({ paymentMethods }: PaymentsContentProps
                   "
                   placeholder="e.g. GCash, Maya, BDO Bank Transfer"
                 />
+              </div>
+
+              {/* Branch */}
+              <div>
+                <label className="block text-sm font-nunito font-medium text-stone-700 mb-1.5">
+                  Branch <span className="text-stone-400 font-normal">(leave empty for all branches)</span>
+                </label>
+                <select
+                  value={formData.branch_id ?? ''}
+                  onChange={(e) => setFormData({ ...formData, branch_id: e.target.value || null })}
+                  className="
+                    w-full px-3.5 py-2.5 border border-[#E8E3DA] rounded-[10px]
+                    font-nunito text-sm text-stone-900
+                    focus:ring-2 focus:ring-[#7BBFB5]/40 focus:border-[#7BBFB5] outline-none
+                    transition-all duration-200 bg-white
+                  "
+                >
+                  <option value="">All Branches</option>
+                  {branches.map((b) => (
+                    <option key={b.id} value={b.id}>{b.name}</option>
+                  ))}
+                </select>
               </div>
 
               {/* Account Name */}

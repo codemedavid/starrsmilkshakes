@@ -13,8 +13,7 @@ export async function getFaqEntries(): Promise<FaqEntry[]> {
     return cachedEntries;
   }
 
-  const { data, error } = await supabaseServer
-    .from('faq_entries')
+  const { data, error } = await (supabaseServer.from('faq_entries') as any)
     .select('*')
     .eq('is_active', true)
     .order('sort_order');
@@ -120,8 +119,7 @@ export async function buildFaqResponse(
 
 // --- Admin CRUD ---
 export async function getAllFaqs(): Promise<FaqEntry[]> {
-  const { data, error } = await supabaseServer
-    .from('faq_entries')
+  const { data, error } = await (supabaseServer.from('faq_entries') as any)
     .select('*')
     .order('sort_order');
 
@@ -131,8 +129,7 @@ export async function getAllFaqs(): Promise<FaqEntry[]> {
 
 export async function upsertFaq(input: FaqInput): Promise<FaqEntry | null> {
   if (input.id) {
-    const { data, error } = await supabaseServer
-      .from('faq_entries')
+    const { data, error } = await (supabaseServer.from('faq_entries') as any)
       .update({
         question: input.question,
         answer: input.answer,
@@ -150,8 +147,7 @@ export async function upsertFaq(input: FaqInput): Promise<FaqEntry | null> {
     return data as FaqEntry;
   }
 
-  const { data, error } = await supabaseServer
-    .from('faq_entries')
+  const { data, error } = await (supabaseServer.from('faq_entries') as any)
     .insert({
       question: input.question,
       answer: input.answer,
@@ -169,8 +165,7 @@ export async function upsertFaq(input: FaqInput): Promise<FaqEntry | null> {
 }
 
 export async function deleteFaq(id: string): Promise<boolean> {
-  const { error } = await supabaseServer
-    .from('faq_entries')
+  const { error } = await (supabaseServer.from('faq_entries') as any)
     .update({ is_active: false })
     .eq('id', id);
 

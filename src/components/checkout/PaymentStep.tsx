@@ -7,6 +7,7 @@ interface PaymentStepProps {
   selectedMethod: string | null;
   referenceNumber: string;
   totalAmount: number;
+  branchId?: string | null;
   onSelectMethod: (methodId: string) => void;
   onReferenceChange: (value: string) => void;
   onContinue: () => void;
@@ -25,12 +26,13 @@ export default function PaymentStep({
   selectedMethod,
   referenceNumber,
   totalAmount,
+  branchId,
   onSelectMethod,
   onReferenceChange,
   onContinue,
   onMethodNameChange,
 }: PaymentStepProps) {
-  const { paymentMethods, loading } = usePaymentMethods();
+  const { paymentMethods, loading } = usePaymentMethods(branchId);
   const selected = paymentMethods.find((pm) => pm.id === selectedMethod);
 
   if (loading) {

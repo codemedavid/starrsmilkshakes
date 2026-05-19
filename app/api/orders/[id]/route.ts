@@ -194,7 +194,6 @@ export async function GET(
 
     const { data, error } = await supabaseServer
       .from('orders')
-      // @ts-expect-error - customers join not in generated types
       .select(`
         *,
         order_items (*),

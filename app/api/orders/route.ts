@@ -292,7 +292,6 @@ export async function GET(request: NextRequest) {
 
     let query = supabaseServer
       .from('orders')
-      // @ts-expect-error - customers join not in generated types
       .select(`
         *,
         order_items (*),

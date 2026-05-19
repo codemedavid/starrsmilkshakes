@@ -116,7 +116,7 @@ export default function ReviewStep(props: ReviewStepProps) {
       }
 
       // Build Messenger redirect
-      const messengerUsername = branch?.messenger_username || siteSettings?.messenger_username || 'StarrsFamousShakes';
+      const messengerUsername = branch?.messenger_username || 'StarrsFamousShakes';
       if (messengerUsername) {
         const orderText = buildOrderText(order, cartItems, bundleItems, selectedPayment?.name);
         const encodedText = encodeURIComponent(orderText);

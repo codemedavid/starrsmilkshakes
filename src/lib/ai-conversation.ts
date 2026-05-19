@@ -10,8 +10,7 @@ export interface ConversationMessage {
 }
 
 export async function getOrCreateSessionId(psid: string): Promise<string> {
-  const { data: recent } = await supabaseServer
-    .from('ai_conversations')
+  const { data: recent } = await (supabaseServer.from('ai_conversations') as any)
     .select('session_id, created_at')
     .eq('psid', psid)
     .order('created_at', { ascending: false })
@@ -30,8 +29,7 @@ export async function getOrCreateSessionId(psid: string): Promise<string> {
 
 export async function getSessionHistory(sessionId: string): Promise<ConversationMessage[]> {
   // Get last MAX_HISTORY messages by querying DESC then reversing
-  const { data } = await supabaseServer
-    .from('ai_conversations')
+  const { data } = await (supabaseServer.from('ai_conversations') as any)
     .select('role, content')
     .eq('session_id', sessionId)
     .order('created_at', { ascending: false })
@@ -52,7 +50,7 @@ export async function logConversation(
   intent?: string,
   metadata?: Record<string, unknown>
 ): Promise<void> {
-  await supabaseServer.from('ai_conversations').insert({
+  await (supabaseServer.from('ai_conversations') as any).insert({
     session_id: sessionId,
     psid,
     role,
@@ -64,8 +62,7 @@ export async function logConversation(
 
 export async function cleanupOldConversations(): Promise<void> {
   const cutoff = new Date(Date.now() - TTL_DAYS * 24 * 60 * 60 * 1000).toISOString();
-  await supabaseServer
-    .from('ai_conversations')
+  await (supabaseServer.from('ai_conversations') as any)
     .delete()
     .lt('created_at', cutoff);
 }

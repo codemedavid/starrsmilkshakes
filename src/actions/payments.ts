@@ -3,7 +3,8 @@
 import { revalidatePath, revalidateTag } from 'next/cache';
 import { requireAdmin, checkActionRateLimit } from '@/lib/admin-guard';
 import { supabaseServer } from '@/lib/supabase-server';
-import { paymentMethodSchema, reorderSchema, uuidSchema } from '@/lib/validation';
+import { z } from 'zod';
+import { paymentMethodSchema, reorderSchema } from '@/lib/validation';
 
 type ActionResult = { success: boolean; error?: string; data?: any };
 
@@ -25,6 +26,7 @@ export async function addPaymentMethod(input: unknown): Promise<ActionResult> {
     qr_code_url: parsed.data.qr_code_url,
     active: parsed.data.active,
     sort_order: parsed.data.sort_order ?? 0,
+    branch_id: parsed.data.branch_id ?? null,
   };
 
   const { data, error } = await (supabaseServer
@@ -50,7 +52,7 @@ export async function updatePaymentMethod(id: unknown, input: unknown): Promise<
   const { allowed } = await checkActionRateLimit();
   if (!allowed) return { success: false, error: 'Too many requests. Please try again later.' };
 
-  const idResult = uuidSchema.safeParse(id);
+  const idResult = z.string().min(1).safeParse(id);
   if (!idResult.success) return { success: false, error: 'Invalid ID' };
 
   const parsed = paymentMethodSchema.safeParse(input);
@@ -63,6 +65,7 @@ export async function updatePaymentMethod(id: unknown, input: unknown): Promise<
     qr_code_url: parsed.data.qr_code_url,
     active: parsed.data.active,
     sort_order: parsed.data.sort_order ?? 0,
+    branch_id: parsed.data.branch_id ?? null,
   };
 
   const { data, error } = await (supabaseServer
@@ -89,7 +92,7 @@ export async function deletePaymentMethod(id: unknown): Promise<ActionResult> {
   const { allowed } = await checkActionRateLimit();
   if (!allowed) return { success: false, error: 'Too many requests. Please try again later.' };
 
-  const idResult = uuidSchema.safeParse(id);
+  const idResult = z.string().min(1).safeParse(id);
   if (!idResult.success) return { success: false, error: 'Invalid ID' };
 
   const { error } = await (supabaseServer
