@@ -191,6 +191,9 @@ export const isSameOriginRequest = (request: NextRequest) => {
 
   const allowedOrigins = new Set<string>();
 
+  // Always allow requests from the same host the server is running on
+  allowedOrigins.add(request.nextUrl.origin);
+
   const explicitOrigins = [
     process.env.NEXT_PUBLIC_APP_URL,
     process.env.NEXT_PUBLIC_SITE_URL,
