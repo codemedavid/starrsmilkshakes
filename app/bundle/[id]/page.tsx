@@ -177,7 +177,7 @@ export default function BundlePage({ params }: BundlePageProps) {
             router.push('/checkout');
         } else if (fromPair) {
             // Came from pair screen — go back to menu, no pair recursion
-            router.push('/');
+            router.push('/menu');
         } else {
             setShowToast(true);
             setTimeout(() => setShowToast(false), 3000);

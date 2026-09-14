@@ -55,7 +55,7 @@ export default function CheckoutClient({
       cart.cartItems.length === 0 &&
       (cart.bundleItems?.length ?? 0) === 0
     ) {
-      router.push('/');
+      router.push('/menu');
     }
   }, [cart.cartItems.length, cart.bundleItems?.length, router, msession]);
 
@@ -66,7 +66,7 @@ export default function CheckoutClient({
         <div className="text-center max-w-sm mx-auto p-6">
           <p className="text-red-600 font-semibold mb-4">{messengerError}</p>
           <button
-            onClick={() => router.push('/')}
+            onClick={() => router.push('/menu')}
             className="px-6 py-2 bg-starrs-sage text-starrs-cream-brand rounded-xl"
           >
             Go to Menu

@@ -1,66 +1,46 @@
 'use client';
 
-import React, { useEffect, useState, useCallback } from 'react';
+import React from 'react';
 import { useRouter } from 'next/navigation';
-import Header from '@/components/Header';
-import Menu from '@/components/Menu';
-import FloatingCartButton from '@/components/FloatingCartButton';
+import LandingHeader from '@/components/landing/LandingHeader';
+import LandingFooter from '@/components/landing/LandingFooter';
+import HeroSection from '@/components/landing/sections/HeroSection';
+import PromiseSection from '@/components/landing/sections/PromiseSection';
+import BestsellersSection from '@/components/landing/sections/BestsellersSection';
+import StorySection from '@/components/landing/sections/StorySection';
+import MoodSection from '@/components/landing/sections/MoodSection';
+import MakeYourOwnSection from '@/components/landing/sections/MakeYourOwnSection';
+import SocialSection from '@/components/landing/sections/SocialSection';
+import LocationsSection from '@/components/landing/sections/LocationsSection';
+import FinalCtaSection from '@/components/landing/sections/FinalCtaSection';
 import { useCartContext } from '@/contexts/CartContext';
 import { useMenu } from '@/hooks/useMenu';
-import { supabase } from '@/lib/supabase';
-import type { Bundle } from '@/types/bundle';
+import { useCategories } from '@/hooks/useCategories';
+import '@/components/landing/landing.css';
 
 const HomePage = () => {
   const router = useRouter();
   const cart = useCartContext();
   const { menuItems } = useMenu();
-  const [bundles, setBundles] = useState<Bundle[]>([]);
-
-  const fetchBundles = useCallback(async () => {
-    const { data } = await (supabase.from('bundles') as any)
-      .select(`
-        *,
-        slots:bundle_slots (
-          *,
-          items:bundle_slot_items (
-            *,
-            menu_item:menu_items (
-              *,
-              variations (*),
-              add_ons (*)
-            )
-          )
-        )
-      `)
-      .eq('available', true)
-      .order('sort_order', { ascending: true });
-
-    if (data) setBundles(data as Bundle[]);
-  }, []);
-
-  useEffect(() => {
-    void fetchBundles();
-  }, [fetchBundles]);
+  const { categories } = useCategories();
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-starrs-mint-light to-starrs-cream-light font-inter">
-      <Header
-        cartItemsCount={cart.getTotalItems()}
-        onCartClick={() => router.push('/cart')}
-        onMenuClick={() => router.push('/')}
-      />
-      <Menu
-        menuItems={menuItems}
-        bundles={bundles}
-        addToCart={cart.addToCart}
-        addBundleToCart={cart.addBundleToCart}
-        cartItems={cart.cartItems}
-        updateQuantity={cart.updateQuantity}
-      />
-      <FloatingCartButton
-        itemCount={cart.getTotalItems()}
-        onCartClick={() => router.push('/cart')}
-      />
+    <div className="stl-root">
+      <LandingHeader cartItemsCount={cart.getTotalItems()} onCartClick={() => router.push('/cart')} />
+
+      <main>
+        <HeroSection />
+        <PromiseSection />
+        <BestsellersSection menuItems={menuItems} />
+        <StorySection />
+        <MoodSection categories={categories} />
+        <MakeYourOwnSection />
+        <SocialSection />
+        <LocationsSection />
+        <FinalCtaSection />
+      </main>
+
+      <LandingFooter />
     </div>
   );
 };

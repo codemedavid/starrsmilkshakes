@@ -23,7 +23,7 @@ export default function CartPage() {
   useEffect(() => {
     if (cartItems.length === 0 && bundleItems.length === 0) {
       // Small delay so user sees the empty state briefly
-      const timer = setTimeout(() => router.push('/'), 2000);
+      const timer = setTimeout(() => router.push('/menu'), 2000);
       return () => clearTimeout(timer);
     }
   }, [cartItems.length, bundleItems.length, router]);
@@ -39,7 +39,7 @@ export default function CartPage() {
         updateBundleQuantity={updateBundleQuantity}
         clearCart={clearCart}
         getTotalPrice={getTotalPrice}
-        onContinueShopping={() => router.push('/')}
+        onContinueShopping={() => router.push('/menu')}
         onCheckout={() => router.push('/checkout')}
       />
     </>

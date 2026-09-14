@@ -173,7 +173,7 @@ export default function ProductPage({ params }: ProductPageProps) {
 
         if (fromPair) {
             // Came from pair screen — go back to menu, no pair recursion
-            router.push('/');
+            router.push('/menu');
             return;
         }
 
@@ -192,7 +192,7 @@ export default function ProductPage({ params }: ProductPageProps) {
         }
 
         setCheckingPairs(false);
-        router.push('/');
+        router.push('/menu');
     };
 
     if (loading) {

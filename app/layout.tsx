@@ -5,6 +5,11 @@ import FacebookPixel from '@/components/FacebookPixel';
 import { CartProvider } from '@/contexts/CartContext';
 import { UpsellProvider } from '@/contexts/UpsellContext';
 
+export const viewport = {
+  width: 'device-width',
+  initialScale: 1
+};
+
 export const metadata = {
   title: "Starr's Famous Shakes",
   description: 'Beracah Cafe online ordering dashboard and storefront.'

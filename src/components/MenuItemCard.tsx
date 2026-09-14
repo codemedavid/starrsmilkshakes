@@ -151,7 +151,7 @@ const MenuItemCard: React.FC<MenuItemCardProps> = ({
               };
               await showPair([upgradeItem]);
               setNavigating(false);
-              router.push('/');
+              router.push('/menu');
             } else {
               // No upgrade or skipped — go to product detail for customization
               router.push(`/product/${item.id}`);
